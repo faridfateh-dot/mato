@@ -318,7 +318,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentBranch, setCurrentBranchState] = useState<Branch>(() => (Array.isArray(branches) && branches[0]) ? branches[0] : INITIAL_BRANCHES[0]);
 
   const [users, setUsers] = useState<User[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_users`, INITIAL_USERS);
+    const loaded = safeStorageArrayParse(`${STORAGE_KEY}_users`, INITIAL_USERS);
+    const cleaned = loaded.filter(u => u && u.id !== 'usr_manager' && u.id !== 'usr_cashier' && u.id !== 'usr_inventory' && u.email !== 'samer@mato.sy' && u.email !== 'nour@mato.sy' && u.email !== 'ahmad@mato.sy');
+    return cleaned.length > 0 ? cleaned : INITIAL_USERS;
   });
 
   const [currentUser, setCurrentUserState] = useState<User>(() => (Array.isArray(users) && users[0]) ? users[0] : INITIAL_USERS[0]);
@@ -833,9 +835,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginUser = (emailOrPhone: string): boolean => {
+    const cleanInput = emailOrPhone.trim().toLowerCase();
     const matchedUser = users.find(u => 
-      (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) || 
-      (u.phone && u.phone === emailOrPhone)
+      (u.email && u.email.toLowerCase() === cleanInput) || 
+      (u.phone && u.phone.trim() === emailOrPhone.trim())
     );
     if (matchedUser) {
       setCurrentUserState(matchedUser);
@@ -844,7 +847,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     }
 
-    const matchedReg = systemRegistrations.find(r => r.emailOrPhone.toLowerCase() === emailOrPhone.toLowerCase());
+    const matchedReg = systemRegistrations.find(r => r.emailOrPhone.trim().toLowerCase() === cleanInput);
     if (matchedReg) {
       const tenantOwner: User = {
         id: `usr_${matchedReg.id}`,
@@ -860,13 +863,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUserState(tenantOwner);
       setIsAuthenticated(true);
       logActivity('تسجيل دخول', `تم تسجيل الدخول بنجاح لـ ${matchedReg.ownerName}`);
-      return true;
-    }
-
-    // Default fallback
-    if (emailOrPhone.length > 2) {
-      setIsAuthenticated(true);
-      logActivity('تسجيل دخول عام', `تم تسجيل الدخول بواسطة: ${emailOrPhone}`);
       return true;
     }
 

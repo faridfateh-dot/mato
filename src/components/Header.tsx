@@ -299,31 +299,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                   </div>
                 </div>
 
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-700/50">
-                  تبديل المستخدم/الدور للتجربة:
-                </div>
-
-                <div className="py-1">
-                  {users.map(u => (
-                    <button
-                      key={u.id}
-                      onClick={() => {
-                        setCurrentUser(u);
-                        setShowRoleMenu(false);
-                      }}
-                      className={`w-full text-right px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-700/50 transition-colors ${
-                        u.id === currentUser.id ? 'bg-slate-700/40 text-amber-400 font-bold' : 'text-slate-300'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-medium">{u.name}</div>
-                        <div className="text-[10px] text-slate-400">{u.role}</div>
-                      </div>
-                      {u.id === currentUser.id && <span className="text-xs">✓</span>}
-                    </button>
-                  ))}
-                </div>
-
                 <div className="border-t border-slate-700 pt-1 mt-1 px-2 flex flex-col gap-1">
                   <button
                     onClick={() => {

@@ -169,12 +169,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     }
   };
 
-  // Handle Quick Demo Login
-  const handleQuickDemoLogin = (email: string) => {
-    loginUser(email);
-    if (onClose) onClose();
-  };
-
   const content = (
     <div className="w-full max-w-xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden text-slate-100 dir-rtl">
       
@@ -384,30 +378,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               <span>تسجيل الدخول وفتح النظام</span>
             </button>
 
-            {/* Demo Quick Accounts Login */}
-            <div className="pt-4 border-t border-slate-800">
-              <div className="text-[11px] font-bold text-slate-400 text-center mb-2.5">
-                أو للدخول السريع والتجربة الفورية بنقرة واحدة:
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {users.slice(0, 4).map(u => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => handleQuickDemoLogin(u.email)}
-                    className="p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-right text-xs transition-all flex items-center gap-2 group cursor-pointer"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 font-bold flex items-center justify-center text-xs group-hover:bg-amber-400 group-hover:text-slate-950">
-                      {u.name.charAt(0)}
-                    </div>
-                    <div className="overflow-hidden">
-                      <div className="font-bold text-slate-200 truncate">{u.name}</div>
-                      <div className="text-[10px] text-amber-400/80">{u.role}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
           </form>
         )}
 

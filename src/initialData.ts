@@ -53,39 +53,6 @@ export const INITIAL_USERS: User[] = [
     phone: '+963 944 111 222',
     isActive: true,
     createdAt: '2026-01-01T08:00:00Z'
-  },
-  {
-    id: 'usr_manager',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    name: 'سامر العلي',
-    email: 'samer@mato.sy',
-    role: 'Manager',
-    phone: '+963 933 222 333',
-    isActive: true,
-    createdAt: '2026-01-02T10:00:00Z'
-  },
-  {
-    id: 'usr_cashier',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    name: 'نور الشام',
-    email: 'nour@mato.sy',
-    role: 'Cashier',
-    phone: '+963 955 444 555',
-    isActive: true,
-    createdAt: '2026-01-03T11:00:00Z'
-  },
-  {
-    id: 'usr_inventory',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    name: 'أحمد الحموي',
-    email: 'ahmad@mato.sy',
-    role: 'Inventory Manager',
-    phone: '+963 988 777 666',
-    isActive: true,
-    createdAt: '2026-01-04T09:00:00Z'
   }
 ];
 

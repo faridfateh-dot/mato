@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HashRouter, useLocation, useNavigate } from 'react-router-dom';
 import { DataProvider, useData } from './context/DataContext';
 import { Header } from './components/Header';
 import { Sidebar, ViewType } from './components/Sidebar';
@@ -16,11 +17,28 @@ import { SoftwareSalesView } from './components/SoftwareSalesView';
 import { AuthGate } from './components/AuthGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-const AppContent: React.FC = () => {
+const AppMainContent: React.FC = () => {
   const { isAuthenticated } = useData();
-  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [recipeProductTargetId, setRecipeProductTargetId] = useState<string | undefined>(undefined);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Derive current view from hash location pathname
+  const pathSegment = location.pathname.replace(/^\//, '');
+  const validViews: ViewType[] = [
+    'dashboard', 'pos', 'products', 'inventory', 
+    'suppliers', 'expenses', 'recipes', 'logs', 
+    'ai', 'users', 'saas'
+  ];
+  
+  const currentView: ViewType = validViews.includes(pathSegment as ViewType) 
+    ? (pathSegment as ViewType) 
+    : 'dashboard';
+
+  const setCurrentView = (view: ViewType) => {
+    navigate('/' + (view === 'dashboard' ? '' : view));
+  };
 
   const handleNavigateRecipeForProduct = (productId: string) => {
     setRecipeProductTargetId(productId);
@@ -100,7 +118,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <DataProvider>
-        <AppContent />
+        <HashRouter>
+          <AppMainContent />
+        </HashRouter>
       </DataProvider>
     </ErrorBoundary>
   );

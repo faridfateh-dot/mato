@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MATO POS</title>
     <script>
-      // Redirect GitHub Pages 404 to main index.html with route path restored
-      var path = window.location.pathname;
-      var repo = '/mato';
-      if (path.startsWith(repo)) {
-        window.location.replace(repo + '/#' + path.substring(repo.length));
-      } else {
-        window.location.replace('/mato/');
-      }
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(1).join('/') +
+        (l.search ? '&' + l.search.slice(1) : '') +
+        l.hash
+      );
     </script>
   </head>
   <body>

@@ -648,7 +648,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       // Clean image URLs from any existing salad products
       setProducts(prev => prev.map(p => {
-        const isSalad = p.name.includes('سلطة') || p.name.includes('سلطه') || p.categoryName.includes('سلطة') || p.categoryName.includes('سلطه') || p.categoryId === 'cat_salads';
+        const isSalad = p.name?.includes('سلطة') || p.name?.includes('سلطه') || p.categoryName?.includes('سلطة') || p.categoryName?.includes('سلطه') || p.categoryId === 'cat_salads';
         if (isSalad && p.imageUrl) {
           return { ...p, imageUrl: undefined };
         }

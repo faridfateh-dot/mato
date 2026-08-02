@@ -1,0 +1,6 @@
+{
+  "name": "MATO",
+  "description": "تطبيق ويب SaaS احترافي ذكي لإدارة المطاعم والمقاهي والمطاعم السريعة مع مساعد ذكاء اصطناعي تفاعلي",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

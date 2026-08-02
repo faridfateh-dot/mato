@@ -1,0 +1,202 @@
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  query,
+  where,
+  onSnapshot
+} from 'firebase/firestore';
+import firebaseConfig from '../../firebase-applet-config.json';
+
+// Initialize Firebase App
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+
+// Initialize Firestore with specified database ID
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+
+export interface FirestoreRestaurantRecord {
+  id: string;
+  name: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  status: 'active' | 'expired' | 'pending';
+  activationCode: string;
+  subscriptionExpiry: string; // ISO date string
+  registeredAt: string;
+  planType?: string;
+}
+
+export interface FirestoreActivationCode {
+  id: string;
+  code: string;
+  restaurantId: string;
+  restaurantName: string;
+  status: 'active' | 'redeemed' | 'expired';
+  expiresAt: string;
+  generatedAt: string;
+}
+
+// Generate a readable random annual code e.g. MATO-2026-9842
+export function generateAnnualCodeString(): string {
+  const currentYear = new Date().getFullYear();
+  const randomSegment = Math.floor(1000 + Math.random() * 9000).toString();
+  const charSegment = Array.from({ length: 3 }, () =>
+    String.fromCharCode(65 + Math.floor(Math.random() * 26))
+  ).join('');
+  return `MATO-${currentYear}-${charSegment}${randomSegment}`;
+}
+
+// Save or Update Restaurant in Firestore
+export async function saveRestaurantToFirestore(record: FirestoreRestaurantRecord): Promise<void> {
+  try {
+    const docRef = doc(db, 'restaurants', record.id);
+    await setDoc(docRef, record, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveRestaurant error:', err);
+  }
+}
+
+// Fetch All Restaurants from Firestore
+export async function fetchRestaurantsFromFirestore(): Promise<FirestoreRestaurantRecord[]> {
+  try {
+    const colRef = collection(db, 'restaurants');
+    const snapshot = await getDocs(colRef);
+    const records: FirestoreRestaurantRecord[] = [];
+    snapshot.forEach((d) => {
+      records.push({ id: d.id, ...(d.data() as Omit<FirestoreRestaurantRecord, 'id'>) });
+    });
+    return records;
+  } catch (err) {
+    console.warn('Firestore fetchRestaurants error:', err);
+    return [];
+  }
+}
+
+// Generate New Annual Activation Code for a restaurant & update its status to 'active'
+export async function generateAnnualCodeForRestaurant(
+  restaurantId: string,
+  restaurantName: string
+): Promise<{ code: string; newExpiry: string }> {
+  const newCode = generateAnnualCodeString();
+  const oneYearFromNow = new Date();
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  const newExpiryISO = oneYearFromNow.toISOString();
+
+  try {
+    // 1. Save activation code doc
+    const codeDocId = `code_${Date.now()}`;
+    const codeRef = doc(db, 'activation_codes', codeDocId);
+    await setDoc(codeRef, {
+      id: codeDocId,
+      code: newCode,
+      restaurantId,
+      restaurantName,
+      status: 'active',
+      expiresAt: newExpiryISO,
+      generatedAt: new Date().toISOString()
+    });
+
+    // 2. Update restaurant doc status to active & new expiry
+    const restRef = doc(db, 'restaurants', restaurantId);
+    await updateDoc(restRef, {
+      activationCode: newCode,
+      status: 'active',
+      subscriptionExpiry: newExpiryISO
+    });
+  } catch (err) {
+    console.warn('Firestore generateAnnualCode error:', err);
+  }
+
+  return { code: newCode, newExpiry: newExpiryISO };
+}
+
+// Verify Code entered by Subscriber
+export async function verifyActivationCodeInFirestore(code: string): Promise<{
+  valid: boolean;
+  restaurant?: FirestoreRestaurantRecord;
+  message: string;
+}> {
+  const cleanCode = code.trim().toUpperCase();
+
+  try {
+    // Search in restaurants collection first for matching activationCode
+    const restCol = collection(db, 'restaurants');
+    const qRest = query(restCol, where('activationCode', '==', cleanCode));
+    const restSnap = await getDocs(qRest);
+
+    if (!restSnap.empty) {
+      const docData = restSnap.docs[0].data() as FirestoreRestaurantRecord;
+      const docId = restSnap.docs[0].id;
+
+      // Check expiry date
+      const expiryDate = new Date(docData.subscriptionExpiry);
+      if (expiryDate < new Date()) {
+        return {
+          valid: false,
+          restaurant: { ...docData, id: docId },
+          message: 'كود التفعيل هذا انتهت صلاحيته السنوية. يرجى التواصل مع إدارة المنصة للتجديد.'
+        };
+      }
+
+      return {
+        valid: true,
+        restaurant: { ...docData, id: docId, status: 'active' },
+        message: 'تم التحقق من كود التفعيل السنوي بنجاح وتنشيط الاشتراك السحابي!'
+      };
+    }
+
+    // Search in activation_codes collection
+    const codesCol = collection(db, 'activation_codes');
+    const qCodes = query(codesCol, where('code', '==', cleanCode));
+    const codeSnap = await getDocs(qCodes);
+
+    if (!codeSnap.empty) {
+      const codeData = codeSnap.docs[0].data() as FirestoreActivationCode;
+      
+      // Fetch associated restaurant
+      const restRef = doc(db, 'restaurants', codeData.restaurantId);
+      const rSnap = await getDoc(restRef);
+
+      if (rSnap.exists()) {
+        const rData = rSnap.data() as FirestoreRestaurantRecord;
+        return {
+          valid: true,
+          restaurant: { ...rData, id: rSnap.id, activationCode: cleanCode, status: 'active' },
+          message: 'تم التحقق من كود التفعيل السنوي بنجاح!'
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Firestore verifyCode error:', err);
+  }
+
+  return {
+    valid: false,
+    message: 'كود التفعيل غير صحيح أو غير موجود في قاعدة البيانات السحابية.'
+  };
+}
+
+// Listen to Restaurants Realtime updates from Firestore
+export function subscribeRestaurantsRealtime(
+  callback: (records: FirestoreRestaurantRecord[]) => void
+) {
+  try {
+    const colRef = collection(db, 'restaurants');
+    return onSnapshot(colRef, (snapshot) => {
+      const records: FirestoreRestaurantRecord[] = [];
+      snapshot.forEach((d) => {
+        records.push({ id: d.id, ...(d.data() as Omit<FirestoreRestaurantRecord, 'id'>) });
+      });
+      callback(records);
+    });
+  } catch (err) {
+    console.warn('Realtime subscription error:', err);
+    return () => {};
+  }
+}

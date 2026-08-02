@@ -1,0 +1,17 @@
+{
+  "short_name": "MATO POS",
+  "name": "MATO POS & SaaS Restaurant System",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "description": "نظام إدارة الكاشير والمطاعم المتكامل مع إمكانية العمل الكامل دون إنترنت"
+}

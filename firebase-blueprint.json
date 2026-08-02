@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "restaurants": {
+      "title": "Restaurants",
+      "description": "Registered restaurants, owners, contact numbers, subscription expiry and activation codes",
+      "properties": {
+        "name": { "type": "string", "description": "Restaurant Name" },
+        "ownerName": { "type": "string", "description": "Owner Name" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "email": { "type": "string", "description": "Email address" },
+        "status": { "type": "string", "description": "Status: active or expired or pending" },
+        "activationCode": { "type": "string", "description": "Annual activation code" },
+        "subscriptionExpiry": { "type": "string", "description": "Subscription Expiry Date ISO string" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["name", "phone", "status"]
+    },
+    "activation_codes": {
+      "title": "Activation Codes",
+      "description": "Generated annual activation codes",
+      "properties": {
+        "code": { "type": "string", "description": "Activation code e.g. MATO-2026-XXXX" },
+        "restaurantId": { "type": "string", "description": "ID of the restaurant" },
+        "restaurantName": { "type": "string", "description": "Name of the restaurant" },
+        "status": { "type": "string", "description": "active or redeemed" },
+        "expiresAt": { "type": "string", "description": "Expiration date" },
+        "generatedAt": { "type": "string", "description": "Timestamp code was generated" }
+      },
+      "required": ["code", "status"]
+    }
+  }
+}

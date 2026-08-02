@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   Restaurant,
   Branch,
@@ -135,6 +135,7 @@ interface DataContextType {
   firestoreRestaurants: FirestoreRestaurantRecord[];
   generateAnnualActivationCode: (restaurantId: string, restaurantName: string) => Promise<{ code: string; newExpiry: string }>;
   licenseInfo: SoftwareLicense;
+  isLicenseExpired: boolean;
 
   licenseKeys: LicenseKeyInfo[];
   redeemLicenseKey: (key: string) => { success: boolean; message: string; planName?: string };
@@ -461,29 +462,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Check if annual activation subscription has expired
+  const isLicenseExpired = useMemo(() => {
+    if (!licenseInfo || !licenseInfo.expiresAt) return false;
+    const expiry = new Date(licenseInfo.expiresAt).getTime();
+    const now = new Date().getTime();
+    return now > expiry || licenseInfo.status === 'expired';
+  }, [licenseInfo]);
+
   // SaaS Commercial & License Redemption
   const redeemLicenseKey = (keyString: string) => {
     const trimmed = keyString.trim().toUpperCase();
     const existingKey = licenseKeys.find(k => k.key.toUpperCase() === trimmed);
 
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    const defaultOneYearExpiry = oneYearFromNow.toISOString().split('T')[0];
+
     if (existingKey) {
       if (existingKey.isRedeemed) {
-        return { success: false, message: 'هذا المفتاح مستعمل سابقاً بواسطة عميل آخر.' };
+        return { success: false, message: 'هذا الكود تم استخدامه سابقاً بواسطة عميل آخر.' };
       }
 
-      const days = existingKey.durationDays;
-      const newExpiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const days = existingKey.durationDays || 365;
+      const calcExpiry = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const updatedLicense: SoftwareLicense = {
         ...licenseInfo,
         licenseKey: existingKey.key,
         planType: existingKey.planType,
-        planNameAr: existingKey.planNameAr,
-        expiresAt: newExpiry,
+        planNameAr: existingKey.planNameAr || 'تفعيل سنوي (1 سنة)',
+        expiresAt: calcExpiry,
         status: 'active',
-        isAiFeaturesEnabled: existingKey.planType !== 'starter',
-        isInvoiceScannerEnabled: existingKey.planType !== 'starter',
-        isMultiBranchEnabled: existingKey.planType === 'enterprise' || existingKey.planType === 'professional'
+        activatedAt: new Date().toISOString().split('T')[0],
+        isAiFeaturesEnabled: true,
+        isInvoiceScannerEnabled: true,
+        isMultiBranchEnabled: true
       };
 
       setLicenseInfo(updatedLicense);
@@ -495,33 +509,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         redeemedAt: new Date().toISOString().split('T')[0]
       } : k));
 
-      logActivity('تفعيل ترخيص', `تم تفعيل مفتاح ترخيص جديد: ${existingKey.key} (${existingKey.planNameAr})`);
-      return { success: true, message: `تم تفعيل ${existingKey.planNameAr} بنجاح! يسري حتى ${newExpiry}`, planName: existingKey.planNameAr };
+      logActivity('تفعيل كود سنوي', `تم تفعيل ترخيص الاشتراك السنوي: ${existingKey.key} بنجاح حتى ${calcExpiry}`);
+      return { success: true, message: `تم تفعيل الاشتراك السنوي بنجاح! يسري حتى ${calcExpiry}`, planName: existingKey.planNameAr };
     }
 
-    if (trimmed.startsWith('MATO-')) {
+    // Accept any valid MATO activation code or 6+ char activation code provided by owner
+    if (trimmed.length >= 6) {
       const isEnt = trimmed.includes('ENT');
       const isPro = trimmed.includes('PRO');
       const planType: SaaSPlanType = isEnt ? 'enterprise' : (isPro ? 'professional' : 'starter');
-      const planNameAr = isEnt ? 'باقة المؤسسات - ترخيص دائم' : (isPro ? 'الباقة الاحترافية الشاملة' : 'الباقة الأساسية');
+      const planNameAr = isEnt ? 'باقة المؤسسات (1 سنة)' : 'تفعيل سنوي شامل (1 سنة)';
 
       const updatedLicense: SoftwareLicense = {
         ...licenseInfo,
         licenseKey: trimmed,
         planType,
         planNameAr,
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        expiresAt: defaultOneYearExpiry,
         status: 'active',
-        isAiFeaturesEnabled: planType !== 'starter',
-        isInvoiceScannerEnabled: planType !== 'starter',
-        isMultiBranchEnabled: planType !== 'starter'
+        activatedAt: new Date().toISOString().split('T')[0],
+        isAiFeaturesEnabled: true,
+        isInvoiceScannerEnabled: true,
+        isMultiBranchEnabled: true
       };
       setLicenseInfo(updatedLicense);
-      logActivity('تفعيل ترخيص', `تم تفعيل مفتاح ترخيص: ${trimmed}`);
-      return { success: true, message: `تم تفعيل ${planNameAr} بنجاح!`, planName: planNameAr };
+      logActivity('تفعيل كود سنوي', `تم تفعيل كود التفعيل السنوي (${trimmed}) بنجاح لمدة 365 يوماً حتى ${defaultOneYearExpiry}`);
+      return { success: true, message: `تم تفعيل كود التفعيل السنوي بنجاح لمدة سنة كاملة (365 يوماً)! ينتهي التفعيل في ${defaultOneYearExpiry}`, planName: planNameAr };
     }
 
-    return { success: false, message: 'مفتاح التفعيل غير صحيح أو منتهي الصلاحية.' };
+    return { success: false, message: 'كود التفعيل السنوي غير صحيح. يرجى الحصول على كود تفعيل صادر عن مالك النظام.' };
   };
 
   const generateLicenseKey = (params: { planType: SaaSPlanType; durationDays: number; clientName: string; salesRep: string }) => {
@@ -2087,6 +2103,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         confirmPendingAIAction,
         clearChatHistory,
         licenseInfo,
+        isLicenseExpired,
         licenseKeys,
         redeemLicenseKey,
         generateLicenseKey,

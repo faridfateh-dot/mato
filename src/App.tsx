@@ -15,10 +15,11 @@ import { AIChatView } from './components/AIChatView';
 import { UsersSettingsView } from './components/UsersSettingsView';
 import { SoftwareSalesView } from './components/SoftwareSalesView';
 import { AuthGate } from './components/AuthGate';
+import { AnnualLicenseLock } from './components/AnnualLicenseLock';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppMainContent: React.FC = () => {
-  const { isAuthenticated } = useData();
+  const { isAuthenticated, isLicenseExpired } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   const [recipeProductTargetId, setRecipeProductTargetId] = useState<string | undefined>(undefined);
@@ -48,6 +49,11 @@ const AppMainContent: React.FC = () => {
   // Mandatory login / register screen on initial open if not authenticated
   if (!isAuthenticated) {
     return <AuthGate />;
+  }
+
+  // Lock system if 1-year annual activation subscription has expired
+  if (isLicenseExpired) {
+    return <AnnualLicenseLock />;
   }
 
   const renderMainView = () => {

@@ -481,11 +481,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                 <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs space-y-2">
                   <div className="flex items-center gap-2 font-bold text-sm">
                     <CheckCircle2 className="w-5 h-5 text-amber-400" />
-                    <span>تم إرسال رابط التفعيل ورمز التأكيد!</span>
+                    <span>رمز التفعيل الفوري (دون الحاجة لانتظار SMS)</span>
                   </div>
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    تم إرسال رسالة تفعيل إلى **({regContact})**. 
-                    رمز التفعيل الخاص بك هو: <span className="font-mono text-base font-black text-amber-400 px-2 py-0.5 rounded bg-slate-900 border border-amber-400/40 select-all">{generatedCode}</span>
+                    يعمل النظام محلياً ومباشرة. رمز التفعيل الخاص بحسابك <strong>({regContact})</strong> يظهر أمامك الآن على الشاشة: <span className="font-mono text-base font-black text-amber-400 px-2 py-0.5 rounded bg-slate-900 border border-amber-400/40 select-all">{generatedCode}</span>
                   </p>
                 </div>
 

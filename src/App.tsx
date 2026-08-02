@@ -14,6 +14,7 @@ import { AIChatView } from './components/AIChatView';
 import { UsersSettingsView } from './components/UsersSettingsView';
 import { SoftwareSalesView } from './components/SoftwareSalesView';
 import { AuthGate } from './components/AuthGate';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated } = useData();
@@ -97,8 +98,10 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <DataProvider>
-      <AppContent />
-    </DataProvider>
+    <ErrorBoundary>
+      <DataProvider>
+        <AppContent />
+      </DataProvider>
+    </ErrorBoundary>
   );
 }

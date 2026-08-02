@@ -13,11 +13,20 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Initialize Firebase App
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Initialize Firebase App safely
+let app: any = null;
+let dbInstance: any = null;
 
-// Initialize Firestore with specified database ID
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+try {
+  if (firebaseConfig && (firebaseConfig as any).apiKey) {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+  }
+} catch (err) {
+  console.warn('Firebase initialization skipped or warning:', err);
+}
+
+export const db = dbInstance;
 
 export interface FirestoreRestaurantRecord {
   id: string;
@@ -54,6 +63,7 @@ export function generateAnnualCodeString(): string {
 
 // Save or Update Restaurant in Firestore
 export async function saveRestaurantToFirestore(record: FirestoreRestaurantRecord): Promise<void> {
+  if (!db) return;
   try {
     const docRef = doc(db, 'restaurants', record.id);
     await setDoc(docRef, record, { merge: true });
@@ -64,6 +74,7 @@ export async function saveRestaurantToFirestore(record: FirestoreRestaurantRecor
 
 // Fetch All Restaurants from Firestore
 export async function fetchRestaurantsFromFirestore(): Promise<FirestoreRestaurantRecord[]> {
+  if (!db) return [];
   try {
     const colRef = collection(db, 'restaurants');
     const snapshot = await getDocs(colRef);
@@ -87,6 +98,8 @@ export async function generateAnnualCodeForRestaurant(
   const oneYearFromNow = new Date();
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
   const newExpiryISO = oneYearFromNow.toISOString();
+
+  if (!db) return { code: newCode, newExpiry: newExpiryISO };
 
   try {
     // 1. Save activation code doc
@@ -123,6 +136,12 @@ export async function verifyActivationCodeInFirestore(code: string): Promise<{
   message: string;
 }> {
   const cleanCode = code.trim().toUpperCase();
+  if (!db) {
+    return {
+      valid: false,
+      message: 'الخدمة السحابية غير متوفرة حالياً.'
+    };
+  }
 
   try {
     // Search in restaurants collection first for matching activationCode
@@ -186,6 +205,7 @@ export async function verifyActivationCodeInFirestore(code: string): Promise<{
 export function subscribeRestaurantsRealtime(
   callback: (records: FirestoreRestaurantRecord[]) => void
 ) {
+  if (!db) return () => {};
   try {
     const colRef = collection(db, 'restaurants');
     return onSnapshot(colRef, (snapshot) => {

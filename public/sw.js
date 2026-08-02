@@ -1,8 +1,8 @@
-const CACHE_NAME = 'mato-pos-offline-v4.5';
+const CACHE_NAME = 'mato-pos-offline-v4.6';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json'
 ];
 
 // Install Service Worker and cache core static shell
@@ -68,7 +68,7 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
+            return caches.match('./index.html') || caches.match('./');
           }
         });
     })

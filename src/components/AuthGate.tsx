@@ -28,7 +28,7 @@ interface AuthGateProps {
 export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false }) => {
   const { registerNewTenant, loginUser, users } = useData();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'code_activation'>('code_activation');
+  const [mode, setMode] = useState<'login' | 'register' | 'code_activation'>('login');
 
   // Annual Activation Code State for Subscribers
   const [annualCodeInput, setAnnualCodeInput] = useState('');
@@ -205,17 +205,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
         {/* Tab Switcher */}
         <div className="flex bg-slate-800/80 p-1 rounded-2xl border border-slate-700/60 max-w-md mx-auto mt-5">
           <button
-            onClick={() => setMode('code_activation')}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              mode === 'code_activation'
-                ? 'bg-amber-400 text-slate-950 shadow-md font-black'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <Key className="w-3.5 h-3.5" />
-            <span>كود التفعيل السنوي</span>
-          </button>
-          <button
             onClick={() => setMode('login')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
               mode === 'login'
@@ -234,6 +223,17 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
             }`}
           >
             حساب جديد
+          </button>
+          <button
+            onClick={() => setMode('code_activation')}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              mode === 'code_activation'
+                ? 'bg-amber-400 text-slate-950 shadow-md font-black'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span>كود التفعيل السنوي</span>
           </button>
         </div>
       </div>

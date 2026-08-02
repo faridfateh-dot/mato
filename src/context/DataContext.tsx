@@ -279,7 +279,7 @@ function safeStorageArrayParse<T>(key: string, fallback: T[]): T[] {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Session & Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_is_authenticated`, true);
+    return safeStorageParse(`${STORAGE_KEY}_is_authenticated`, false);
   });
 
   const [systemRegistrations, setSystemRegistrations] = useState<SystemRegistration[]>(() => {

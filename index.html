@@ -5,21 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="نظام إدارة المطاعم والكاشير والمخزون MATO POS مع دعم العمل الكامل دون اتصال بالإنترنت" />
-    <script>
-      // Fix GitHub Pages missing trailing slash (e.g., /mato -> /mato/)
-      (function() {
-        var path = window.location.pathname;
-        if (path.length > 1 && !path.endsWith('/') && !path.split('/').pop().includes('.')) {
-          window.location.replace(window.location.protocol + '//' + window.location.host + path + '/' + window.location.search + window.location.hash);
-        }
-      })();
-    </script>
-    <link rel="manifest" href="manifest.json" />
     <title>MATO POS - نظام إدارة المطاعم والعمل دون إنترنت</title>
   </head>
-  <body>
+  <body class="bg-slate-900 text-slate-100 min-h-screen">
     <div id="root"></div>
+    <script>
+      // Fallback in case browser cached broken assets or script load was blocked
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;font-family:sans-serif;text-align:center;background:#0f172a;color:#fff;direction:rtl;">' +
+            '<div style="background:#1e293b;padding:32px;border-radius:16px;max-width:480px;border:1px solid #334155;box-shadow:0 10px 25px rgba(0,0,0,0.5);">' +
+            '<h2 style="color:#fbbf24;margin-bottom:12px;font-size:20px;font-weight:bold;">MATO POS - تحديث النواة</h2>' +
+            '<p style="color:#cbd5e1;font-size:14px;margin-bottom:20px;line-height:1.6;">تم التحديث بنجاح! اضغط على الزر أدناه لإعادة تحميل التعديلات الجديدة وتحديث التخزين المؤقت.</p>' +
+            '<button onclick="if(\'serviceWorker\' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));}localStorage.clear();sessionStorage.clear();window.location.reload(true);" style="background:#f59e0b;color:#0f172a;border:none;padding:12px 28px;border-radius:12px;font-weight:bold;cursor:pointer;font-size:14px;">إعادة التشغيل وتحديث النسخة</button>' +
+            '</div></div>';
+        }
+      }, 4000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
 

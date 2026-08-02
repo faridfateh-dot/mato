@@ -25,17 +25,18 @@
       window.addEventListener('error', function(e) {
         var root = document.getElementById('root');
         if (root && root.children.length === 0) {
-          renderErrorScreen(e.message || (e.target && e.target.src ? 'فشل تحميل ملف الخدمة: ' + e.target.src : 'خطأ في تحميل النظام'));
+          var targetUrl = e.target && (e.target.src || e.target.href);
+          renderErrorScreen(e.message || (targetUrl ? 'فشل تحميل الملف: ' + targetUrl : 'خطأ في تحميل النظام'));
         }
       }, true);
 
-      // 4. Watchdog timer: if React does not render within 3.5s, display emergency recovery UI
+      // 4. Watchdog timer: if React does not render within 5s, display emergency recovery UI
       setTimeout(function() {
         var root = document.getElementById('root');
         if (root && root.children.length === 0) {
-          renderErrorScreen('تأخر استجابة ملفات التشغيل بسبب الذاكرة المؤقتة القديمة.');
+          renderErrorScreen('تأخر استجابة النظام. يرجى إعادة الضبط وتحديث الصفحة.');
         }
-      }, 3500);
+      }, 5000);
 
       function renderErrorScreen(msg) {
         var root = document.getElementById('root');
@@ -44,7 +45,7 @@
           '<div style="background:#1e293b;padding:32px;border-radius:20px;max-width:520px;width:100%;border:1px solid #334155;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">' +
           '<div style="width:56px;height:56px;background:#f59e0b20;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#f59e0b;font-size:28px;">⚡</div>' +
           '<h2 style="color:#fbbf24;margin-bottom:12px;font-size:22px;font-weight:bold;">MATO POS - جاري حماية النظام</h2>' +
-          '<p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin-bottom:20px;">تم كشف ملفات مؤقتة قديمة تمنع فتح البرنامج. اضغط الزر أدناه لإعادة الضبط السريع وتحميل الواجهة فوراً:</p>' +
+          '<p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin-bottom:20px;">تم اكتشاف خطأ في تحميل المسارات أو الملفات المؤقتة. اضغط الزر أدناه لإعادة تنظيف التخزين وحذف الذاكرة المؤقتة:</p>' +
           '<div style="background:#0f172a;padding:12px;border-radius:10px;font-family:monospace;font-size:12px;color:#fca5a5;margin-bottom:24px;word-break:break-all;text-align:left;direction:ltr;border:1px solid #1e293b;">' + (msg || 'Resource load issue') + '</div>' +
           '<button onclick="localStorage.clear();sessionStorage.clear();if(\'serviceWorker\'in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));}window.location.reload(true);" style="background:#f59e0b;color:#0f172a;border:none;padding:14px 28px;border-radius:12px;font-weight:bold;cursor:pointer;font-size:15px;width:100%;box-shadow:0 4px 12px rgba(245,158,11,0.3);transition:all 0.2s;">إعادة تنظيف التخزين وتحديث الصفحة الآن 🔄</button>' +
           '</div></div>';
@@ -54,6 +55,6 @@
   </head>
   <body class="bg-slate-900 text-slate-100 min-h-screen">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

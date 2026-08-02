@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="نظام إدارة المطاعم والكاشير والمخزون MATO POS مع دعم العمل الكامل دون اتصال بالإنترنت" />
+    <script>
+      // Fix GitHub Pages missing trailing slash (e.g., /mato -> /mato/)
+      (function() {
+        var path = window.location.pathname;
+        if (path.length > 1 && !path.endsWith('/') && !path.split('/').pop().includes('.')) {
+          window.location.replace(window.location.protocol + '//' + window.location.host + path + '/' + window.location.search + window.location.hash);
+        }
+      })();
+    </script>
     <link rel="manifest" href="manifest.json" />
     <title>MATO POS - نظام إدارة المطاعم والعمل دون إنترنت</title>
   </head>

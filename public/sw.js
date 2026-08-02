@@ -1,17 +1,7 @@
-const CACHE_NAME = 'mato-pos-offline-v4.6';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json'
-];
+const CACHE_NAME = 'mato-pos-offline-v5.0';
 
-// Install Service Worker and cache core static shell
+// Install Service Worker
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
   self.skipWaiting();
 });
 
@@ -29,48 +19,35 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Cache-First strategy for static assets, Network-First with Cache fallback for navigate requests
+// Network-first strategy for navigation and assets, falling back to cache when offline
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Skip API calls from caching
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
+  // Skip non-http/https requests
+  if (!url.protocol.startsWith('http')) return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch background update for cache
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
-              });
-            }
-          })
-          .catch(() => {});
-        return cachedResponse;
-      }
-
-      return fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        // Fallback to cache when offline
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
           if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('./index.html') || caches.match('./');
+            return caches.match('./') || caches.match('./index.html') || caches.match('index.html');
           }
+          return new Response('Network error', { status: 408, headers: { 'Content-Type': 'text/plain' } });
         });
-    })
+      })
   );
 });

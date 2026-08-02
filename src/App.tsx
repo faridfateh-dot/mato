@@ -117,11 +117,11 @@ const AppMainContent: React.FC = () => {
 export default function App() {
   return (
     <ErrorBoundary>
-      <DataProvider>
-        <HashRouter>
+      <HashRouter>
+        <DataProvider>
           <AppMainContent />
-        </HashRouter>
-      </DataProvider>
+        </DataProvider>
+      </HashRouter>
     </ErrorBoundary>
   );
 }

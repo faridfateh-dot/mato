@@ -250,29 +250,36 @@ const DEFAULT_SYSTEM_REGISTRATIONS: SystemRegistration[] = [
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+function safeStorageParse<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === null || saved === undefined) return fallback;
+    return JSON.parse(saved) as T;
+  } catch (e) {
+    console.warn(`Failed to parse storage item "${key}":`, e);
+    return fallback;
+  }
+}
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Session & Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_is_authenticated`);
-    return saved !== null ? JSON.parse(saved) : true;
+    return safeStorageParse(`${STORAGE_KEY}_is_authenticated`, true);
   });
 
   const [systemRegistrations, setSystemRegistrations] = useState<SystemRegistration[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_system_registrations`);
-    return saved ? JSON.parse(saved) : DEFAULT_SYSTEM_REGISTRATIONS;
+    return safeStorageParse(`${STORAGE_KEY}_system_registrations`, DEFAULT_SYSTEM_REGISTRATIONS);
   });
 
   // Load state from localStorage or initial seed
   const [restaurant, setRestaurant] = useState<Restaurant>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_restaurant`);
-    return saved ? JSON.parse(saved) : INITIAL_RESTAURANT;
+    return safeStorageParse(`${STORAGE_KEY}_restaurant`, INITIAL_RESTAURANT);
   });
 
   const [rawMaterialCategories, setRawMaterialCategories] = useState<RawMaterialCategoryInfo[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_rawMaterialCategories`);
-    if (!saved) return DEFAULT_RAW_MATERIAL_CATEGORIES;
+    const parsed = safeStorageParse<RawMaterialCategoryInfo[] | null>(`${STORAGE_KEY}_rawMaterialCategories`, null);
+    if (!parsed) return DEFAULT_RAW_MATERIAL_CATEGORIES;
     try {
-      const parsed: RawMaterialCategoryInfo[] = JSON.parse(saved);
       if (!parsed.some(c => c.id === 'packaging')) {
         const packagingCat: RawMaterialCategoryInfo = { id: 'packaging', name: 'تغليف ومستلزمات', icon: '🛍️', isCustom: false };
         const otherIdx = parsed.findIndex(c => c.id === 'other');
@@ -289,29 +296,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [branches, setBranches] = useState<Branch[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_branches`);
-    return saved ? JSON.parse(saved) : INITIAL_BRANCHES;
+    return safeStorageParse(`${STORAGE_KEY}_branches`, INITIAL_BRANCHES);
   });
 
   const [currentBranch, setCurrentBranchState] = useState<Branch>(() => branches[0] || INITIAL_BRANCHES[0]);
 
   const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_users`);
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    return safeStorageParse(`${STORAGE_KEY}_users`, INITIAL_USERS);
   });
 
   const [currentUser, setCurrentUserState] = useState<User>(() => users[0] || INITIAL_USERS[0]);
 
   const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_categories`);
-    return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
+    return safeStorageParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_products`);
-    const initialList: Product[] = saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-    return initialList.map(p => {
-      const isSalad = p.name.includes('سلطة') || p.name.includes('سلطه') || p.categoryName.includes('سلطة') || p.categoryName.includes('سلطه') || p.categoryId === 'cat_salads';
+    const initialList = safeStorageParse<Product[]>(`${STORAGE_KEY}_products`, INITIAL_PRODUCTS);
+    return (initialList || INITIAL_PRODUCTS).map(p => {
+      const isSalad = p.name?.includes('سلطة') || p.name?.includes('سلطه') || p.categoryName?.includes('سلطة') || p.categoryName?.includes('سلطه') || p.categoryId === 'cat_salads';
       if (isSalad && p.imageUrl) {
         return { ...p, imageUrl: undefined };
       }
@@ -320,53 +323,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_ingredients`);
-    return saved ? JSON.parse(saved) : INITIAL_INGREDIENTS;
+    return safeStorageParse(`${STORAGE_KEY}_ingredients`, INITIAL_INGREDIENTS);
   });
 
   const [recipes, setRecipes] = useState<Recipe[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_recipes`);
-    return saved ? JSON.parse(saved) : INITIAL_RECIPES;
+    return safeStorageParse(`${STORAGE_KEY}_recipes`, INITIAL_RECIPES);
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_suppliers`);
-    return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+    return safeStorageParse(`${STORAGE_KEY}_suppliers`, INITIAL_SUPPLIERS);
   });
 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_purchases`);
-    return saved ? JSON.parse(saved) : INITIAL_PURCHASES;
+    return safeStorageParse(`${STORAGE_KEY}_purchases`, INITIAL_PURCHASES);
   });
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_stockMovements`);
-    return saved ? JSON.parse(saved) : INITIAL_STOCK_MOVEMENTS;
+    return safeStorageParse(`${STORAGE_KEY}_stockMovements`, INITIAL_STOCK_MOVEMENTS);
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_orders`);
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+    return safeStorageParse(`${STORAGE_KEY}_orders`, INITIAL_ORDERS);
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_expenses`);
-    return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    return safeStorageParse(`${STORAGE_KEY}_expenses`, INITIAL_EXPENSES);
   });
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_activityLogs`);
-    return saved ? JSON.parse(saved) : INITIAL_LOGS;
+    return safeStorageParse(`${STORAGE_KEY}_activityLogs`, INITIAL_LOGS);
   });
 
   const [licenseInfo, setLicenseInfo] = useState<SoftwareLicense>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_licenseInfo`);
-    return saved ? JSON.parse(saved) : DEFAULT_SOFTWARE_LICENSE;
+    return safeStorageParse(`${STORAGE_KEY}_licenseInfo`, DEFAULT_SOFTWARE_LICENSE);
   });
 
   const [licenseKeys, setLicenseKeys] = useState<LicenseKeyInfo[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_licenseKeys`);
-    return saved ? JSON.parse(saved) : DEFAULT_LICENSE_KEYS;
+    return safeStorageParse(`${STORAGE_KEY}_licenseKeys`, DEFAULT_LICENSE_KEYS);
   });
 
   // Firestore Realtime Restaurants

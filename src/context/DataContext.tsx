@@ -254,9 +254,24 @@ function safeStorageParse<T>(key: string, fallback: T): T {
   try {
     const saved = localStorage.getItem(key);
     if (saved === null || saved === undefined) return fallback;
-    return JSON.parse(saved) as T;
+    const parsed = JSON.parse(saved);
+    if (parsed === null || parsed === undefined) return fallback;
+    return parsed as T;
   } catch (e) {
     console.warn(`Failed to parse storage item "${key}":`, e);
+    return fallback;
+  }
+}
+
+function safeStorageArrayParse<T>(key: string, fallback: T[]): T[] {
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) return fallback;
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed)) return parsed as T[];
+    return fallback;
+  } catch (e) {
+    console.warn(`Failed to parse array storage item "${key}":`, e);
     return fallback;
   }
 }
@@ -268,21 +283,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [systemRegistrations, setSystemRegistrations] = useState<SystemRegistration[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_system_registrations`, DEFAULT_SYSTEM_REGISTRATIONS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_system_registrations`, DEFAULT_SYSTEM_REGISTRATIONS);
   });
 
   // Load state from localStorage or initial seed
   const [restaurant, setRestaurant] = useState<Restaurant>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_restaurant`, INITIAL_RESTAURANT);
+    const parsed = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
+    return (parsed && typeof parsed === 'object' && parsed.id) ? parsed : INITIAL_RESTAURANT;
   });
 
   const [rawMaterialCategories, setRawMaterialCategories] = useState<RawMaterialCategoryInfo[]>(() => {
-    const parsed = safeStorageParse<RawMaterialCategoryInfo[] | null>(`${STORAGE_KEY}_rawMaterialCategories`, null);
-    if (!parsed) return DEFAULT_RAW_MATERIAL_CATEGORIES;
+    const parsed = safeStorageArrayParse<RawMaterialCategoryInfo>(`${STORAGE_KEY}_rawMaterialCategories`, DEFAULT_RAW_MATERIAL_CATEGORIES);
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_RAW_MATERIAL_CATEGORIES;
     try {
-      if (!parsed.some(c => c.id === 'packaging')) {
+      if (!parsed.some(c => c && c.id === 'packaging')) {
         const packagingCat: RawMaterialCategoryInfo = { id: 'packaging', name: 'تغليف ومستلزمات', icon: '🛍️', isCustom: false };
-        const otherIdx = parsed.findIndex(c => c.id === 'other');
+        const otherIdx = parsed.findIndex(c => c && c.id === 'other');
         if (otherIdx !== -1) {
           parsed.splice(otherIdx, 0, packagingCat);
         } else {
@@ -296,24 +312,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [branches, setBranches] = useState<Branch[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_branches`, INITIAL_BRANCHES);
+    return safeStorageArrayParse(`${STORAGE_KEY}_branches`, INITIAL_BRANCHES);
   });
 
-  const [currentBranch, setCurrentBranchState] = useState<Branch>(() => branches[0] || INITIAL_BRANCHES[0]);
+  const [currentBranch, setCurrentBranchState] = useState<Branch>(() => (Array.isArray(branches) && branches[0]) ? branches[0] : INITIAL_BRANCHES[0]);
 
   const [users, setUsers] = useState<User[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_users`, INITIAL_USERS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_users`, INITIAL_USERS);
   });
 
-  const [currentUser, setCurrentUserState] = useState<User>(() => users[0] || INITIAL_USERS[0]);
+  const [currentUser, setCurrentUserState] = useState<User>(() => (Array.isArray(users) && users[0]) ? users[0] : INITIAL_USERS[0]);
 
   const [categories, setCategories] = useState<Category[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);
+    return safeStorageArrayParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const initialList = safeStorageParse<Product[]>(`${STORAGE_KEY}_products`, INITIAL_PRODUCTS);
-    return (initialList || INITIAL_PRODUCTS).map(p => {
+    const initialList = safeStorageArrayParse<Product>(`${STORAGE_KEY}_products`, INITIAL_PRODUCTS);
+    const list = Array.isArray(initialList) && initialList.length > 0 ? initialList : INITIAL_PRODUCTS;
+    return list.map(p => {
+      if (!p) return p;
       const isSalad = p.name?.includes('سلطة') || p.name?.includes('سلطه') || p.categoryName?.includes('سلطة') || p.categoryName?.includes('سلطه') || p.categoryId === 'cat_salads';
       if (isSalad && p.imageUrl) {
         return { ...p, imageUrl: undefined };
@@ -323,43 +341,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_ingredients`, INITIAL_INGREDIENTS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_ingredients`, INITIAL_INGREDIENTS);
   });
 
   const [recipes, setRecipes] = useState<Recipe[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_recipes`, INITIAL_RECIPES);
+    return safeStorageArrayParse(`${STORAGE_KEY}_recipes`, INITIAL_RECIPES);
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_suppliers`, INITIAL_SUPPLIERS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_suppliers`, INITIAL_SUPPLIERS);
   });
 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_purchases`, INITIAL_PURCHASES);
+    return safeStorageArrayParse(`${STORAGE_KEY}_purchases`, INITIAL_PURCHASES);
   });
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_stockMovements`, INITIAL_STOCK_MOVEMENTS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_stockMovements`, INITIAL_STOCK_MOVEMENTS);
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_orders`, INITIAL_ORDERS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_orders`, INITIAL_ORDERS);
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_expenses`, INITIAL_EXPENSES);
+    return safeStorageArrayParse(`${STORAGE_KEY}_expenses`, INITIAL_EXPENSES);
   });
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_activityLogs`, INITIAL_LOGS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_activityLogs`, INITIAL_LOGS);
   });
 
   const [licenseInfo, setLicenseInfo] = useState<SoftwareLicense>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_licenseInfo`, DEFAULT_SOFTWARE_LICENSE);
+    const parsed = safeStorageParse<SoftwareLicense | null>(`${STORAGE_KEY}_licenseInfo`, null);
+    return (parsed && typeof parsed === 'object' && parsed.licenseKey) ? parsed : DEFAULT_SOFTWARE_LICENSE;
   });
 
   const [licenseKeys, setLicenseKeys] = useState<LicenseKeyInfo[]>(() => {
-    return safeStorageParse(`${STORAGE_KEY}_licenseKeys`, DEFAULT_LICENSE_KEYS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_licenseKeys`, DEFAULT_LICENSE_KEYS);
   });
 
   // Firestore Realtime Restaurants

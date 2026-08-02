@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="نظام إدارة المطاعم والكاشير والمخزون MATO POS مع دعم العمل الكامل دون اتصال بالإنترنت" />
     <script>
-      // 1. Ensure trailing slash for GitHub Pages relative asset paths (e.g. /mato -> /mato/)
+      // 1. Instant trailing slash redirect for GitHub Pages relative assets (e.g. /mato -> /mato/)
       (function() {
         var p = window.location.pathname;
         if (p.length > 1 && !p.endsWith('/') && !p.split('/').pop().includes('.')) {
@@ -14,19 +14,41 @@
         }
       })();
 
-      // 2. Global error listener to catch script loading/syntax errors and prevent white screens
+      // 2. Clear legacy service workers that intercept asset fetches on shared domain
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        }).catch(function(){});
+      }
+
+      // 3. Global resource & script error listener (useCapture: true to catch script/link load failures)
       window.addEventListener('error', function(e) {
         var root = document.getElementById('root');
         if (root && root.children.length === 0) {
-          root.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;color:#fff;direction:rtl;padding:24px;font-family:sans-serif;">' +
-            '<div style="background:#1e293b;padding:32px;border-radius:16px;max-width:500px;border:1px solid #334155;text-align:center;">' +
-            '<h2 style="color:#fbbf24;margin-bottom:12px;font-size:20px;font-weight:bold;">MATO POS - حماية النظام</h2>' +
-            '<p style="color:#cbd5e1;font-size:14px;margin-bottom:16px;">حدث تعارض في الذاكرة المؤقتة القديمة. اضغط الزر لتحديث التطبيق وتنظيف التخزين:</p>' +
-            '<div style="background:#0f172a;padding:12px;border-radius:8px;font-family:monospace;font-size:12px;color:#fca5a5;margin-bottom:20px;word-break:break-all;text-align:left;direction:ltr;">' + (e.message || e.error || 'Script loading error') + '</div>' +
-            '<button onclick="localStorage.clear();sessionStorage.clear();if(\'serviceWorker\'in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));}window.location.reload(true);" style="background:#f59e0b;color:#0f172a;border:none;padding:12px 24px;border-radius:10px;font-weight:bold;cursor:pointer;font-size:14px;">إعادة تنظيف التخزين وتحديث الصفحة</button>' +
-            '</div></div>';
+          renderErrorScreen(e.message || (e.target && e.target.src ? 'فشل تحميل ملف الخدمة: ' + e.target.src : 'خطأ في تحميل النظام'));
         }
-      });
+      }, true);
+
+      // 4. Watchdog timer: if React does not render within 3.5s, display emergency recovery UI
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          renderErrorScreen('تأخر استجابة ملفات التشغيل بسبب الذاكرة المؤقتة القديمة.');
+        }
+      }, 3500);
+
+      function renderErrorScreen(msg) {
+        var root = document.getElementById('root');
+        if (!root || root.children.length > 0) return;
+        root.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;color:#fff;direction:rtl;padding:24px;font-family:system-ui,-apple-system,sans-serif;">' +
+          '<div style="background:#1e293b;padding:32px;border-radius:20px;max-width:520px;width:100%;border:1px solid #334155;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">' +
+          '<div style="width:56px;height:56px;background:#f59e0b20;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#f59e0b;font-size:28px;">⚡</div>' +
+          '<h2 style="color:#fbbf24;margin-bottom:12px;font-size:22px;font-weight:bold;">MATO POS - جاري حماية النظام</h2>' +
+          '<p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin-bottom:20px;">تم كشف ملفات مؤقتة قديمة تمنع فتح البرنامج. اضغط الزر أدناه لإعادة الضبط السريع وتحميل الواجهة فوراً:</p>' +
+          '<div style="background:#0f172a;padding:12px;border-radius:10px;font-family:monospace;font-size:12px;color:#fca5a5;margin-bottom:24px;word-break:break-all;text-align:left;direction:ltr;border:1px solid #1e293b;">' + (msg || 'Resource load issue') + '</div>' +
+          '<button onclick="localStorage.clear();sessionStorage.clear();if(\'serviceWorker\'in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()));}window.location.reload(true);" style="background:#f59e0b;color:#0f172a;border:none;padding:14px 28px;border-radius:12px;font-weight:bold;cursor:pointer;font-size:15px;width:100%;box-shadow:0 4px 12px rgba(245,158,11,0.3);transition:all 0.2s;">إعادة تنظيف التخزين وتحديث الصفحة الآن 🔄</button>' +
+          '</div></div>';
+      }
     </script>
     <title>MATO POS - نظام إدارة المطاعم والعمل دون إنترنت</title>
   </head>

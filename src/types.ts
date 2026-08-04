@@ -324,6 +324,30 @@ export interface RestaurantSubscriptionRequest {
   approvedAt?: string;
 }
 
+export type NotificationType = 'user_registration' | 'subscription_request' | 'stock_alert' | 'system' | 'security';
+
+export interface InAppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  entityId?: string; // userId or requestId or ingredientId
+  entityData?: {
+    name?: string;
+    emailOrPhone?: string;
+    phone?: string;
+    email?: string;
+    role?: UserRole;
+    branchId?: string;
+    restaurantName?: string;
+    planType?: SaaSPlanType | string;
+    notes?: string;
+  };
+  status?: 'pending' | 'approved' | 'rejected' | 'dismissed';
+}
+
 export interface SystemNotification {
   id: string;
   title: string;

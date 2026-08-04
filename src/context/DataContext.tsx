@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Restaurant,
   Branch,
@@ -26,7 +26,9 @@ import {
   SaaSPlanType,
   SystemRegistration,
   RestaurantSubscriptionRequest,
-  SystemNotification
+  SystemNotification,
+  InAppNotification,
+  NotificationType
 } from '../types';
 import {
   INITIAL_RESTAURANT,
@@ -44,6 +46,7 @@ import {
   INITIAL_EXPENSES
 } from '../initialData';
 import { convertQuantity, convertCostPerUnit, convertQuantityAdvanced, convertCostPerUnitAdvanced } from '../lib/unitUtils';
+import { playNotificationChime, playSuccessChime } from '../lib/notificationSound';
 import {
   saveRestaurantToFirestore,
   fetchRestaurantsFromFirestore,
@@ -208,6 +211,19 @@ interface DataContextType {
   // Reports & Analytics Helpers
   getDashboardStats: () => DashboardStats;
   getLowMarginProducts: () => { product: Product; recipe?: Recipe; margin: number; cost: number }[];
+
+  // In-App Realtime Notifications System
+  notifications: InAppNotification[];
+  unreadNotificationsCount: number;
+  addInAppNotification: (notif: Omit<InAppNotification, 'id' | 'createdAt' | 'isRead'>) => void;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  deleteInAppNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+  approveRequestFromNotification: (notificationId: string, assignedRole?: UserRole, assignedBranchId?: string) => Promise<void>;
+  rejectRequestFromNotification: (notificationId: string, reason?: string) => Promise<void>;
+  activeRealtimeAlert: InAppNotification | null;
+  dismissRealtimeAlert: () => void;
 }
 
 const STORAGE_KEY = 'mato_saas_data_v1';
@@ -456,6 +472,93 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return safeStorageArrayParse(`${STORAGE_KEY}_licenseKeys`, DEFAULT_LICENSE_KEYS);
   });
 
+  // In-App Realtime Notifications System (Dedicated to Employee Registration Requests)
+  const [notifications, setNotifications] = useState<InAppNotification[]>(() => {
+    const saved = safeStorageArrayParse<InAppNotification>(`${STORAGE_KEY}_inapp_notifications`, []);
+    // Filter out any previous subscription_request notifications if present in local storage
+    const filteredSaved = saved ? saved.filter(n => n.type !== 'subscription_request') : [];
+    if (filteredSaved && filteredSaved.length > 0) return filteredSaved;
+
+    const initialList: InAppNotification[] = [
+      {
+        id: 'notif_demo_01',
+        type: 'user_registration',
+        title: 'طلب انضمام موظف جديد',
+        message: 'قام الموظف (سامر العلي) بطلب انضمام بصفة كاشير إلى الفرع الرئيسي.',
+        createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+        isRead: false,
+        entityId: 'usr_samer_pending',
+        entityData: {
+          name: 'سامر العلي',
+          emailOrPhone: 'samer.ali@restaurant.sy',
+          role: 'Cashier',
+          branchId: 'br_main',
+          notes: 'خبرة 3 سنوات في نقاط البيع والكاشير'
+        },
+        status: 'pending'
+      },
+      {
+        id: 'notif_demo_03',
+        type: 'system',
+        title: 'منظومة تنبيهات الموظفين نشطة 🔔',
+        message: 'يتم تنبيه مالك ومدير المطعم فورياً بالصوت والإشعار الفوري عند تسجيل أو طلب انضمام أي موظف جديد.',
+        createdAt: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
+        isRead: true,
+        status: 'approved'
+      }
+    ];
+    return initialList;
+  });
+
+  const [activeRealtimeAlert, setActiveRealtimeAlert] = useState<InAppNotification | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_inapp_notifications`, JSON.stringify(notifications));
+  }, [notifications]);
+
+  const unreadNotificationsCount = useMemo(() => {
+    return notifications.filter(n => !n.isRead).length;
+  }, [notifications]);
+
+  const addInAppNotification = useCallback((notif: Omit<InAppNotification, 'id' | 'createdAt' | 'isRead'>) => {
+    const newNotif: InAppNotification = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      ...notif
+    };
+
+    setNotifications(prev => [newNotif, ...prev.filter(n => !(n.entityId && notif.entityId && n.entityId === notif.entityId && n.type === notif.type))]);
+    
+    // Play chime sound
+    playNotificationChime();
+
+    // Trigger instant alert banner
+    setActiveRealtimeAlert(newNotif);
+  }, []);
+
+  const dismissRealtimeAlert = useCallback(() => {
+    setActiveRealtimeAlert(null);
+  }, []);
+
+  const markNotificationAsRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  }, []);
+
+  const markAllNotificationsAsRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  }, []);
+
+  const deleteInAppNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    setActiveRealtimeAlert(prev => prev?.id === id ? null : prev);
+  }, []);
+
+  const clearAllNotifications = useCallback(() => {
+    setNotifications([]);
+    setActiveRealtimeAlert(null);
+  }, []);
+
   // Firestore Realtime Restaurants
   const [firestoreRestaurants, setFirestoreRestaurants] = useState<FirestoreRestaurantRecord[]>([]);
 
@@ -481,7 +584,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           records.forEach(sr => {
             if (sr.status === 'pending' && !updated.some(u => u.id === sr.id || u.email === sr.emailOrPhone || u.phone === sr.emailOrPhone)) {
               const isEmail = sr.emailOrPhone.includes('@');
-              updated.push({
+              const newPendingUser: User = {
                 id: sr.id,
                 restaurantId: sr.restaurantId || restaurant.id,
                 branchId: sr.branchId || branches[0]?.id || 'br_main',
@@ -497,6 +600,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 requestedAt: sr.requestedAt || new Date().toISOString(),
                 approvalNotes: sr.notes,
                 createdAt: sr.requestedAt || new Date().toISOString()
+              };
+              updated.push(newPendingUser);
+
+              // Also trigger in-app notification and chime
+              addInAppNotification({
+                type: 'user_registration',
+                title: 'طلب انضمام موظف جديد (سحابي)',
+                message: `قام الموظف (${sr.name}) بطلب انضمام بصفة (${sr.role || 'كاشير'}) للمطعم.`,
+                entityId: sr.id,
+                entityData: {
+                  name: sr.name,
+                  emailOrPhone: sr.emailOrPhone,
+                  role: (sr.role as UserRole) || 'Cashier',
+                  branchId: sr.branchId,
+                  notes: sr.notes
+                },
+                status: 'pending'
               });
             }
           });
@@ -509,7 +629,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubscribeRest();
       unsubscribeStaff();
     };
-  }, []);
+  }, [restaurant.id, branches, addInAppNotification]);
 
   const [ownerContact, setOwnerContact] = useState<PlatformOwnerContact>(() => {
     return getPlatformOwnerContact();
@@ -1193,12 +1313,94 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     } else {
       logActivity('طلب انضمام بانتظار الموافقة', `طلب تسجيل موظف جديد من (${newUser.name}) بانتظار اعتماد المالك`);
+      
+      // In-app Realtime Notification trigger
+      addInAppNotification({
+        type: 'user_registration',
+        title: 'طلب انضمام مستخدم جديد',
+        message: `طلب تسجيل موظف جديد (${newUser.name}) بصفة (${newUser.requestedRole || 'كاشير'})`,
+        entityId: newUser.id,
+        entityData: {
+          name: newUser.name,
+          emailOrPhone: cleanContact,
+          phone: newUser.phone,
+          email: newUser.email,
+          role: newUser.requestedRole,
+          branchId: newUser.branchId,
+          notes: params.notes
+        },
+        status: 'pending'
+      });
+
       return {
         isPending: true,
         message: 'تم استلام طلب التسجيل بنجاح! الحساب بانتظار موافقة واعتماد مالك المطعم لتفعيل الصلاحيات.',
         user: newUser
       };
     }
+  };
+
+  const approveRequestFromNotification = async (notificationId: string, assignedRole?: UserRole, assignedBranchId?: string) => {
+    const notif = notifications.find(n => n.id === notificationId);
+    if (!notif) return;
+
+    if (notif.type === 'user_registration') {
+      const targetUserId = notif.entityId;
+      if (targetUserId) {
+        approveUser(targetUserId, assignedRole || notif.entityData?.role, assignedBranchId || notif.entityData?.branchId);
+      }
+    } else if (notif.type === 'subscription_request') {
+      const reqId = notif.entityId;
+      if (reqId) {
+        await approveRestaurantSubscription(reqId);
+      }
+    }
+
+    playSuccessChime();
+    setNotifications(prev => prev.map(n => {
+      if (n.id === notificationId) {
+        return {
+          ...n,
+          isRead: true,
+          status: 'approved',
+          message: `${n.message} (تمت الموافقة وتفعيل الحساب بنجاح)`
+        };
+      }
+      return n;
+    }));
+
+    setActiveRealtimeAlert(prev => prev?.id === notificationId ? null : prev);
+  };
+
+  const rejectRequestFromNotification = async (notificationId: string, reason?: string) => {
+    const notif = notifications.find(n => n.id === notificationId);
+    if (!notif) return;
+
+    if (notif.type === 'user_registration') {
+      const targetUserId = notif.entityId;
+      if (targetUserId) {
+        rejectUser(targetUserId, reason);
+      }
+    } else if (notif.type === 'subscription_request') {
+      const reqId = notif.entityId;
+      if (reqId) {
+        await rejectRestaurantSubscription(reqId, reason);
+      }
+    }
+
+    setNotifications(prev => prev.map(n => {
+      if (n.id === notificationId) {
+        return {
+          ...n,
+          isRead: true,
+          status: 'rejected',
+          message: `${n.message} (تم رفض الطلب)`
+        };
+      }
+      return n;
+    }));
+
+    setActiveRealtimeAlert(prev => prev?.id === notificationId ? null : prev);
   };
 
   const deleteUser = (userId: string): boolean => {
@@ -2700,7 +2902,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleOfflineSimulation,
         isSimulatedOffline,
         getDashboardStats,
-        getLowMarginProducts
+        getLowMarginProducts,
+
+        // In-App Notifications
+        notifications,
+        unreadNotificationsCount,
+        addInAppNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        deleteInAppNotification,
+        clearAllNotifications,
+        approveRequestFromNotification,
+        rejectRequestFromNotification,
+        activeRealtimeAlert,
+        dismissRealtimeAlert
       }}
     >
       {children}

@@ -3,6 +3,13 @@ import { useData } from '../context/DataContext';
 import { verifyActivationCodeInFirestore, PLATFORM_OWNER_CONTACT } from '../lib/firebase';
 import { UserRole, SaaSPlanType } from '../types';
 import {
+  readFromClipboard,
+  extractActivationCodeFromText,
+  copyToClipboard,
+  buildSubscriptionRequestNotification
+} from '../lib/whatsappShare';
+import { WhatsAppShareModal } from './WhatsAppShareModal';
+import {
   Store,
   Mail,
   Phone,
@@ -24,7 +31,9 @@ import {
   MapPin,
   HelpCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Clipboard,
+  Copy
 } from 'lucide-react';
 
 interface AuthGateProps {
@@ -76,12 +85,32 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
   // Annual Code Activation State
   const [annualCodeInput, setAnnualCodeInput] = useState('');
   const [codeVerificationLoading, setCodeVerificationLoading] = useState(false);
+  const [pastedStatus, setPastedStatus] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [codeVerificationResult, setCodeVerificationResult] = useState<{
     success?: boolean;
     message?: string;
     restaurantName?: string;
     expiresAt?: string;
   } | null>(null);
+
+  const handlePasteCode = async () => {
+    const text = await readFromClipboard();
+    if (!text) {
+      setPastedStatus('يرجى نسخ الكود أولاً أو كتابته يدوياً.');
+      setTimeout(() => setPastedStatus(null), 3000);
+      return;
+    }
+    const extracted = extractActivationCodeFromText(text);
+    if (extracted) {
+      setAnnualCodeInput(extracted);
+      setPastedStatus(`تم استخراج ولصق الكود بنجاح: ${extracted}`);
+    } else {
+      setAnnualCodeInput(text.trim().toUpperCase());
+      setPastedStatus('تم لصق النص من الحافظة!');
+    }
+    setTimeout(() => setPastedStatus(null), 3000);
+  };
 
   // Quick Login Submit Handler
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -568,22 +597,34 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   </div>
                 </div>
 
-                {/* Direct 1-tap WhatsApp Action Button & Return to Login */}
-                <div className="space-y-3 pt-2">
-                  <a
-                    href={getWhatsAppNotifyUrl({
-                      name: restSubmittedSuccess.restaurantName,
-                      owner: restSubmittedSuccess.ownerName,
-                      phone: restSubmittedSuccess.phone,
-                      reqId: restSubmittedSuccess.requestId
-                    })}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    <span>📲 إرسال إشعار مباشر لفريد على واتساب لتسريع التفعيل</span>
-                  </a>
+                {/* Direct WhatsApp Action Button, Modal Preview & Return to Login */}
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex gap-2">
+                    <a
+                      href={getWhatsAppNotifyUrl({
+                        name: restSubmittedSuccess.restaurantName,
+                        owner: restSubmittedSuccess.ownerName,
+                        phone: restSubmittedSuccess.phone,
+                        reqId: restSubmittedSuccess.requestId
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>📲 إرسال فوري لفريد عبر واتساب</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsShareModalOpen(true)}
+                      className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="معاينة ونسخ نص الرسالة"
+                    >
+                      <Copy className="w-4 h-4 text-emerald-400" />
+                      <span>معاينة</span>
+                    </button>
+                  </div>
 
                   <button
                     onClick={() => {
@@ -591,7 +632,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                       setLoginEmailOrPhone(restSubmittedSuccess.phone);
                       setLoginPassword(restPassword || '');
                     }}
-                    className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2"
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2"
                   >
                     <ShieldCheck className="w-4 h-4 text-amber-400" />
                     <span>العودة لشاشة تسجيل الدخول</span>
@@ -613,7 +654,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                 <span>تفعيل ترخيص المشتركين السحابي (كود سنوي):</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                إذا قمت بالاشتراك واستلمت كود التفعيل السنوي من الأستاذ فريد، أدخل الكود هنا لتفعيل نسختك فوراً.
+                إذا قمت بالاشتراك واستلمت كود التفعيل السنوي من الأستاذ فريد عبر واتساب، أدخل الكود هنا أو اضغط زر اللصق لتفعيل نسختك فوراً.
               </p>
             </div>
 
@@ -635,9 +676,27 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                كود التفعيل السنوي (مثال: MATO-2026-XXXX)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">
+                  كود التفعيل السنوي (مثال: MATO-2026-XXXX)
+                </label>
+                <button
+                  type="button"
+                  onClick={handlePasteCode}
+                  className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer bg-amber-400/10 hover:bg-amber-400/20 px-2.5 py-1 rounded-lg transition-all"
+                  title="لصق الكود من الحافظة حتى لو نسخت رسالة الواتساب كاملة"
+                >
+                  <Clipboard className="w-3.5 h-3.5" />
+                  <span>📋 لصق واستخراج الكود</span>
+                </button>
+              </div>
+
+              {pastedStatus && (
+                <div className="mb-2 p-2 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-300 text-[11px] font-bold">
+                  {pastedStatus}
+                </div>
+              )}
+
               <div className="relative">
                 <input
                   type="text"
@@ -689,6 +748,28 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
         <Building2 className="w-3.5 h-3.5 text-slate-400" />
         <span>منظومة MATO POS السحابية & الأوفلاين — تطوير وإشراف م. فريد الفاتح</span>
       </div>
+
+      {/* WhatsApp Share Modal for Request Notification */}
+      {restSubmittedSuccess && (
+        <WhatsAppShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          title="إرسال طلب التسجيل إلى مالك المنظومة فريد"
+          recipientName={ownerContact?.name || 'م. فريد الفاتح'}
+          recipientPhone={ownerContact?.whatsappNumber || PLATFORM_OWNER_CONTACT.whatsappNumber}
+          recipientRole="مالك ومطور المنظومة"
+          restaurantName={restSubmittedSuccess.restaurantName}
+          rawMessage={buildSubscriptionRequestNotification({
+            restaurantName: restSubmittedSuccess.restaurantName,
+            ownerName: restSubmittedSuccess.ownerName,
+            phone: restSubmittedSuccess.phone,
+            requestId: restSubmittedSuccess.requestId,
+            city: restCity,
+            planType: restPlanType
+          })}
+          type="general"
+        />
+      )}
 
     </div>
   );

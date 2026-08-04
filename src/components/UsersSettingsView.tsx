@@ -50,7 +50,8 @@ export const UsersSettingsView: React.FC = () => {
     deleteBranch,
     updateUserRole,
     updateUserPassword,
-    currentUser
+    currentUser,
+    isPlatformOwner
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'owner_security' | 'branches'>('approved');
@@ -173,8 +174,8 @@ export const UsersSettingsView: React.FC = () => {
     }
   };
 
-  // Dedicated view when the current logged-in user is the SaaS Platform Owner
-  if (currentUser?.role === 'Owner') {
+  // Dedicated view when the current logged-in user is the SaaS Platform Owner (Farid)
+  if (isPlatformOwner) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
         {notification && (

@@ -1,12 +1,31 @@
 import React, { useState } from 'react';
 import { useData, PLATFORM_OWNER_CONTACT } from '../context/DataContext';
-import { Lock, ShieldCheck, Key, RefreshCw, CheckCircle2, Sparkles, AlertTriangle, MessageCircle } from 'lucide-react';
+import {
+  Lock,
+  ShieldCheck,
+  Key,
+  RefreshCw,
+  CheckCircle2,
+  Sparkles,
+  AlertTriangle,
+  MessageCircle,
+  Clipboard,
+  Check
+} from 'lucide-react';
+import {
+  readFromClipboard,
+  extractActivationCodeFromText,
+  copyToClipboard
+} from '../lib/whatsappShare';
+import { WhatsAppShareModal } from './WhatsAppShareModal';
 
 export const AnnualLicenseLock: React.FC = () => {
-  const { licenseInfo, redeemLicenseKey, restaurantInfo } = useData();
+  const { licenseInfo, redeemLicenseKey, restaurantInfo, ownerContact } = useData();
   const [code, setCode] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pastedStatus, setPastedStatus] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,10 +45,27 @@ export const AnnualLicenseLock: React.FC = () => {
     }, 600);
   };
 
-  const whatsappMessage = encodeURIComponent(
-    `مرحباً أستاذ فريد! انتهت صلاحية الترخيص السنوي لمطعم (${restaurantInfo?.name || 'مطعمنا'}). نرغب في تجديد الاشتراك السنوي واستلام كود التفعيل الجديد.`
-  );
-  const whatsappUrl = `https://wa.me/${PLATFORM_OWNER_CONTACT.whatsappNumber.replace(/\+/g, '')}?text=${whatsappMessage}`;
+  const handlePasteFromClipboard = async () => {
+    const text = await readFromClipboard();
+    if (!text) {
+      setPastedStatus('يرجى نسخ الكود أولاً أو لصقه يدوياً.');
+      setTimeout(() => setPastedStatus(null), 3000);
+      return;
+    }
+
+    const extracted = extractActivationCodeFromText(text);
+    if (extracted) {
+      setCode(extracted);
+      setPastedStatus(`تم استخراج ولصق الكود بنجاح: ${extracted}`);
+    } else {
+      setCode(text.trim().toUpperCase());
+      setPastedStatus('تم لصق النص من الحافظة!');
+    }
+    setTimeout(() => setPastedStatus(null), 3000);
+  };
+
+  const ownerPhone = ownerContact?.phone || ownerContact?.whatsappNumber || PLATFORM_OWNER_CONTACT.whatsappNumber;
+  const renewalMessage = `مرحباً أستاذ فريد 👋\nانتهت صلاحية الترخيص السنوي لمطعم (${restaurantInfo?.name || 'مطعمنا'}) في نظام MATO POS.\n📅 تاريخ الانتهاء المسجل: ${licenseInfo.expiresAt || 'منتهي'}\nنرغب في تجديد الاشتراك السنوي واستلام كود التفعيل الجديد.\nشكراً لك!`;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 dir-rtl text-right">
@@ -84,16 +120,34 @@ export const AnnualLicenseLock: React.FC = () => {
         {/* Activation Code Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">
-              كود التفعيل السنوي (رمز 1 سنة):
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-300">
+                كود التفعيل السنوي:
+              </label>
+              <button
+                type="button"
+                onClick={handlePasteFromClipboard}
+                className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer bg-amber-400/10 hover:bg-amber-400/20 px-2.5 py-1 rounded-lg transition-all"
+                title="لصق الكود من الحافظة حتى لو نسخت رسالة الواتساب كاملة"
+              >
+                <Clipboard className="w-3.5 h-3.5" />
+                <span>📋 لصق واستخراج الكود</span>
+              </button>
+            </div>
+
+            {pastedStatus && (
+              <div className="mb-2 p-2 rounded-lg bg-amber-400/10 border border-amber-400/30 text-amber-300 text-[11px] font-bold">
+                {pastedStatus}
+              </div>
+            )}
+
             <div className="relative">
               <input
                 type="text"
                 required
-                placeholder="مثال: MATO-2026-8891-1YEAR"
+                placeholder="مثال: MATO-2026-XXXX-1YEAR"
                 value={code}
-                onChange={e => setCode(e.target.value)}
+                onChange={e => setCode(e.target.value.toUpperCase())}
                 className="w-full px-4 py-3 bg-slate-950 border border-amber-500/40 rounded-xl text-center font-mono font-black text-sm tracking-wider text-amber-300 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 placeholder:text-slate-600 placeholder:font-normal"
               />
               <Key className="w-4 h-4 text-slate-500 absolute left-3 top-3.5" />
@@ -121,18 +175,30 @@ export const AnnualLicenseLock: React.FC = () => {
 
         {/* Direct WhatsApp Contact Button */}
         <div className="mt-4 pt-4 border-t border-slate-800 text-center">
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2"
+          <button
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
           >
             <MessageCircle className="w-4 h-4" />
-            <span>تواصل مع المالك فريد عبر واتساب لطلب الكود ({PLATFORM_OWNER_CONTACT.whatsappNumber})</span>
-          </a>
+            <span>تواصل مع الأستاذ فريد عبر واتساب لطلب الكود ({ownerPhone})</span>
+          </button>
         </div>
 
       </div>
+
+      {/* WhatsApp Share / Contact Modal */}
+      <WhatsAppShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title="طلب كود التفعيل السنوي عبر واتساب"
+        recipientName={ownerContact?.name || 'م. فريد الفاتح'}
+        recipientPhone={ownerPhone}
+        recipientRole="مالك ومطور المنظومة"
+        restaurantName={restaurantInfo?.name || 'مطعمنا'}
+        rawMessage={renewalMessage}
+        type="general"
+      />
     </div>
   );
 };

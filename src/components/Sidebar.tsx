@@ -36,42 +36,41 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) => {
-  const { currentUser, pendingUsersCount, pendingRestaurantRequestsCount } = useData();
+  const { currentUser, isPlatformOwner, pendingUsersCount, pendingRestaurantRequestsCount } = useData();
 
   // Check permission by role
   const isAllowed = (view: ViewType) => {
-    const role = currentUser.role;
-    if (role === 'Owner') {
-      // Owner account is strictly dedicated to account and user management, security logs, and tenant licenses
-      return ['users', 'logs', 'sales'].includes(view);
+    if (isPlatformOwner) return true; // Platform SuperAdmin has access to inspect all views
+
+    const role = currentUser?.role;
+    if (role === 'Owner' || role === 'Manager') {
+      // Restaurant Owner & Manager have full access to all restaurant modules
+      return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai'].includes(view);
     }
-    if (role === 'Manager') return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'logs', 'ai'].includes(view);
     if (role === 'Cashier') return ['pos', 'products', 'ai', 'dashboard'].includes(view);
     if (role === 'Inventory Manager') return ['inventory', 'suppliers', 'recipes', 'logs', 'ai', 'dashboard'].includes(view);
     return true;
   };
 
-  const isOwner = currentUser.role === 'Owner';
-
-  const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string; countBadge?: number }[] = isOwner
+  const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string; countBadge?: number }[] = isPlatformOwner
     ? [
         {
           id: 'sales',
-          label: 'إدارة حسابات المطاعم المسجلة',
+          label: 'إدارة حسابات المطاعم وتراخيص SaaS',
           icon: Store,
-          badge: 'الرئيسية',
+          badge: 'رئيسي',
           countBadge: pendingRestaurantRequestsCount > 0 ? pendingRestaurantRequestsCount : undefined
         },
-        {
-          id: 'users',
-          label: 'أمان وكلمة مرور المالك',
-          icon: Lock
-        },
-        {
-          id: 'logs',
-          label: 'سجل نشاط وأمان المنظومة',
-          icon: History
-        },
+        { id: 'dashboard', label: 'معاينة لوحة التحكم', icon: LayoutDashboard },
+        { id: 'pos', label: 'نظام الكاشير (POS)', icon: ShoppingBag },
+        { id: 'products', label: 'المنتجات والمنيو', icon: UtensilsCrossed },
+        { id: 'inventory', label: 'المخزون والمواد', icon: Boxes },
+        { id: 'suppliers', label: 'الموردون والشراء', icon: Truck },
+        { id: 'expenses', label: 'المصاريف والأجور', icon: Wallet },
+        { id: 'recipes', label: 'الوصفات والتكلفة', icon: ChefHat },
+        { id: 'users', label: 'أمان حساب المالك الرئيسي', icon: Lock },
+        { id: 'logs', label: 'سجل نشاط وأمان المنظومة', icon: History },
+        { id: 'ai', label: 'مساعد MATO AI', icon: Sparkles, badge: 'ذكي' },
       ]
     : [
         { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
@@ -81,16 +80,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
         { id: 'suppliers', label: 'الموردون والشراء', icon: Truck },
         { id: 'expenses', label: 'المصاريف والأجور', icon: Wallet },
         { id: 'recipes', label: 'الوصفات والتكلفة', icon: ChefHat },
+        {
+          id: 'users',
+          label: 'طاقم العمل والموافقات',
+          icon: Users,
+          countBadge: pendingUsersCount > 0 ? pendingUsersCount : undefined
+        },
         { id: 'logs', label: 'سجل العمليات', icon: History },
         { id: 'ai', label: 'مساعد MATO AI', icon: Sparkles, badge: 'ذكي' },
       ];
+
+  const getRoleDisplayName = () => {
+    if (isPlatformOwner) return 'مالك المنظومة الرئيسي (Super Owner)';
+    switch (currentUser?.role) {
+      case 'Owner':
+        return 'صاحب المطعم / المدير العام';
+      case 'Manager':
+        return 'مدير المطعم';
+      case 'Cashier':
+        return 'كاشير المبيعات';
+      case 'Inventory Manager':
+        return 'مدير المخزون والمشتريات';
+      default:
+        return currentUser?.role || 'مستخدم';
+    }
+  };
 
   return (
     <aside className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-l border-slate-800 text-slate-300 flex-shrink-0">
       <div className="p-3 lg:p-4 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible no-scrollbar">
         
         <div className="hidden lg:block text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
-          {isOwner ? 'بوابة المالك وإدارة الحسابات' : 'القائمة الرئيسية'}
+          {isPlatformOwner ? 'بوابة مالك المنظومة (SaaS)' : 'القائمة الرئيسية'}
         </div>
 
         {navItems.map(item => {
@@ -117,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
               <div className="flex items-center gap-1">
                 {item.countBadge !== undefined && item.countBadge > 0 && (
                   <span className="bg-rose-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse shadow-sm">
-                    {item.countBadge} طلبات
+                    {item.countBadge} {isPlatformOwner ? 'طلبات' : 'جديد'}
                   </span>
                 )}
                 {item.badge && (
@@ -138,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
           <div className="text-[11px] text-slate-400 font-semibold mb-1">صلاحية الحساب الحالي</div>
           <div className="text-xs text-amber-400 font-bold flex items-center gap-1">
             <Building2 className="w-3.5 h-3.5" />
-            <span>{currentUser.role}</span>
+            <span className="truncate">{getRoleDisplayName()}</span>
           </div>
         </div>
 

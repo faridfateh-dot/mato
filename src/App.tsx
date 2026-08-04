@@ -19,38 +19,34 @@ import { AnnualLicenseLock } from './components/AnnualLicenseLock';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppMainContent: React.FC = () => {
-  const { isAuthenticated, isLicenseExpired, currentUser } = useData();
+  const { isAuthenticated, isLicenseExpired, currentUser, isPlatformOwner } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   const [recipeProductTargetId, setRecipeProductTargetId] = useState<string | undefined>(undefined);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const isOwner = currentUser?.role === 'Owner';
-
   // Derive current view from hash location pathname
   const pathSegment = location.pathname.replace(/^\//, '');
   
-  // Owner is strictly dedicated to managing registered restaurant accounts and licenses
-  const allowedViews: ViewType[] = isOwner
-    ? ['sales', 'users', 'logs']
-    : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'logs', 'ai'];
+  // Platform Owner (Farid) defaults to sales dashboard but can preview everything
+  // Restaurant subscribers and users access the full restaurant suite
+  const allowedViews: ViewType[] = isPlatformOwner
+    ? ['sales', 'dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai']
+    : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai'];
 
-  const defaultView: ViewType = isOwner ? 'sales' : (currentUser?.role === 'Cashier' ? 'pos' : 'dashboard');
+  const defaultView: ViewType = isPlatformOwner 
+    ? 'sales' 
+    : (currentUser?.role === 'Cashier' ? 'pos' : 'dashboard');
   
   const currentView: ViewType = allowedViews.includes(pathSegment as ViewType) 
     ? (pathSegment as ViewType) 
     : defaultView;
 
   const setCurrentView = (view: ViewType) => {
-    if (isOwner && !['sales', 'users', 'logs'].includes(view)) {
-      navigate('/sales');
-      return;
-    }
     navigate('/' + (view === defaultView ? '' : view));
   };
 
   const handleNavigateRecipeForProduct = (productId: string) => {
-    if (isOwner) return;
     setRecipeProductTargetId(productId);
     setCurrentView('recipes');
   };
@@ -60,26 +56,17 @@ const AppMainContent: React.FC = () => {
     return <AuthGate />;
   }
 
-  // Lock system if 1-year annual activation subscription has expired (Owner is ALWAYS immune with lifetime access)
-  if (!isOwner && isLicenseExpired) {
+  // Lock system if 1-year annual activation subscription has expired (Platform Owner is ALWAYS immune with lifetime access)
+  if (!isPlatformOwner && isLicenseExpired) {
     return <AnnualLicenseLock />;
   }
 
   const renderMainView = () => {
-    // If Owner, strictly render account management and platform security views
-    if (isOwner) {
-      switch (currentView) {
-        case 'logs':
-          return <ActivityLogsView />;
-        case 'users':
-          return <UsersSettingsView />;
-        case 'sales':
-        default:
-          return <SoftwareSalesView />;
-      }
-    }
-
     switch (currentView) {
+      case 'sales':
+        return isPlatformOwner ? <SoftwareSalesView /> : <DashboardView onNavigateView={setCurrentView} />;
+      case 'users':
+        return <UsersSettingsView />;
       case 'dashboard':
         return <DashboardView onNavigateView={setCurrentView} />;
       case 'pos':

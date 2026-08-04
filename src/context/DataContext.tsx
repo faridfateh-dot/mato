@@ -78,6 +78,7 @@ interface DataContextType {
   currentRestaurant: Restaurant;
   currentBranch: Branch;
   currentUser: User;
+  isPlatformOwner: boolean;
   branches: Branch[];
   users: User[];
   pendingUsers: User[];
@@ -408,11 +409,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: 'المالك',
     email: 'owner@mato.sy',
     role: 'Owner',
+    isPlatformOwner: false,
     isActive: true,
     createdAt: new Date().toISOString()
   };
 
   const [currentUser, setCurrentUserState] = useState<User>(() => (Array.isArray(users) && users[0]) ? users[0] : defaultEmptyUser);
+
+  // Platform Owner flag: true strictly for Farid (SaaS Platform Creator & System SuperAdmin)
+  const isPlatformOwner = useMemo(() => {
+    if (!currentUser) return false;
+    return (
+      currentUser.isPlatformOwner === true ||
+      currentUser.email?.toLowerCase() === 'farid.fateh@hotmail.com' ||
+      currentUser.id === 'usr_owner_farid'
+    );
+  }, [currentUser]);
 
   const [categories, setCategories] = useState<Category[]>(() => {
     return safeStorageArrayParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);
@@ -917,14 +929,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Check if annual activation subscription has expired (Owner is ALWAYS immune with lifetime access)
+  // Check if annual activation subscription has expired (Platform Owner Farid is ALWAYS immune with lifetime access)
   const isLicenseExpired = useMemo(() => {
-    if (currentUser?.role === 'Owner') return false;
+    if (isPlatformOwner) return false;
     if (!licenseInfo || !licenseInfo.expiresAt) return false;
     const expiry = new Date(licenseInfo.expiresAt).getTime();
     const now = new Date().getTime();
     return now > expiry || licenseInfo.status === 'expired';
-  }, [licenseInfo, currentUser?.role]);
+  }, [licenseInfo, isPlatformOwner]);
 
   // SaaS Commercial & License Redemption
   const redeemLicenseKey = (keyString: string) => {
@@ -1521,16 +1533,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Fallback: If user is Farid or Owner and not yet in list, provision profile
     if (!matchedUser && (cleanInput === 'farid.fateh@hotmail.com' || cleanInput === 'owner@mato.sy' || cleanInput === 'admin@mato.sy')) {
+      const isFarid = cleanInput === 'farid.fateh@hotmail.com';
       matchedUser = {
-        id: 'usr_owner_farid',
+        id: isFarid ? 'usr_owner_farid' : 'usr_owner_default',
         restaurantId: restaurant.id || 'rest_01',
         branchId: '', // Owner has NO branch constraints
-        name: cleanInput === 'farid.fateh@hotmail.com' ? 'فريد (مالك المنظومة)' : 'المالك (المدير العام)',
+        name: isFarid ? 'فريد (مالك المنظومة)' : 'مدير المطعم (صاحب المنشأة)',
         email: cleanInput,
         phone: '+963991234567',
         password: 'admin',
         pinCode: '1234',
         role: 'Owner',
+        isPlatformOwner: isFarid,
         isActive: true,
         isPendingApproval: false, // Owner NEVER needs review
         createdAt: '2026-01-01T00:00:00Z'
@@ -1551,6 +1565,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           password: 'admin',
           pinCode: '1234',
           role: 'Owner',
+          isPlatformOwner: false,
           isActive: true,
           isPendingApproval: false,
           createdAt: matchedReg.registeredAt
@@ -1694,6 +1709,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password: password || '123456',
       pinCode: '1234',
       role: 'Owner',
+      isPlatformOwner: false,
       isActive: true,
       createdAt: new Date().toISOString()
     };
@@ -2830,6 +2846,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentRestaurant: restaurant,
         currentBranch,
         currentUser,
+        isPlatformOwner,
         branches,
         users,
         pendingUsers,

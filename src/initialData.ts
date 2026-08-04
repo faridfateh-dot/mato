@@ -53,6 +53,7 @@ export const INITIAL_USERS: User[] = [
     password: 'admin',
     pinCode: '1234',
     role: 'Owner',
+    isPlatformOwner: true,
     isActive: true,
     isPendingApproval: false,
     createdAt: '2026-01-01T00:00:00Z'
@@ -61,12 +62,13 @@ export const INITIAL_USERS: User[] = [
     id: 'usr_owner_default',
     restaurantId: 'rest_01',
     branchId: '',
-    name: 'المالك (المدير العام)',
+    name: 'مدير المطعم (صاحب المنشأة)',
     email: 'owner@mato.sy',
     phone: '0991234567',
     password: 'admin',
     pinCode: '1234',
     role: 'Owner',
+    isPlatformOwner: false,
     isActive: true,
     isPendingApproval: false,
     createdAt: '2026-01-01T00:00:00Z'

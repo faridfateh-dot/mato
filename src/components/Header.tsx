@@ -56,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
     currentRestaurant,
     currentBranch,
     currentUser,
+    isPlatformOwner,
     branches,
     users,
     setCurrentBranch,
@@ -97,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
 
   const stats = getDashboardStats();
   const lowStockCount = stats.lowStockIngredients.length;
-  const isOwner = currentUser?.role === 'Owner';
+  const isOwner = isPlatformOwner;
 
   const handleCreateBranchHeader = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
   };
 
   const roleLabels: Record<UserRole, string> = {
-    Owner: 'المالك العام للمنظومة (Super Owner)',
+    Owner: isPlatformOwner ? 'المالك العام للمنظومة (Super Owner)' : 'صاحب المطعم / المدير العام',
     Manager: 'المدير (Manager)',
     Cashier: 'كاشير (Cashier)',
     'Inventory Manager': 'مدير المخزون (Inventory)',
@@ -730,7 +731,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                     </>
                   ) : (
                     <>
-                      {currentUser.role === 'Manager' && (
+                      {(currentUser.role === 'Owner' || currentUser.role === 'Manager') && (
                         <button
                           onClick={() => {
                             setShowRoleMenu(false);
@@ -739,7 +740,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                           className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
                         >
                           <Users className="w-3.5 h-3.5" />
-                          <span>إدارة موظفي المطعم</span>
+                          <span>إدارة موظفي وصلاحيات المطعم</span>
                         </button>
                       )}
 
@@ -748,9 +749,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                           setShowRoleMenu(false);
                           setShowNewBranchModal(true);
                         }}
-                        className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
+                        className="w-full text-right px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus className="w-3.5 h-3.5 text-amber-400" />
                         <span>إنشاء فرع جديد للمطعم</span>
                       </button>
                     </>

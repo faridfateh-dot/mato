@@ -38,6 +38,7 @@ export interface User {
   pinCode?: string;
   isActive: boolean;
   isPendingApproval?: boolean;
+  isPlatformOwner?: boolean; // True only for Farid (SaaS Platform Creator/SuperAdmin)
   requestedAt?: string;
   requestedRole?: UserRole;
   restaurantName?: string;

@@ -6,6 +6,17 @@ import {
   PLATFORM_OWNER_CONTACT
 } from '../lib/firebase';
 import {
+  WhatsAppShareModal,
+  WhatsAppShareModalProps
+} from './WhatsAppShareModal';
+import {
+  copyToClipboard,
+  buildRestaurantActivationMessage,
+  buildStaffCredentialsMessage,
+  buildGeneralWhatsAppMessage,
+  getWhatsAppShareUrl
+} from '../lib/whatsappShare';
+import {
   ShieldCheck,
   Key,
   Building2,
@@ -171,6 +182,64 @@ export const SoftwareSalesView: React.FC = () => {
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  // WhatsApp Share Modal State
+  const [shareModalConfig, setShareModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    recipientName: string;
+    recipientPhone?: string;
+    recipientRole?: string;
+    restaurantName?: string;
+    code?: string;
+    rawMessage: string;
+    type?: 'restaurant_activation' | 'staff_credentials' | 'general';
+  }>({
+    isOpen: false,
+    title: '',
+    recipientName: '',
+    recipientPhone: '',
+    code: '',
+    rawMessage: '',
+    type: 'restaurant_activation'
+  });
+
+  const openShareModal = (config: {
+    title?: string;
+    restaurantName?: string;
+    recipientName: string;
+    recipientPhone?: string;
+    recipientRole?: string;
+    code?: string;
+    expiryDate?: string;
+    planName?: string;
+    rawMessage?: string;
+    type?: 'restaurant_activation' | 'staff_credentials' | 'general';
+  }) => {
+    const formattedExpiry = config.expiryDate
+      ? new Date(config.expiryDate).toLocaleDateString('ar-SY', { year: 'numeric', month: 'long', day: 'numeric' })
+      : undefined;
+
+    const msg = config.rawMessage || buildRestaurantActivationMessage({
+      restaurantName: config.restaurantName || config.recipientName,
+      ownerName: config.recipientName,
+      code: config.code || '',
+      expiryDate: formattedExpiry,
+      planName: config.planName || 'الاشتراك السنوي الشامل'
+    });
+
+    setShareModalConfig({
+      isOpen: true,
+      title: config.title || `مشاركة كود التفعيل عبر واتساب (${config.restaurantName || config.recipientName})`,
+      recipientName: config.recipientName,
+      recipientPhone: config.recipientPhone || '',
+      recipientRole: config.recipientRole || 'مالك المطعم / المشترك',
+      restaurantName: config.restaurantName,
+      code: config.code,
+      rawMessage: msg,
+      type: config.type || 'restaurant_activation'
+    });
+  };
+
   // White-label branding form
   const [brandingForm, setBrandingForm] = useState({
     name: currentRestaurant.name,
@@ -185,11 +254,15 @@ export const SoftwareSalesView: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [backupStatus, setBackupStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Copy Key Helper
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKeyId(id);
-    setTimeout(() => setCopiedKeyId(null), 2000);
+  // Copy Key Helper with fallback and toast feedback
+  const handleCopy = async (text: string, id: string, label: string = 'تم نسخ الكود بنجاح!') => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedKeyId(id);
+      setToastNotification(label);
+      setTimeout(() => setCopiedKeyId(null), 2500);
+      setTimeout(() => setToastNotification(null), 4000);
+    }
   };
 
   // Redeem Key Action
@@ -226,17 +299,19 @@ export const SoftwareSalesView: React.FC = () => {
     setActionLoadingId(reqId);
     try {
       const res = await approveRestaurantSubscription(reqId, 1);
-      const msg = `أهلاً بك أستاذ ${res.restaurantName}! 🎉\nتمت الموافقة على طلب ترخيص مطعمكم وتفعيله في نظام MATO POS.\n\n🔑 كود التفعيل السنوي الخاص بك: ${res.code}\n📅 تاريخ انتهاء الاشتراك: ${new Date(res.expiry).toLocaleDateString('ar-SY')}\n\nيمكنك الآن إدخال الكود وتفعيل النظام فوراً.`;
-      
-      const whatsappUrl = res.ownerPhone ? getClientWhatsAppLink(res.ownerPhone, msg) : '';
-      
-      if (whatsappUrl) {
-        if (confirm(`تمت الموافقة وتوليد كود التفعيل بنجاح! 🎉\nالكود: ${res.code}\n\nهل ترغب في فتح واتساب لإرسال كود التفعيل لصاحب المطعم مباشرة؟`)) {
-          window.open(whatsappUrl, '_blank');
-        }
-      } else {
-        alert(`تمت الموافقة وتوليد كود التفعيل السنوي بنجاح! 🎉\nالكود: ${res.code}`);
-      }
+
+      openShareModal({
+        title: `🎉 تمت الموافقة! إرسال كود التفعيل لمطعم (${res.restaurantName})`,
+        restaurantName: res.restaurantName,
+        recipientName: res.ownerName || res.restaurantName,
+        recipientPhone: res.ownerPhone,
+        code: res.code,
+        expiryDate: res.expiry,
+        planName: 'الاشتراك السنوي الشامل'
+      });
+
+      setToastNotification(`تمت الموافقة وتوليد كود التفعيل لمطعم (${res.restaurantName}) بنجاح: ${res.code}`);
+      setTimeout(() => setToastNotification(null), 5000);
     } catch (err) {
       alert('حدث خطأ أثناء الموافقة على الطلب.');
     } finally {
@@ -903,10 +978,19 @@ export const SoftwareSalesView: React.FC = () => {
                                 <td className="p-3">
                                   {req.activationCode ? (
                                     <div className="space-y-1">
-                                      <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-2.5 py-1 rounded-lg font-mono font-black text-xs select-all">
-                                        <Key className="w-3 h-3" />
-                                        <span>{req.activationCode}</span>
-                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-2.5 py-1 rounded-lg font-mono font-black text-xs select-all">
+                                          <Key className="w-3 h-3" />
+                                          <span>{req.activationCode}</span>
+                                        </span>
+                                        <button
+                                          onClick={() => handleCopy(req.activationCode || '', req.id, `تم نسخ كود تفعيل (${req.restaurantName}) بنجاح!`)}
+                                          className="p-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 transition-all cursor-pointer"
+                                          title="نسخ كود التفعيل"
+                                        >
+                                          {copiedKeyId === req.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                        </button>
+                                      </div>
                                       {req.expiresAt && (
                                         <div className="text-[10px] text-slate-500">
                                           ينتهي: {new Date(req.expiresAt).toLocaleDateString('ar-SY')}
@@ -926,7 +1010,7 @@ export const SoftwareSalesView: React.FC = () => {
                                           disabled={actionLoadingId === req.id}
                                           onClick={() => handleApproveRequest(req.id)}
                                           className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                          title="موافقة وإصدار كود سنوي"
+                                          title="موافقة وإصدار كود سنوي ومشاركته عبر واتساب"
                                         >
                                           {actionLoadingId === req.id ? (
                                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -963,26 +1047,40 @@ export const SoftwareSalesView: React.FC = () => {
 
                                     {isApproved && (
                                       <>
-                                        {whatsappUrl && (
-                                          <a
-                                            href={whatsappUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-xs"
-                                          >
-                                            <MessageCircle className="w-3.5 h-3.5" />
-                                            <span>إرسال الكود</span>
-                                          </a>
-                                        )}
+                                        <button
+                                          onClick={() => openShareModal({
+                                            title: `مشاركة كود تفعيل مطعم (${req.restaurantName}) عبر واتساب`,
+                                            restaurantName: req.restaurantName,
+                                            recipientName: req.ownerName,
+                                            recipientPhone: req.phone,
+                                            code: req.activationCode,
+                                            expiryDate: req.expiresAt,
+                                            planName: req.planType === 'starter' ? 'الباقة المبتدئة' : req.planType === 'enterprise' ? 'باقة المؤسسات' : 'الباقة الاحترافية'
+                                          })}
+                                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-xs cursor-pointer"
+                                          title="مشاركة الكود والبيانات عبر واتساب"
+                                        >
+                                          <MessageCircle className="w-3.5 h-3.5" />
+                                          <span>إرسال ومشاركة</span>
+                                        </button>
 
                                         <button
                                           onClick={async () => {
                                             const res = await generateAnnualActivationCode(req.id, req.restaurantName);
+                                            openShareModal({
+                                              title: `🎉 تم تجديد الترخيص! إرسال الكود الجديد لمطعم (${req.restaurantName})`,
+                                              restaurantName: req.restaurantName,
+                                              recipientName: req.ownerName,
+                                              recipientPhone: req.phone,
+                                              code: res.code,
+                                              expiryDate: res.newExpiry,
+                                              planName: 'الاشتراك السنوي الشامل'
+                                            });
                                             setToastNotification(`تم تجديد كود المطعم (${req.restaurantName}) بنجاح! الكود: ${res.code}`);
                                             setTimeout(() => setToastNotification(null), 5000);
                                           }}
                                           className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all cursor-pointer"
-                                          title="تجديد كود سنة إضافية"
+                                          title="تجديد كود سنة إضافية ومشاركته عبر واتساب"
                                         >
                                           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                                         </button>
@@ -1207,30 +1305,28 @@ export const SoftwareSalesView: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col gap-2 pt-2">
-                  {directSuccessResult.phone && (
-                    <a
-                      href={getClientWhatsAppLink(
-                        directSuccessResult.phone,
-                        `أهلاً بك أستاذ ${directForm.ownerName}! 🎉\nتم ترخيص مطعمكم (${directSuccessResult.name}) في نظام MATO POS بنجاح.\n\n🔑 كود التفعيل السنوي الخاص بكم هو:\n${directSuccessResult.code}\n\n📅 تاريخ انتهاء الاشتراك: ${new Date(directSuccessResult.expiry).toLocaleDateString('ar-SY')}\n\nشكراً لثقتكم بنظامنا!`
-                      )}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center justify-center gap-2"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>📱 إرسال كود التفعيل لصاحب المطعم عبر واتساب فوراً</span>
-                    </a>
-                  )}
+                  <button
+                    onClick={() => openShareModal({
+                      title: `🎉 إرسال كود التفعيل لمطعم (${directSuccessResult.name})`,
+                      restaurantName: directSuccessResult.name,
+                      recipientName: directForm.ownerName || directSuccessResult.name,
+                      recipientPhone: directSuccessResult.phone,
+                      code: directSuccessResult.code,
+                      expiryDate: directSuccessResult.expiry,
+                      planName: directForm.planType === 'starter' ? 'الباقة المبتدئة' : directForm.planType === 'enterprise' ? 'باقة المؤسسات' : 'الباقة الاحترافية'
+                    })}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>📱 مشاركة وإرسال كود التفعيل عبر واتساب</span>
+                  </button>
 
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(directSuccessResult.code);
-                      alert('تم نسخ كود التفعيل بنجاح!');
-                    }}
+                    onClick={() => handleCopy(directSuccessResult.code, 'direct_created', 'تم نسخ كود تفعيل المطعم بنجاح!')}
                     className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Copy className="w-4 h-4 text-slate-600" />
-                    <span>نسخ كود التفعيل</span>
+                    {copiedKeyId === 'direct_created' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
+                    <span>{copiedKeyId === 'direct_created' ? 'تم النسخ للحافظة!' : '📋 نسخ كود التفعيل فقط'}</span>
                   </button>
 
                   <button
@@ -1481,13 +1577,35 @@ export const SoftwareSalesView: React.FC = () => {
                         )}
                       </td>
                       <td className="p-3.5 text-center">
-                        <button
-                          onClick={() => handleCopy(k.key, k.id)}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 rounded-lg font-bold text-[11px] transition-all inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          {copiedKeyId === k.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          <span>{copiedKeyId === k.id ? 'تم النسخ!' : 'نسخ'}</span>
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleCopy(k.key, k.id, `تم نسخ مفتاح ترخيص (${k.clientName}) بنجاح!`)}
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 rounded-lg font-bold text-[11px] transition-all inline-flex items-center gap-1 cursor-pointer"
+                            title="نسخ المفتاح"
+                          >
+                            {copiedKeyId === k.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedKeyId === k.id ? 'تم النسخ!' : 'نسخ'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => openShareModal({
+                              title: `مشاركة كود ترخيص (${k.clientName}) عبر واتساب`,
+                              restaurantName: k.clientName,
+                              recipientName: k.clientName,
+                              code: k.key,
+                              planName: k.planNameAr,
+                              rawMessage: buildRestaurantActivationMessage({
+                                restaurantName: k.clientName,
+                                code: k.key,
+                                planName: k.planNameAr
+                              })
+                            })}
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg transition-all cursor-pointer"
+                            title="مشاركة عبر واتساب"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1519,25 +1637,40 @@ export const SoftwareSalesView: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="font-black text-slate-900 text-base">تم إنشاء المفتاح بنجاح! 🎉</h4>
-                  <p className="text-slate-500 text-xs mt-1">يمكنك نسخ الكود وإرساله للعميل للتفعيل المباشر</p>
+                  <p className="text-slate-500 text-xs mt-1">يمكنك نسخ الكود أو إرساله للعميل عبر واتساب فوراً</p>
                 </div>
-                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl font-mono font-black text-amber-800 text-sm tracking-wider">
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl font-mono font-black text-amber-800 text-sm tracking-wider select-all">
                   {createdKeySuccess}
                 </div>
-                <div className="flex justify-center gap-2">
+                <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => handleCopy(createdKeySuccess, 'new_created')}
-                    className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-xs flex items-center gap-2"
+                    onClick={() => openShareModal({
+                      title: `مشاركة كود ترخيص (${newKeyForm.clientName}) عبر واتساب`,
+                      restaurantName: newKeyForm.clientName,
+                      recipientName: newKeyForm.clientName,
+                      code: createdKeySuccess,
+                      planName: newKeyForm.planType === 'starter' ? 'الباقة الأساسية' : newKeyForm.planType === 'enterprise' ? 'باقة المؤسسات' : 'الباقة الاحترافية'
+                    })}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>نسخ المفتاح</span>
+                    <MessageCircle className="w-4 h-4" />
+                    <span>📱 إرسال ومشاركة المفتاح عبر واتساب</span>
                   </button>
-                  <button
-                    onClick={() => { setCreatedKeySuccess(null); setShowKeyModal(false); }}
-                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs"
-                  >
-                    إغلاق
-                  </button>
+                  <div className="flex justify-center gap-2">
+                    <button
+                      onClick={() => handleCopy(createdKeySuccess, 'new_created', 'تم نسخ مفتاح الترخيص بنجاح!')}
+                      className="flex-1 py-2 bg-slate-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      {copiedKeyId === 'new_created' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedKeyId === 'new_created' ? 'تم النسخ!' : 'نسخ المفتاح'}</span>
+                    </button>
+                    <button
+                      onClick={() => { setCreatedKeySuccess(null); setShowKeyModal(false); }}
+                      className="flex-1 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs cursor-pointer hover:bg-slate-200"
+                    >
+                      إغلاق
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -2101,18 +2234,28 @@ export const SoftwareSalesView: React.FC = () => {
                               {rest.phone || rest.email || 'غير محدد'}
                             </span>
                             {rest.phone && (
-                              <a
-                                href={getClientWhatsAppLink(
-                                  rest.phone,
-                                  `مرحباً أستاذ ${rest.ownerName}! بخصوص اشتراك وترخيص مطعم (${rest.name}) في نظام MATO POS...`
-                                )}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
-                                title="مراسلة العميل عبر واتساب"
+                              <button
+                                onClick={() => openShareModal({
+                                  title: `مراسلة مطعم (${rest.name}) عبر واتساب`,
+                                  restaurantName: rest.name,
+                                  recipientName: rest.ownerName,
+                                  recipientPhone: rest.phone,
+                                  code: rest.activationCode,
+                                  expiryDate: rest.subscriptionExpiry,
+                                  rawMessage: rest.activationCode
+                                    ? buildRestaurantActivationMessage({
+                                        restaurantName: rest.name,
+                                        ownerName: rest.ownerName,
+                                        code: rest.activationCode,
+                                        expiryDate: expiryDate.toLocaleDateString('ar-SY', { year: 'numeric', month: 'long', day: 'numeric' })
+                                      })
+                                    : `مرحباً أستاذ ${rest.ownerName}! بخصوص اشتراك وترخيص مطعم (${rest.name}) في نظام MATO POS...`
+                                })}
+                                className="p-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all cursor-pointer"
+                                title="مراسلة العميل ومشاركة الكود عبر واتساب"
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
-                              </a>
+                              </button>
                             )}
                           </div>
                         </td>
@@ -2147,16 +2290,30 @@ export const SoftwareSalesView: React.FC = () => {
                               <span>{rest.activationCode || 'لم يولد كود بعد'}</span>
                             </span>
                             {rest.activationCode && (
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(rest.activationCode || '');
-                                  alert('تم نسخ كود التفعيل بنجاح!');
-                                }}
-                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer"
-                                title="نسخ الكود"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleCopy(rest.activationCode || '', rest.id, `تم نسخ كود تفعيل (${rest.name}) بنجاح!`)}
+                                  className="p-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-600 hover:text-amber-900 transition-all cursor-pointer"
+                                  title="نسخ كود التفعيل"
+                                >
+                                  {copiedKeyId === rest.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-600" />}
+                                </button>
+                                <button
+                                  onClick={() => openShareModal({
+                                    title: `مشاركة كود ترخيص (${rest.name}) عبر واتساب`,
+                                    restaurantName: rest.name,
+                                    recipientName: rest.ownerName,
+                                    recipientPhone: rest.phone,
+                                    code: rest.activationCode,
+                                    expiryDate: rest.subscriptionExpiry,
+                                    planName: 'الاشتراك السنوي الشامل'
+                                  })}
+                                  className="p-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 transition-all cursor-pointer"
+                                  title="إرسال الكود للعميل عبر واتساب"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             )}
                           </div>
                         </td>
@@ -2166,7 +2323,17 @@ export const SoftwareSalesView: React.FC = () => {
                             <button
                               onClick={async () => {
                                 const res = await generateAnnualActivationCode(rest.id, rest.name);
-                                alert(`تمت العملية بنجاح! 🎉\n\nتم توليد كود تفعيل سنوي جديد للمطعم (${rest.name}):\nالكود: ${res.code}\nتاريخ الانتهاء الجديد: ${new Date(res.newExpiry).toLocaleDateString('ar-SY')}\nتم تعديل حالة الاشتراك سحابياً فورياً إلى (فعّال).`);
+                                openShareModal({
+                                  title: `🎉 تم تجديد الترخيص! مشاركة الكود الجديد لمطعم (${rest.name})`,
+                                  restaurantName: rest.name,
+                                  recipientName: rest.ownerName,
+                                  recipientPhone: rest.phone,
+                                  code: res.code,
+                                  expiryDate: res.newExpiry,
+                                  planName: 'الاشتراك السنوي الشامل'
+                                });
+                                setToastNotification(`تم تمديد اشتراك مطعم (${rest.name}) وتوليد كود التفعيل: ${res.code}`);
+                                setTimeout(() => setToastNotification(null), 5000);
                               }}
                               className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-400/20 flex items-center justify-center gap-1.5 cursor-pointer"
                             >
@@ -2174,19 +2341,22 @@ export const SoftwareSalesView: React.FC = () => {
                               <span>توليد كود سنوي جديد (تمديد سنة)</span>
                             </button>
 
-                            {rest.phone && rest.activationCode && (
-                              <a
-                                href={getClientWhatsAppLink(
-                                  rest.phone,
-                                  `أهلاً بك أستاذ ${rest.ownerName}! 🎉\nكود التفعيل السنوي الخاص بمطعمكم (${rest.name}) في نظام MATO POS هو:\n${rest.activationCode}\n\nتاريخ انتهاء الاشتراك: ${expiryDate.toLocaleDateString('ar-SY')}`
-                                )}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-xs"
-                                title="إرسال الكود عبر واتساب"
+                            {rest.activationCode && (
+                              <button
+                                onClick={() => openShareModal({
+                                  title: `مشاركة كود تفعيل مطعم (${rest.name}) عبر واتساب`,
+                                  restaurantName: rest.name,
+                                  recipientName: rest.ownerName,
+                                  recipientPhone: rest.phone,
+                                  code: rest.activationCode,
+                                  expiryDate: rest.subscriptionExpiry
+                                })}
+                                className="px-2.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                                title="إرسال ومشاركة كود التفعيل عبر واتساب"
                               >
                                 <MessageCircle className="w-4 h-4" />
-                              </a>
+                                <span className="text-[11px] font-black">مشاركة</span>
+                              </button>
                             )}
 
                             <button
@@ -2578,6 +2748,20 @@ export const SoftwareSalesView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ==================== WHATSAPP SHARE MODAL ==================== */}
+      <WhatsAppShareModal
+        isOpen={shareModalConfig.isOpen}
+        onClose={() => setShareModalConfig(prev => ({ ...prev, isOpen: false }))}
+        title={shareModalConfig.title}
+        recipientName={shareModalConfig.recipientName}
+        recipientPhone={shareModalConfig.recipientPhone}
+        recipientRole={shareModalConfig.recipientRole}
+        restaurantName={shareModalConfig.restaurantName}
+        code={shareModalConfig.code}
+        rawMessage={shareModalConfig.rawMessage}
+        type={shareModalConfig.type}
+      />
 
     </div>
   );

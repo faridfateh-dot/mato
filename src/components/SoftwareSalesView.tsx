@@ -67,11 +67,51 @@ export const SoftwareSalesView: React.FC = () => {
     approveRestaurantSubscription,
     rejectRestaurantSubscription,
     deleteRestaurantRecord,
-    createDirectRestaurantLicense
+    createDirectRestaurantLicense,
+    ownerContact,
+    updateOwnerContact
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<'requests' | 'registrations' | 'license' | 'generator' | 'plans' | 'proposal' | 'backup'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'registrations' | 'contact' | 'license' | 'generator' | 'plans' | 'proposal' | 'backup'>('requests');
   const [restaurantToDelete, setRestaurantToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  // Owner Contact Form State
+  const [contactForm, setContactForm] = useState({
+    name: ownerContact?.name || 'فريد الفاتح',
+    phone: ownerContact?.phone || '+963 991 234 567',
+    whatsappNumber: ownerContact?.whatsappNumber || '963991234567',
+    email: ownerContact?.email || 'farid.fateh@hotmail.com',
+    company: ownerContact?.company || 'MATO POS Systems & SaaS'
+  });
+  const [contactSavedStatus, setContactSavedStatus] = useState<string | null>(null);
+  const [isSavingContact, setIsSavingContact] = useState(false);
+
+  // Synchronize contact form when ownerContact changes
+  React.useEffect(() => {
+    if (ownerContact) {
+      setContactForm({
+        name: ownerContact.name || 'فريد الفاتح',
+        phone: ownerContact.phone || '+963 991 234 567',
+        whatsappNumber: ownerContact.whatsappNumber || '963991234567',
+        email: ownerContact.email || 'farid.fateh@hotmail.com',
+        company: ownerContact.company || 'MATO POS Systems & SaaS'
+      });
+    }
+  }, [ownerContact]);
+
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingContact(true);
+    try {
+      await updateOwnerContact(contactForm);
+      setContactSavedStatus('تم حفظ وتحديث رقم هاتف الواتساب وبيانات التواصل بنجاح سحابياً!');
+      setTimeout(() => setContactSavedStatus(null), 4000);
+    } catch (err) {
+      alert('حدث خطأ أثناء حفظ البيانات.');
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
 
   // Key Activation Input
   const [inputKey, setInputKey] = useState('');
@@ -442,6 +482,18 @@ export const SoftwareSalesView: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('contact')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'contact'
+                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 font-black'
+                : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4 text-emerald-400" />
+            <span>📱 إعدادات رقم واتساب المالك (فريد)</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('backup')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'backup'
@@ -452,6 +504,47 @@ export const SoftwareSalesView: React.FC = () => {
             <Download className="w-4 h-4" />
             <span>تصدير واستيراد بيانات العملاء</span>
           </button>
+        </div>
+      </div>
+
+      {/* Quick WhatsApp Configuration Banner */}
+      <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+            <MessageCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-white">رقم الواتساب الحالي لاستقبال الإشعارات والطلبات:</span>
+              <span className="font-mono font-black text-emerald-400 dir-ltr bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                {ownerContact?.phone || ownerContact?.whatsappNumber || '+963 991 234 567'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              أي طلب تسجيل مطعم جديد أو استفسار دعم يتم إرساله مباشرة إلى هذا الرقم على تطبيق WhatsApp.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          <button
+            onClick={() => setActiveTab('contact')}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer flex-1 sm:flex-initial"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>تعديل رقم الواتساب</span>
+          </button>
+          
+          <a
+            href={`https://wa.me/${(ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً فريد! هذه رسالة اختبارية لتأكيد ربط رقم الواتساب بنجاح مع منصة MATO POS.')}`}
+            target="_blank"
+            rel="noreferrer"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs flex-1 sm:flex-initial"
+            title="تجربة فتح واتساب الآن"
+          >
+            <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>تجربة إرسال</span>
+          </a>
         </div>
       </div>
 
@@ -1892,6 +1985,260 @@ export const SoftwareSalesView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== TAB: OWNER WHATSAPP & CONTACT SETTINGS ==================== */}
+      {activeTab === 'contact' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 rounded-3xl p-6 text-white border border-emerald-500/30 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black">
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>ربط رقم هاتف الواتساب المباشر لمالك المنصة</span>
+              </div>
+              <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+                <span>إعدادات رقم هاتف واتساب فريد (استقبال الإشعارات والطلبات)</span>
+              </h2>
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                حدد رقم هاتفك المربوط بـ WhatsApp ليتم إرسال إشعارات طلبات تسجيل المطاعم الجديدة وطلبات المساعدة مباشرة إلى هاتفك المحمول فور تقديمها.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href={`https://wa.me/${(contactForm.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً فريد! هذه رسالة اختبارية لتأكيد ربط رقم الواتساب بنجاح مع منظومة MATO POS 🚀')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>تجربة فتح محادثة واتساب لرقمك</span>
+              </a>
+            </div>
+          </div>
+
+          {contactSavedStatus && (
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <span>{contactSavedStatus}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Form Settings Column */}
+            <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-emerald-600" />
+                  <span>تعديل وحفظ بيانات هاتف الواتساب والتواصل</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  يتم حفظ هذه البيانات سحابياً في قاعدة البيانات وتحديث كافة روابط واتساب في المنظومة تلقائياً.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveContact} className="space-y-4 text-xs">
+                
+                {/* WhatsApp Phone Number */}
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1.5 flex items-center justify-between">
+                    <span>رقم هاتف الواتساب (مع رمز الدولة وبدون مسافات)</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">مطلوب للروابط السريعة (wa.me)</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: 963991234567 أو 966501234567"
+                      value={contactForm.whatsappNumber}
+                      onChange={e => setContactForm({ ...contactForm, whatsappNumber: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono font-bold text-sm focus:outline-none focus:border-emerald-500 dir-ltr text-right"
+                    />
+                    <MessageCircle className="w-4 h-4 text-emerald-600 absolute left-3 top-3.5" />
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    أدخل كود الدولة ثم رقم الهاتف (مثال لسوريا: <code className="text-emerald-700 font-bold font-mono">963991234567</code>).
+                  </p>
+                </div>
+
+                {/* Display Phone Number */}
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1.5">
+                    رقم الهاتف المنسق للعرض والاتصال المباشر
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: +963 991 234 567"
+                      value={contactForm.phone}
+                      onChange={e => setContactForm({ ...contactForm, phone: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs focus:outline-none focus:border-emerald-500 dir-ltr text-right"
+                    />
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Owner Name */}
+                  <div>
+                    <label className="block font-bold text-slate-800 mb-1.5">
+                      اسم المالك
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: فريد الفاتح"
+                      value={contactForm.name}
+                      onChange={e => setContactForm({ ...contactForm, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block font-bold text-slate-800 mb-1.5">
+                      البريد الإلكتروني الرسمي
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="مثال: farid.fateh@hotmail.com"
+                      value={contactForm.email}
+                      onChange={e => setContactForm({ ...contactForm, email: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs focus:outline-none focus:border-emerald-500 dir-ltr text-right"
+                    />
+                  </div>
+                </div>
+
+                {/* Company Name */}
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1.5">
+                    اسم الشركة / المنظومة
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="مثال: MATO POS Systems & SaaS"
+                    value={contactForm.company}
+                    onChange={e => setContactForm({ ...contactForm, company: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Submit Action */}
+                <div className="pt-3 flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSavingContact}
+                    className="flex-1 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingContact ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>جاري الحفظ سحابياً...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>💾 حفظ وتحديث رقم الواتساب سحابياً</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContactForm({
+                        name: 'فريد الفاتح',
+                        phone: '+963 991 234 567',
+                        whatsappNumber: '963991234567',
+                        email: 'farid.fateh@hotmail.com',
+                        company: 'MATO POS Systems & SaaS'
+                      });
+                    }}
+                    className="py-3.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+                  >
+                    استعادة الافتراضي
+                  </button>
+                </div>
+
+              </form>
+            </div>
+
+            {/* Live Explanation & WhatsApp Preview Column */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* WhatsApp Message Preview Card */}
+              <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-800 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-black">
+                      <MessageCircle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-white">معاينة الرسالة الواردة لهاتفك</h4>
+                      <span className="text-[10px] text-emerald-400">WhatsApp Notification Preview</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
+                    الآن
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-100 text-xs font-mono leading-relaxed whitespace-pre-line">
+                  {`مرحباً أستاذ ${contactForm.name} 👋
+تم إرسال طلب تسجيل وترخيص مطعم جديد لمنظومة MATO POS:
+🍽️ اسم المطعم: مطعم دمشق القديمة
+👤 صاحب المطعم: أبو أحمد
+📱 رقم الهاتف: 0991234567
+🆔 رقم الطلب: sub_1722789123
+
+يرجى اعتماد الحساب وإصدار كود التفعيل السنوي. شكراً لك!`}
+                </div>
+
+                <div className="text-[11px] text-slate-400 space-y-1.5 pt-1">
+                  <p className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>تصلك هذه الرسالة تلقائياً بنقرة واحدة من شاشة تسجيل العملاء الجدد.</span>
+                  </p>
+                  <p className="flex items-start gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>يمكنك الموافقة وتوليد كود التفعيل بضغطة زر وإرساله لصاحب المطعم.</span>
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <a
+                    href={`https://wa.me/${(contactForm.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً فريد! هذه تجربة لمعاينة إشعار الطلبات على واتساب.')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>إرسال تجربة الآن إلى {contactForm.whatsappNumber || 'رقمك'}</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Status Info Card */}
+              <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-3 text-xs">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-500" />
+                  <span>تأكيد المزامنة السحابية</span>
+                </h4>
+                <p className="text-slate-600 leading-relaxed">
+                  الرقم النشط حالياً في النظام: <strong className="text-slate-900 font-mono font-bold dir-ltr">{contactForm.whatsappNumber}</strong>.
+                  بمجرد النقر على "حفظ وتحديث"، سيتم تحديث جميع شاشات تسجيل الدخول، طلبات التفعيل، وصفحات الدعم الفني فورياً.
+                </p>
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}

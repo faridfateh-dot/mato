@@ -52,7 +52,17 @@ import {
   deleteRestaurantFromFirestore,
   permanentlyDeleteRestaurantFromFirestore,
   subscribeRestaurantsRealtime,
+  saveStaffRequestToFirestore,
+  subscribeStaffRequestsRealtime,
+  updateStaffRequestStatusInFirestore,
+  deleteStaffRequestFromFirestore,
   FirestoreRestaurantRecord,
+  FirestoreStaffRequest,
+  PlatformOwnerContact,
+  DEFAULT_PLATFORM_OWNER_CONTACT,
+  getPlatformOwnerContact,
+  savePlatformOwnerContactToFirestore,
+  subscribePlatformOwnerContact,
   PLATFORM_OWNER_CONTACT
 } from '../lib/firebase';
 
@@ -74,6 +84,8 @@ interface DataContextType {
   systemRegistrations: SystemRegistration[];
   subscriptionRequests: RestaurantSubscriptionRequest[];
   pendingRestaurantRequestsCount: number;
+  ownerContact: PlatformOwnerContact;
+  updateOwnerContact: (contact: Partial<PlatformOwnerContact>) => Promise<void>;
   requestRestaurantSubscription: (params: {
     restaurantName: string;
     ownerName: string;
@@ -455,11 +467,70 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [subscriptionRequests]);
 
   useEffect(() => {
-    const unsubscribe = subscribeRestaurantsRealtime((records) => {
+    const unsubscribeRest = subscribeRestaurantsRealtime((records) => {
       setFirestoreRestaurants(records);
     });
-    return () => unsubscribe();
+
+    const unsubscribeStaff = subscribeStaffRequestsRealtime((records) => {
+      // Sync incoming pending staff requests into users collection if not present
+      if (records && records.length > 0) {
+        setUsers(prev => {
+          let updated = [...prev];
+          records.forEach(sr => {
+            if (sr.status === 'pending' && !updated.some(u => u.id === sr.id || u.email === sr.emailOrPhone || u.phone === sr.emailOrPhone)) {
+              const isEmail = sr.emailOrPhone.includes('@');
+              updated.push({
+                id: sr.id,
+                restaurantId: sr.restaurantId || restaurant.id,
+                branchId: sr.branchId || branches[0]?.id || 'br_main',
+                name: sr.name,
+                email: isEmail ? sr.emailOrPhone : `${sr.emailOrPhone}@restaurant.sy`,
+                phone: isEmail ? undefined : sr.emailOrPhone,
+                password: sr.password || '123456',
+                pinCode: '1234',
+                role: (sr.role as UserRole) || 'Cashier',
+                requestedRole: (sr.role as UserRole) || 'Cashier',
+                isActive: false,
+                isPendingApproval: true,
+                requestedAt: sr.requestedAt || new Date().toISOString(),
+                approvalNotes: sr.notes,
+                createdAt: sr.requestedAt || new Date().toISOString()
+              });
+            }
+          });
+          return updated;
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeRest();
+      unsubscribeStaff();
+    };
   }, []);
+
+  const [ownerContact, setOwnerContact] = useState<PlatformOwnerContact>(() => {
+    return getPlatformOwnerContact();
+  });
+
+  useEffect(() => {
+    const unsubscribeOwner = subscribePlatformOwnerContact((contact) => {
+      setOwnerContact(contact);
+    });
+    return () => unsubscribeOwner();
+  }, []);
+
+  const updateOwnerContact = async (contactUpdate: Partial<PlatformOwnerContact>) => {
+    const updated: PlatformOwnerContact = {
+      ...ownerContact,
+      ...contactUpdate
+    };
+    if (contactUpdate.whatsappNumber) {
+      updated.whatsappNumber = contactUpdate.whatsappNumber.replace(/[^0-9]/g, '');
+    }
+    setOwnerContact(updated);
+    await savePlatformOwnerContactToFirestore(updated);
+  };
 
   const pendingRestaurantRequestsCount = useMemo(() => {
     const localPending = subscriptionRequests.filter(r => r.status === 'pending_approval').length;
@@ -1037,6 +1108,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return u;
     }));
+
+    // Update in Firestore cloud
+    updateStaffRequestStatusInFirestore(userId, 'approved');
   };
 
   const rejectUser = (userId: string, reason?: string) => {
@@ -1044,6 +1118,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!target) return;
     setUsers(prev => prev.filter(u => u.id !== userId));
     logActivity('رفض تسجيل مستخدم', `تم رفض طلب انضمام ${target.name} (${target.email}) ${reason ? `السبب: ${reason}` : ''}`);
+
+    // Delete or update in Firestore cloud
+    deleteStaffRequestFromFirestore(userId);
   };
 
   const requestUserRegistration = (params: {
@@ -1082,6 +1159,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...prev.filter(u => u.email !== newUser.email && (!newUser.phone || u.phone !== newUser.phone)),
       newUser
     ]);
+
+    // Save to Firestore cloud database so the manager/owner receives it in realtime across all devices
+    saveStaffRequestToFirestore({
+      id: newUser.id,
+      name: newUser.name,
+      emailOrPhone: cleanContact,
+      role: params.role || 'Cashier',
+      restaurantId: restaurant.id,
+      restaurantName: restaurant.name,
+      branchId: params.branchId || branches[0]?.id || 'br_main',
+      status: (!isFirstEverUser && requireOwnerApproval) ? 'pending' : 'approved',
+      password: params.password || '123456',
+      notes: params.notes,
+      requestedAt: new Date().toISOString()
+    });
 
     if (isFirstEverUser || !requireOwnerApproval) {
       setCurrentUserState(newUser);
@@ -2499,6 +2591,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         systemRegistrations,
         subscriptionRequests,
         pendingRestaurantRequestsCount,
+        ownerContact,
+        updateOwnerContact,
         requestRestaurantSubscription,
         approveRestaurantSubscription,
         rejectRestaurantSubscription,

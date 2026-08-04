@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { verifyActivationCodeInFirestore } from '../lib/firebase';
-import { UserRole } from '../types';
+import { verifyActivationCodeInFirestore, PLATFORM_OWNER_CONTACT } from '../lib/firebase';
+import { UserRole, SaaSPlanType } from '../types';
 import {
   Store,
   Mail,
@@ -18,9 +18,13 @@ import {
   Check,
   KeyRound,
   AlertTriangle,
-  UserCheck,
   Building2,
-  Info
+  MessageCircle,
+  Key,
+  MapPin,
+  HelpCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface AuthGateProps {
@@ -32,21 +36,59 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
   const {
     registerNewTenant,
     requestUserRegistration,
+    requestRestaurantSubscription,
     loginUser,
     users,
     branches,
     currentRestaurant,
-    requireOwnerApproval
+    requireOwnerApproval,
+    ownerContact
   } = useData();
 
-  const [mode, setMode] = useState<'login' | 'register' | 'code_activation'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register_restaurant' | 'register_staff' | 'activate_code'>('login');
 
-  // Registration Type: Join existing restaurant vs Create new independent restaurant
-  const existingActiveUsers = users.filter(u => !u.isPendingApproval);
-  const hasExistingRestaurant = existingActiveUsers.length > 0;
-  const [regType, setRegType] = useState<'join_staff' | 'new_restaurant'>(hasExistingRestaurant ? 'join_staff' : 'new_restaurant');
+  // Login State
+  const [loginEmailOrPhone, setLoginEmailOrPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginStatusNotice, setLoginStatusNotice] = useState<{
+    type: 'pending' | 'inactive' | 'error' | 'success';
+    message: string;
+  } | null>(null);
 
-  // Annual Activation Code State for Subscribers
+  // Restaurant Registration Form State (Fast 1-Step)
+  const [restName, setRestName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [restPhone, setRestPhone] = useState('');
+  const [restEmail, setRestEmail] = useState('');
+  const [restCity, setRestCity] = useState('دمشق');
+  const [restPlanType, setRestPlanType] = useState<SaaSPlanType>('professional');
+  const [restPassword, setRestPassword] = useState('');
+  const [restNotes, setRestNotes] = useState('');
+  const [isSubmittingRest, setIsSubmittingRest] = useState(false);
+  const [restSubmittedSuccess, setRestSubmittedSuccess] = useState<{
+    requestId: string;
+    restaurantName: string;
+    ownerName: string;
+    phone: string;
+  } | null>(null);
+
+  // Staff Registration Form State (Fast 1-Step)
+  const [staffFullName, setStaffFullName] = useState('');
+  const [staffContact, setStaffContact] = useState('');
+  const [staffRole, setStaffRole] = useState<UserRole>('Cashier');
+  const [staffBranchId, setStaffBranchId] = useState<string>(branches[0]?.id || 'br_main');
+  const [staffPassword, setStaffPassword] = useState('');
+  const [staffNotes, setStaffNotes] = useState('');
+  const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
+  const [staffSubmittedSuccess, setStaffSubmittedSuccess] = useState<{
+    name: string;
+    contact: string;
+    role: string;
+    restaurant: string;
+  } | null>(null);
+
+  // Annual Code Activation State
   const [annualCodeInput, setAnnualCodeInput] = useState('');
   const [codeVerificationLoading, setCodeVerificationLoading] = useState(false);
   const [codeVerificationResult, setCodeVerificationResult] = useState<{
@@ -56,160 +98,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     expiresAt?: string;
   } | null>(null);
 
-  // Login Form State
-  const [loginEmailOrPhone, setLoginEmailOrPhone] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginStatusNotice, setLoginStatusNotice] = useState<{
-    type: 'pending' | 'inactive' | 'error' | 'success';
-    message: string;
-  } | null>(null);
-
-  // Registration Form State
-  const [regMethod, setRegMethod] = useState<'email' | 'phone'>('email');
-  const [regContact, setRegContact] = useState('');
-  const [regFullName, setRegFullName] = useState('');
-  const [regRestaurantName, setRegRestaurantName] = useState(currentRestaurant.name || '');
-  const [regOwnerName, setRegOwnerName] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('Cashier');
-  const [regBranchId, setRegBranchId] = useState<string>(branches[0]?.id || '');
-  const [regNotes, setRegNotes] = useState('');
-
-  // Verification Step State
-  const [verificationStep, setVerificationStep] = useState<'contact' | 'code' | 'details' | 'pending_submitted'>('contact');
-  const [generatedCode, setGeneratedCode] = useState<string>('');
-  const [userEnteredCode, setUserEnteredCode] = useState<string>('');
-  const [codeError, setCodeError] = useState<string | null>(null);
-  const [isSendingCode, setIsSendingCode] = useState(false);
-  const [pendingSubmissionInfo, setPendingSubmissionInfo] = useState<{
-    name: string;
-    contact: string;
-    role: string;
-    restaurant: string;
-  } | null>(null);
-
-  // Send Verification Link / Code
-  const handleSendVerification = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regContact.trim()) return;
-
-    setIsSendingCode(true);
-    setTimeout(() => {
-      // Generate a 6-digit code for fast simulation
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedCode(code);
-      setIsSendingCode(false);
-      setVerificationStep('code');
-    }, 600);
-  };
-
-  // Verify Code
-  const handleVerifyCode = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanCode = userEnteredCode.trim();
-    if (cleanCode === generatedCode || cleanCode === '123456' || (cleanCode.length === 6 && /^\d+$/.test(cleanCode))) {
-      setCodeError(null);
-      setVerificationStep('details');
-    } else {
-      setCodeError('رمز التأكيد غير صحيح. يرجى التأكد وإدخال الرمز المكون من 6 أرقام.');
-    }
-  };
-
-  // Finalize Registration
-  const handleFinalizeRegistration = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (regType === 'join_staff' && hasExistingRestaurant) {
-      if (!regFullName.trim()) return;
-
-      const result = requestUserRegistration({
-        name: regFullName.trim(),
-        emailOrPhone: regContact.trim(),
-        role: regRole,
-        branchId: regBranchId || branches[0]?.id,
-        notes: regNotes.trim(),
-        password: regPassword || '123456'
-      });
-
-      if (result.isPending) {
-        setPendingSubmissionInfo({
-          name: regFullName.trim(),
-          contact: regContact.trim(),
-          role: regRole,
-          restaurant: currentRestaurant.name
-        });
-        setVerificationStep('pending_submitted');
-      } else {
-        if (onClose) onClose();
-      }
-    } else {
-      // New Independent Restaurant Registration
-      if (!regRestaurantName.trim() || !regOwnerName.trim()) return;
-
-      registerNewTenant(
-        regRestaurantName.trim(),
-        regOwnerName.trim(),
-        regContact.trim(),
-        regMethod,
-        regPassword || '123456'
-      );
-
-      if (onClose) onClose();
-    }
-  };
-
-  // Check live approval status
-  const handleCheckApprovalStatus = () => {
-    if (!pendingSubmissionInfo) return;
-    const result = loginUser(pendingSubmissionInfo.contact);
-    if (result.success) {
-      if (onClose) onClose();
-    } else if (result.status === 'pending_approval') {
-      alert('طلبك ما يزال قيد المراجعة وبانتظار موافقة مالك المطعم. يرجى التواصل مع الإدارة لتفعيل الحساب.');
-    } else {
-      alert(result.message);
-    }
-  };
-
-  // Handle Subscriber Activation Code Verification via Firebase Cloud Firestore
-  const handleVerifySubscriberCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!annualCodeInput.trim()) return;
-
-    setCodeVerificationLoading(true);
-    setCodeVerificationResult(null);
-
-    const result = await verifyActivationCodeInFirestore(annualCodeInput.trim());
-
-    setCodeVerificationLoading(false);
-    if (result.valid) {
-      setCodeVerificationResult({
-        success: true,
-        message: result.message,
-        restaurantName: result.restaurant?.name,
-        expiresAt: result.restaurant?.subscriptionExpiry
-      });
-
-      // Auto provision clean workspace for subscriber
-      setTimeout(() => {
-        registerNewTenant(
-          result.restaurant?.name || 'مطعم المشترك المفعّل',
-          result.restaurant?.ownerName || 'مدير المطعم (المشترك)',
-          result.restaurant?.phone || 'subscriber@mato.sy',
-          'email',
-          '123456'
-        );
-        if (onClose) onClose();
-      }, 1200);
-    } else {
-      setCodeVerificationResult({
-        success: false,
-        message: result.message
-      });
-    }
-  };
-
-  // Handle Login Submit
+  // Quick Login Submit Handler
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginStatusNotice(null);
@@ -237,10 +126,121 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
       } else {
         setLoginStatusNotice({
           type: 'error',
-          message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البيانات أو تقديم طلب انضمام جديد.'
+          message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البيانات أو تقديم طلب تسجيل جديد.'
         });
       }
     }
+  };
+
+  // 1-Step Restaurant Registration Handler
+  const handleRegisterRestaurantSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restName.trim() || !ownerName.trim() || !restPhone.trim()) return;
+
+    setIsSubmittingRest(true);
+
+    try {
+      const res = requestRestaurantSubscription({
+        restaurantName: restName.trim(),
+        ownerName: ownerName.trim(),
+        phone: restPhone.trim(),
+        email: restEmail.trim(),
+        city: restCity,
+        branchesCount: 1,
+        planType: restPlanType,
+        notes: restNotes.trim() ? `${restNotes.trim()} | كلمة المرور المقترحة: ${restPassword || '123456'}` : `كلمة المرور المقترحة: ${restPassword || '123456'}`
+      });
+
+      setRestSubmittedSuccess({
+        requestId: res.requestId,
+        restaurantName: restName.trim(),
+        ownerName: ownerName.trim(),
+        phone: restPhone.trim()
+      });
+    } catch (err) {
+      console.error('Restaurant registration error:', err);
+    } finally {
+      setIsSubmittingRest(false);
+    }
+  };
+
+  // 1-Step Staff Registration Handler
+  const handleRegisterStaffSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffFullName.trim() || !staffContact.trim()) return;
+
+    setIsSubmittingStaff(true);
+
+    try {
+      const result = requestUserRegistration({
+        name: staffFullName.trim(),
+        emailOrPhone: staffContact.trim(),
+        role: staffRole,
+        branchId: staffBranchId || branches[0]?.id || 'br_main',
+        notes: staffNotes.trim(),
+        password: staffPassword.trim() || '123456'
+      });
+
+      if (result.isPending) {
+        setStaffSubmittedSuccess({
+          name: staffFullName.trim(),
+          contact: staffContact.trim(),
+          role: staffRole,
+          restaurant: currentRestaurant.name
+        });
+      } else {
+        if (onClose) onClose();
+      }
+    } catch (err) {
+      console.error('Staff registration error:', err);
+    } finally {
+      setIsSubmittingStaff(false);
+    }
+  };
+
+  // Annual Code Activation Handler
+  const handleVerifySubscriberCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!annualCodeInput.trim()) return;
+
+    setCodeVerificationLoading(true);
+    setCodeVerificationResult(null);
+
+    const result = await verifyActivationCodeInFirestore(annualCodeInput.trim());
+
+    setCodeVerificationLoading(false);
+    if (result.valid) {
+      setCodeVerificationResult({
+        success: true,
+        message: result.message,
+        restaurantName: result.restaurant?.name,
+        expiresAt: result.restaurant?.subscriptionExpiry
+      });
+
+      // Auto provision clean workspace for subscriber
+      setTimeout(() => {
+        registerNewTenant(
+          result.restaurant?.name || 'مطعم المشترك المفعّل',
+          result.restaurant?.ownerName || 'مدير المطعم (المشترك)',
+          result.restaurant?.phone || 'subscriber@mato.sy',
+          'phone',
+          '123456'
+        );
+        if (onClose) onClose();
+      }, 1200);
+    } else {
+      setCodeVerificationResult({
+        success: false,
+        message: result.message
+      });
+    }
+  };
+
+  // Generate WhatsApp Notification Link to Farid
+  const getWhatsAppNotifyUrl = (rest: { name: string; owner: string; phone: string; reqId: string }) => {
+    const text = `مرحباً أستاذ فريد 👋\nتم إرسال طلب تسجيل وترخيص مطعم جديد لمنظومة MATO POS:\n🍽️ اسم المطعم: ${rest.name}\n👤 صاحب المطعم: ${rest.owner}\n📱 رقم الهاتف: ${rest.phone}\n🆔 رقم الطلب: ${rest.reqId}\n\nيرجى اعتماد الحساب وإصدار كود التفعيل السنوي. شكراً لك!`;
+    const cleanNum = (ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '');
+    return `https://wa.me/${cleanNum}?text=${encodeURIComponent(text)}`;
   };
 
   const content = (
@@ -251,7 +251,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
         {isModalMode && onClose && (
           <button
             onClick={onClose}
-            className="absolute top-4 left-4 text-slate-400 hover:text-white text-lg font-bold px-2 py-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+            className="absolute top-4 left-4 text-slate-400 hover:text-white text-lg font-bold px-2.5 py-1 rounded-lg hover:bg-slate-800 cursor-pointer"
           >
             ✕
           </button>
@@ -267,36 +267,51 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
           </span>
         </h2>
         <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-          نظام الكاشير وإدارة المطاعم — أمان مشدد مع اشتراط موافقة المالك المسبقة على الحسابات
+          نظام الكاشير وإدارة المطاعم المتكامل — تسجيل سريع وسلس مع المزامنة السحابية الفورية
         </p>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-800/80 p-1 rounded-2xl border border-slate-700/60 max-w-sm mx-auto mt-5">
+        <div className="grid grid-cols-3 gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/60 max-w-md mx-auto mt-5">
           <button
             onClick={() => {
-              setMode('login');
+              setActiveTab('login');
               setLoginStatusNotice(null);
             }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              mode === 'login'
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+              activeTab === 'login'
                 ? 'bg-amber-400 text-slate-950 shadow-md font-black'
                 : 'text-slate-300 hover:text-white'
             }`}
           >
             تسجيل الدخول
           </button>
+
           <button
             onClick={() => {
-              setMode('register');
-              setVerificationStep('contact');
+              setActiveTab('register_restaurant');
+              setRestSubmittedSuccess(null);
             }}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              mode === 'register'
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+              activeTab === 'register_restaurant'
                 ? 'bg-amber-400 text-slate-950 shadow-md font-black'
                 : 'text-slate-300 hover:text-white'
             }`}
           >
-            طلب حساب جديد
+            🍽️ تسجيل مطعم جديد
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('register_staff');
+              setStaffSubmittedSuccess(null);
+            }}
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+              activeTab === 'register_staff'
+                ? 'bg-amber-400 text-slate-950 shadow-md font-black'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            👤 انضمام موظف
           </button>
         </div>
       </div>
@@ -304,8 +319,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
       {/* Body Area */}
       <div className="p-6 space-y-5">
 
-        {/* ================= MODE: LOGIN ================= */}
-        {mode === 'login' && (
+        {/* ================= TAB 1: LOGIN ================= */}
+        {activeTab === 'login' && (
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             
             {loginStatusNotice && (
@@ -326,6 +341,19 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                 <p className="text-[11px] font-normal text-slate-300 pr-7">
                   {loginStatusNotice.message}
                 </p>
+                {loginStatusNotice.type === 'pending' && (
+                  <div className="pt-2">
+                    <a
+                      href={`https://wa.me/${(ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً أستاذ فريد، قمت بتقديم طلب تسجيل لحسابي وهو بانتظار الاعتماد. يرجى تفعيل الحساب.')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>تواصل مع فريد عبر واتساب لتسريع الموافقة</span>
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 
@@ -337,7 +365,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                 <input
                   type="text"
                   required
-                  placeholder="مثال: owner@mato.sy أو +963991234567"
+                  placeholder="مثال: owner@mato.sy أو 0991234567"
                   value={loginEmailOrPhone}
                   onChange={e => setLoginEmailOrPhone(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
@@ -352,494 +380,596 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showLoginPassword ? 'text' : 'password'}
+                  required
                   placeholder="••••••••"
                   value={loginPassword}
                   onChange={e => setLoginPassword(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
                 />
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="text-slate-400 hover:text-white absolute left-3 top-3.5 cursor-pointer"
+                >
+                  {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
-            <div className="p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1">
-              <div className="flex items-center gap-2 font-bold text-amber-400">
-                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>تسجيل دخول محمي بكلمة المرور:</span>
-              </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                حساب المالك محمي بالكامل ولا يمكن الدخول إليه إلا بعد إدخال البريد الإلكتروني وكلمة المرور الصحيحة.
-              </p>
+            <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+              <span>حساب تجريبي سريع: <code className="text-amber-300 font-mono">owner@mato.sy / admin</code></span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('activate_code')}
+                className="text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>تفعيل كود ترخيص</span>
+              </button>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               <ShieldCheck className="w-4 h-4" />
               <span>تسجيل الدخول الآمن</span>
             </button>
 
+            {/* Quick help button */}
+            <div className="pt-2 text-center">
+              <a
+                href={`https://wa.me/${(ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً أستاذ فريد، أحتاج مساعدة في تسجيل الدخول لمنظومة MATO POS.')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-slate-400 hover:text-emerald-400 transition-all inline-flex items-center gap-1.5"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>تحتاج مساعدة؟ تواصل مع الدعم الفني عبر واتساب</span>
+              </a>
+            </div>
+
           </form>
         )}
 
-        {/* ================= MODE: REGISTER NEW ACCOUNT ================= */}
-        {mode === 'register' && (
-          <div className="space-y-4">
-
-            {/* Step 1: Verification method selection & Contact input */}
-            {verificationStep === 'contact' && (
-              <form onSubmit={handleSendVerification} className="space-y-4">
+        {/* ================= TAB 2: REGISTER NEW RESTAURANT (FAST 1-STEP) ================= */}
+        {activeTab === 'register_restaurant' && (
+          <div>
+            {!restSubmittedSuccess ? (
+              <form onSubmit={handleRegisterRestaurantSubmit} className="space-y-3.5">
                 
-                {hasExistingRestaurant ? (
-                  <div className="space-y-3">
-                    <label className="block text-xs font-bold text-slate-300">نوع الطلب:</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRegType('join_staff')}
-                        className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
-                          regType === 'join_staff'
-                            ? 'bg-amber-400/20 border-amber-400 text-amber-300'
-                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-bold text-xs flex items-center gap-1.5 mb-1">
-                          <UserIcon className="w-3.5 h-3.5" />
-                          <span>طلب انضمام موظف</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 leading-tight">
-                          الانضمام لمطعم ({currentRestaurant.name}) بانتظار اعتماد المالك
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setRegType('new_restaurant')}
-                        className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
-                          regType === 'new_restaurant'
-                            ? 'bg-amber-400/20 border-amber-400 text-amber-300'
-                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <div className="font-bold text-xs flex items-center gap-1.5 mb-1">
-                          <Building2 className="w-3.5 h-3.5" />
-                          <span>تأسيس مطعم جديد</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 leading-tight">
-                          مساحة عمل مستقلة ومنفصلة كمالك رئيسي
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700/70 text-xs text-slate-300 space-y-1">
-                    <div className="font-bold text-amber-400 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4" />
-                      <span>تأسيس حساب المالك والمنشأة الأولى:</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed">
-                      سيتم تسجيلك كمالك رئيسي للمطعم مع كامل الصلاحيات لإدارة الموظفين والاعتمادات.
-                    </p>
-                  </div>
-                )}
-
-                {/* Method selector */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-2">
-                    طريقة استلام رمز التأكيد:
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRegMethod('email')}
-                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        regMethod === 'email'
-                          ? 'bg-amber-400/20 text-amber-300 border-amber-400/50'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <Mail className="w-4 h-4" />
-                      <span>البريد الإلكتروني</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setRegMethod('phone')}
-                      className={`py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        regMethod === 'phone'
-                          ? 'bg-amber-400/20 text-amber-300 border-amber-400/50'
-                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <Phone className="w-4 h-4" />
-                      <span>رقم الهاتف (SMS)</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                    {regMethod === 'email' ? 'البريد الإلكتروني *' : 'رقم الهاتف للتحقق *'}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={regMethod === 'email' ? 'email' : 'tel'}
-                      required
-                      placeholder={regMethod === 'email' ? 'user@mato.sy' : '+963 991 234 567'}
-                      value={regContact}
-                      onChange={e => setRegContact(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                    />
-                    {regMethod === 'email' ? (
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                    ) : (
-                      <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                    )}
-                  </div>
-                </div>
-
-                {regType === 'join_staff' && requireOwnerApproval && (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-2">
-                    <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <span>🔒 تنبيه أمني: لن يتمكن حسابك من الدخول فوراً؛ سيتم إرسال الطلب إلى لوحة تحكم المالك للموافقة عليه وتحديد صلاحياتك.</span>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSendingCode}
-                  className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isSendingCode ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>جاري إرسال رمز التحقق...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      <span>إرسال رمز التأكيد والمتابعة</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-
-            {/* Step 2: Verification Code / SMS Confirmation Screen */}
-            {verificationStep === 'code' && (
-              <form onSubmit={handleVerifyCode} className="space-y-4">
-                
-                <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-sm">
-                    <CheckCircle2 className="w-5 h-5 text-amber-400" />
-                    <span>تم إرسال رمز التفعيل المكون من 6 أرقام</span>
+                <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-300 text-xs space-y-1">
+                  <div className="font-black text-sm flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>تسجيل وترخيص مطعم جديد — خطوة واحدة سهلة وسريعة:</span>
                   </div>
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    تم إرسال رمز التأكيد إلى <strong>({regContact})</strong>. يرجى إدخال الرمز المكون من 6 أرقام أدناه.
+                    املأ البيانات البسيطة أدناه وسيتم إنشاء سجل مطعمك فوراً وإرساله للاعتماد وإصدار كود التفعيل السنوي.
                   </p>
                 </div>
 
-                {codeError && (
-                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold text-center">
-                    {codeError}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      اسم المطعم / المنشأة *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: مطعم دمشق القديمة"
+                        value={restName}
+                        onChange={e => setRestName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                      />
+                      <Store className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      اسم صاحب المطعم / المدير *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: محمد الأحمد"
+                        value={ownerName}
+                        onChange={e => setOwnerName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                      />
+                      <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      رقم الهاتف / الواتساب للتواصل واستلام الكود *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        required
+                        placeholder="مثال: 0991234567 أو +963991234567"
+                        value={restPhone}
+                        onChange={e => setRestPhone(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                      />
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      المدينة / المحافظة
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={restCity}
+                        onChange={e => setRestCity(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                      >
+                        <option value="دمشق">دمشق</option>
+                        <option value="ريف دمشق">ريف دمشق</option>
+                        <option value="حلب">حلب</option>
+                        <option value="حمص">حمص</option>
+                        <option value="اللاذقية">اللاذقية</option>
+                        <option value="طرطوس">طرطوس</option>
+                        <option value="حماة">حماة</option>
+                        <option value="أخرى">محافظة أخرى</option>
+                      </select>
+                      <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      نوع الباقة المطلوبة
+                    </label>
+                    <select
+                      value={restPlanType}
+                      onChange={e => setRestPlanType(e.target.value as SaaSPlanType)}
+                      className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="professional">الباقة الاحترافية (Professional) — الأكثر طلباً</option>
+                      <option value="starter">الباقة المبتدئة (Starter) — فرع واحد</option>
+                      <option value="enterprise">باقة المؤسسات (Enterprise) — فروع متعددة</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      كلمة المرور للحساب *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={restPassword}
+                        onChange={e => setRestPassword(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                    أدخل رمز التأكيد (6 أرقام):
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    ملاحظات إضافية (اختياري)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="مثال: نرغب بتجربة النظام لمدة 14 يوم أولاً..."
+                    value={restNotes}
+                    onChange={e => setRestNotes(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingRest}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 font-black text-xs transition-all shadow-xl shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-3"
+                >
+                  {isSubmittingRest ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>جاري إرسال طلب التسجيل...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RocketIcon />
+                      <span>🚀 إرسال طلب تسجيل المطعم والتفعيل الفوري</span>
+                    </>
+                  )}
+                </button>
+
+              </form>
+            ) : (
+              /* Success confirmation with direct WhatsApp notification to Farid */
+              <div className="space-y-4 py-2 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center animate-bounce">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-white">
+                    تم إرسال طلب تسجيل المطعم بنجاح!
+                  </h3>
+                  <p className="text-xs text-emerald-300 font-bold">
+                    تم حفظ طلبك سحابياً وهو جاهز للاعتماد الفوري وإصدار كود التفعيل
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-right text-xs space-y-2 text-slate-300">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">اسم المطعم:</span>
+                    <span className="font-bold text-white">{restSubmittedSuccess.restaurantName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">صاحب المطعم:</span>
+                    <span className="font-bold text-white">{restSubmittedSuccess.ownerName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">رقم الهاتف:</span>
+                    <span className="font-mono text-amber-300">{restSubmittedSuccess.phone}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-700/60 pt-2 text-[11px]">
+                    <span className="text-slate-400">رقم المرجع:</span>
+                    <span className="font-mono text-slate-400">{restSubmittedSuccess.requestId}</span>
+                  </div>
+                </div>
+
+                {/* Direct 1-tap WhatsApp Action Button */}
+                <div className="space-y-2 pt-2">
+                  <a
+                    href={getWhatsAppNotifyUrl({
+                      name: restSubmittedSuccess.restaurantName,
+                      owner: restSubmittedSuccess.ownerName,
+                      phone: restSubmittedSuccess.phone,
+                      reqId: restSubmittedSuccess.requestId
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span>📲 إرسال إشعار مباشر لفريد على واتساب لتسريع التفعيل</span>
+                  </a>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        // Quick demo provision
+                        registerNewTenant(
+                          restSubmittedSuccess.restaurantName,
+                          restSubmittedSuccess.ownerName,
+                          restSubmittedSuccess.phone,
+                          'phone',
+                          restPassword || '123456'
+                        );
+                        if (onClose) onClose();
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>بدء التجربة الفورية (Demo)</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveTab('login');
+                        setLoginEmailOrPhone(restSubmittedSuccess.phone);
+                        setLoginPassword(restPassword);
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer"
+                    >
+                      العودة لشاشة الدخول
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 3: REGISTER STAFF (FAST 1-STEP) ================= */}
+        {activeTab === 'register_staff' && (
+          <div>
+            {!staffSubmittedSuccess ? (
+              <form onSubmit={handleRegisterStaffSubmit} className="space-y-3.5">
+                
+                <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs text-slate-300 space-y-1">
+                  <div className="font-bold text-amber-400 flex items-center gap-1.5">
+                    <UserIcon className="w-4 h-4" />
+                    <span>طلب انضمام موظف / كاشير لمطعم ({currentRestaurant.name}):</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    سيتم إرسال طلبك فوراً للوحة تحكم مالك المطعم لاعتماده وتحديد الصلاحيات.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    الاسم الكامل للموظف *
                   </label>
                   <div className="relative">
                     <input
                       type="text"
                       required
-                      maxLength={6}
-                      placeholder="أدخل الرمز هنا (مثال 123456)..."
-                      value={userEnteredCode}
-                      onChange={e => setUserEnteredCode(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-800/80 border border-amber-400/60 rounded-xl text-center font-mono font-black text-lg tracking-widest text-amber-300 focus:outline-none placeholder:font-normal placeholder:text-sm placeholder:text-slate-500"
+                      placeholder="مثال: يوسف الشامي"
+                      value={staffFullName}
+                      onChange={e => setStaffFullName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
                     />
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-4" />
+                    <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      رقم الهاتف أو البريد *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        placeholder="0991234567 أو user@mail.com"
+                        value={staffContact}
+                        onChange={e => setStaffContact(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
+                      />
+                      <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      الوظيفة المطلوبة
+                    </label>
+                    <select
+                      value={staffRole}
+                      onChange={e => setStaffRole(e.target.value as UserRole)}
+                      className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="Cashier">كاشير مبيعات (Cashier)</option>
+                      <option value="Manager">مدير صالة (Manager)</option>
+                      <option value="Inventory Manager">أمين مستودع ومخزون</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      الفرع المطلوب
+                    </label>
+                    <select
+                      value={staffBranchId}
+                      onChange={e => setStaffBranchId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      {branches.map(b => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      كلمة المرور للحساب *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={staffPassword}
+                        onChange={e => setStaffPassword(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                      />
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                    ملاحظة للمالك / سبب طلب الانضمام (اختياري)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="مثال: تم تعييني في فرع الشام..."
+                    value={staffNotes}
+                    onChange={e => setStaffNotes(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                  />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                  disabled={isSubmittingStaff}
+                  className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
                 >
-                  <Check className="w-4 h-4" />
-                  <span>تأكيد الرمز والمتابعة</span>
+                  {isSubmittingStaff ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>جاري إرسال الطلب...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>إرسال طلب الانضمام للموافقة</span>
+                    </>
+                  )}
                 </button>
 
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => setVerificationStep('contact')}
-                    className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
-                  >
-                    تغيير وسيلة الاتصال
-                  </button>
-                </div>
               </form>
-            )}
-
-            {/* Step 3: Account Details Form */}
-            {verificationStep === 'details' && (
-              <form onSubmit={handleFinalizeRegistration} className="space-y-4">
-                
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>تم تأكيد الوسيلة ({regContact}) بنجاح! أكمل بيانات الحساب:</span>
-                </div>
-
-                {regType === 'join_staff' && hasExistingRestaurant ? (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
-                        الاسم الكامل للموظف / المستخدم *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          required
-                          placeholder="مثال: يوسف الشامي"
-                          value={regFullName}
-                          onChange={e => setRegFullName(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1">
-                          الدور / الوظيفة المطلوبة *
-                        </label>
-                        <select
-                          value={regRole}
-                          onChange={e => setRegRole(e.target.value as UserRole)}
-                          className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
-                        >
-                          <option value="Cashier">كاشير مبيعات (Cashier)</option>
-                          <option value="Manager">مدير صالة (Manager)</option>
-                          <option value="Inventory Manager">أمين مستودع ومخزون</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1">
-                          الفرع المطلوب *
-                        </label>
-                        <select
-                          value={regBranchId}
-                          onChange={e => setRegBranchId(e.target.value)}
-                          className="w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
-                        >
-                          {branches.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
-                        كلمة المرور للحساب *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="password"
-                          required
-                          placeholder="••••••••"
-                          value={regPassword}
-                          onChange={e => setRegPassword(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
-                        ملاحظة للمالك / سبب طلب الانضمام (اختياري)
-                      </label>
-                      <textarea
-                        rows={2}
-                        placeholder="مثال: تم تعييني ككاشير في الفرع الرئيسي من قبل الإدارة..."
-                        value={regNotes}
-                        onChange={e => setRegNotes(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 resize-none"
-                      />
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-amber-400/10 border border-amber-400/20 text-[11px] text-amber-300 leading-relaxed flex items-start gap-2">
-                      <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                      <span>
-                        سيصل طلبك فوراً لمالك المطعم ({currentRestaurant.name}) لاعتماده وتحديد صلاحياتك.
-                      </span>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Send className="w-4 h-4" />
-                      <span>إرسال طلب الانضمام لاعتماد المالك</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
-                        اسم المطعم / المنشأة الجديدة *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          required
-                          placeholder="مثال: مطعم الياسمين الشامي"
-                          value={regRestaurantName}
-                          onChange={e => setRegRestaurantName(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <Store className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
-                        اسم المدير / صاحب الحساب *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          required
-                          placeholder="مثال: أحمد الحسين"
-                          value={regOwnerName}
-                          onChange={e => setRegOwnerName(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">
-                        كلمة المرور للحساب *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="password"
-                          required
-                          placeholder="••••••••"
-                          value={regPassword}
-                          onChange={e => setRegPassword(e.target.value)}
-                          className="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                        />
-                        <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>تأكيد وإنشاء المطعم المستقل الآن</span>
-                    </button>
-                  </>
-                )}
-
-              </form>
-            )}
-
-            {/* Step 4: Pending Submission Result Screen */}
-            {verificationStep === 'pending_submitted' && pendingSubmissionInfo && (
+            ) : (
               <div className="space-y-4 py-2 text-center">
                 <div className="w-16 h-16 rounded-3xl bg-amber-400/20 border border-amber-400/40 text-amber-400 mx-auto flex items-center justify-center animate-bounce">
                   <Clock className="w-8 h-8" />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <h3 className="text-lg font-black text-white">
-                    تم إرسال طلب تسجيل الحساب بنجاح!
+                    تم إرسال طلب انضمام الموظف بنجاح!
                   </h3>
                   <p className="text-xs text-amber-300 font-bold">
-                    حسابك بانتظار موافقة واعتماد مالك المطعم ({pendingSubmissionInfo.restaurant})
+                    حسابك بانتظار موافقة واعتماد مالك المطعم ({staffSubmittedSuccess.restaurant})
                   </p>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-right text-xs space-y-2 text-slate-300">
                   <div className="flex justify-between">
                     <span className="text-slate-400">الاسم:</span>
-                    <span className="font-bold text-white">{pendingSubmissionInfo.name}</span>
+                    <span className="font-bold text-white">{staffSubmittedSuccess.name}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">وسيلة الاتصال:</span>
-                    <span className="font-mono text-amber-300">{pendingSubmissionInfo.contact}</span>
+                    <span className="font-mono text-amber-300">{staffSubmittedSuccess.contact}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">الدور المطلوب:</span>
-                    <span className="font-bold text-emerald-400">{pendingSubmissionInfo.role}</span>
-                  </div>
-                  <div className="flex justify-between border-t border-slate-700/60 pt-2 text-[11px]">
-                    <span className="text-slate-400">حالة الطلب:</span>
-                    <span className="bg-amber-400/20 text-amber-400 px-2 py-0.5 rounded font-bold">
-                      قيد مراجعة المالك ⏳
-                    </span>
+                    <span className="font-bold text-emerald-400">{staffSubmittedSuccess.role}</span>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-2">
-                  <button
-                    onClick={handleCheckApprovalStatus}
-                    className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>فحص حالة الموافقة الآن</span>
-                  </button>
+                <button
+                  onClick={() => {
+                    const result = loginUser(staffSubmittedSuccess.contact, staffPassword);
+                    if (result.success && onClose) {
+                      onClose();
+                    } else if (result.status === 'pending_approval') {
+                      alert('طلبك ما يزال قيد المراجعة وبانتظار اعتماد مالك المطعم.');
+                    } else {
+                      alert(result.message);
+                    }
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>التحقق من حالة الموافقة والتفعيل الآن</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-                  <button
-                    onClick={() => {
-                      setMode('login');
-                      setVerificationStep('contact');
-                      setLoginEmailOrPhone(pendingSubmissionInfo.contact);
-                    }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer"
-                  >
-                    العودة لصفحة تسجيل الدخول
-                  </button>
-                </div>
+        {/* ================= TAB 4: ACTIVATE ANNUAL KEY ================= */}
+        {activeTab === 'activate_code' && (
+          <form onSubmit={handleVerifySubscriberCode} className="space-y-4">
+            
+            <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2">
+              <div className="font-bold text-xs text-amber-400 flex items-center gap-2">
+                <Key className="w-4 h-4" />
+                <span>تفعيل ترخيص المشتركين السحابي (كود سنوي):</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                إذا قمت بالاشتراك واستلمت كود التفعيل السنوي من الأستاذ فريد، أدخل الكود هنا لتفعيل نسختك فوراً.
+              </p>
+            </div>
+
+            {codeVerificationResult && (
+              <div
+                className={`p-3 rounded-xl border text-xs font-bold ${
+                  codeVerificationResult.success
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                    : 'bg-rose-500/10 border-rose-500/40 text-rose-300'
+                }`}
+              >
+                <div>{codeVerificationResult.message}</div>
+                {codeVerificationResult.restaurantName && (
+                  <div className="mt-1 text-[11px] text-emerald-400">
+                    المطعم: {codeVerificationResult.restaurantName} | الصلاحية حتى: {codeVerificationResult.expiresAt ? new Date(codeVerificationResult.expiresAt).toLocaleDateString('ar-SY') : ''}
+                  </div>
+                )}
               </div>
             )}
 
-          </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                كود التفعيل السنوي (مثال: MATO-2026-XXXX)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  placeholder="MATO-2026-XXXX"
+                  value={annualCodeInput}
+                  onChange={e => setAnnualCodeInput(e.target.value.toUpperCase())}
+                  className="w-full px-4 py-3 bg-slate-800/80 border border-amber-400/50 rounded-xl text-amber-300 font-mono font-black text-center tracking-widest text-base focus:outline-none focus:border-amber-400"
+                />
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={codeVerificationLoading}
+              className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {codeVerificationLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>جاري التحقق من الكود سحابياً...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>تأكيد وتفعيل الترخيص الآن</span>
+                </>
+              )}
+            </button>
+
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab('login')}
+                className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+              >
+                العودة لتسجيل الدخول
+              </button>
+            </div>
+
+          </form>
         )}
 
       </div>
 
-      {/* Footer Disclaimer */}
-      <div className="px-6 py-3.5 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 text-center flex items-center justify-center gap-2">
-        <ShieldCheck className="w-4 h-4 text-amber-400" />
-        <span>نظام MATO POS محمي بترخيص SaaS — صلاحيات مشددة وإشراف مباشر للمالك</span>
+      {/* Footer Support Info */}
+      <div className="p-4 bg-slate-950/80 border-t border-slate-800/80 text-center text-[11px] text-slate-500 flex items-center justify-center gap-2">
+        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+        <span>منظومة MATO POS السحابية & الأوفلاين — تطوير وإشراف م. فريد الفاتح</span>
       </div>
 
     </div>
   );
 
   if (isModalMode) {
-    return (
-      <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
-        {content}
-      </div>
-    );
+    return content;
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 overflow-y-auto">
       {content}
     </div>
   );
 };
+
+// Simple rocket icon helper
+const RocketIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>
+);

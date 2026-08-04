@@ -202,18 +202,88 @@ export async function verifyActivationCodeInFirestore(code: string): Promise<{
   };
 }
 
-export const PLATFORM_OWNER_CONTACT = {
-  name: 'فريد (مالك منصة MATO POS)',
+export interface PlatformOwnerContact {
+  name: string;
+  phone: string;
+  whatsappNumber: string;
+  email: string;
+  company: string;
+}
+
+export const DEFAULT_PLATFORM_OWNER_CONTACT: PlatformOwnerContact = {
+  name: 'فريد الفاتح (مالك منصة MATO POS)',
   phone: '+963 991 234 567',
   whatsappNumber: '963991234567',
   email: 'farid.fateh@hotmail.com',
   company: 'MATO POS Systems & SaaS'
 };
 
+export let PLATFORM_OWNER_CONTACT: PlatformOwnerContact = { ...DEFAULT_PLATFORM_OWNER_CONTACT };
+
+// Get active platform owner contact
+export function getPlatformOwnerContact(): PlatformOwnerContact {
+  try {
+    const saved = localStorage.getItem('mato_platform_owner_contact');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      PLATFORM_OWNER_CONTACT = { ...DEFAULT_PLATFORM_OWNER_CONTACT, ...parsed };
+      return PLATFORM_OWNER_CONTACT;
+    }
+  } catch (err) {
+    console.warn('Error reading owner contact from localStorage:', err);
+  }
+  return PLATFORM_OWNER_CONTACT;
+}
+
+// Save Platform Owner Contact to LocalStorage & Firestore
+export async function savePlatformOwnerContactToFirestore(contact: PlatformOwnerContact): Promise<void> {
+  const cleanWhatsApp = contact.whatsappNumber.replace(/[^0-9]/g, '');
+  const toSave: PlatformOwnerContact = {
+    ...contact,
+    whatsappNumber: cleanWhatsApp || contact.whatsappNumber
+  };
+  PLATFORM_OWNER_CONTACT = toSave;
+  try {
+    localStorage.setItem('mato_platform_owner_contact', JSON.stringify(toSave));
+    if (db) {
+      const docRef = doc(db, 'system_settings', 'owner_contact');
+      await setDoc(docRef, toSave, { merge: true });
+    }
+  } catch (err) {
+    console.warn('savePlatformOwnerContactToFirestore error:', err);
+  }
+}
+
+// Subscribe to Owner Contact in realtime
+export function subscribePlatformOwnerContact(callback: (contact: PlatformOwnerContact) => void) {
+  callback(getPlatformOwnerContact());
+  if (!db) return () => {};
+  try {
+    const docRef = doc(db, 'system_settings', 'owner_contact');
+    return onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as PlatformOwnerContact;
+        const merged: PlatformOwnerContact = { ...DEFAULT_PLATFORM_OWNER_CONTACT, ...data };
+        PLATFORM_OWNER_CONTACT = merged;
+        localStorage.setItem('mato_platform_owner_contact', JSON.stringify(merged));
+        callback(merged);
+      }
+    }, (err) => {
+      console.warn('Realtime owner contact subscription warning:', err);
+    });
+  } catch (err) {
+    console.warn('subscribePlatformOwnerContact error:', err);
+    return () => {};
+  }
+}
+
 // Generate WhatsApp Contact Link with custom pre-filled message
-export function getOwnerWhatsAppLink(customMessage: string): string {
+export function getOwnerWhatsAppLink(customMessage: string, customWhatsAppNumber?: string): string {
+  const currentContact = getPlatformOwnerContact();
+  const rawNum = customWhatsAppNumber || currentContact.whatsappNumber || '963991234567';
+  const cleanNum = rawNum.replace(/[^0-9]/g, '');
   const encoded = encodeURIComponent(customMessage);
-  return `https://wa.me/${PLATFORM_OWNER_CONTACT.whatsappNumber}?text=${encoded}`;
+  return `https://wa.me/${cleanNum}?text=${encoded}`;
 }
 
 // Approve Restaurant & Issue Activation Code in Firestore
@@ -288,6 +358,77 @@ export async function permanentlyDeleteRestaurantFromFirestore(restaurantId: str
   } catch (err) {
     console.warn('Firestore permanentlyDeleteRestaurant error:', err);
     return false;
+  }
+}
+
+// Staff / User Registration Request Interface
+export interface FirestoreStaffRequest {
+  id: string;
+  name: string;
+  emailOrPhone: string;
+  role: string;
+  restaurantId: string;
+  restaurantName: string;
+  branchId?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  password?: string;
+  notes?: string;
+  requestedAt: string;
+}
+
+// Save Staff Request to Firestore
+export async function saveStaffRequestToFirestore(request: FirestoreStaffRequest): Promise<void> {
+  if (!db) return;
+  try {
+    const docRef = doc(db, 'staff_requests', request.id);
+    await setDoc(docRef, request, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveStaffRequest error:', err);
+  }
+}
+
+// Subscribe to Staff Requests in Realtime
+export function subscribeStaffRequestsRealtime(
+  callback: (records: FirestoreStaffRequest[]) => void
+) {
+  if (!db) return () => {};
+  try {
+    const colRef = collection(db, 'staff_requests');
+    return onSnapshot(colRef, (snapshot) => {
+      const records: FirestoreStaffRequest[] = [];
+      snapshot.forEach((d) => {
+        records.push({ id: d.id, ...(d.data() as Omit<FirestoreStaffRequest, 'id'>) });
+      });
+      callback(records);
+    });
+  } catch (err) {
+    console.warn('Realtime staff subscription error:', err);
+    return () => {};
+  }
+}
+
+// Update Staff Request Status in Firestore
+export async function updateStaffRequestStatusInFirestore(
+  requestId: string,
+  status: 'approved' | 'rejected'
+): Promise<void> {
+  if (!db) return;
+  try {
+    const docRef = doc(db, 'staff_requests', requestId);
+    await updateDoc(docRef, { status });
+  } catch (err) {
+    console.warn('Firestore updateStaffRequestStatus error:', err);
+  }
+}
+
+// Delete Staff Request from Firestore
+export async function deleteStaffRequestFromFirestore(requestId: string): Promise<void> {
+  if (!db) return;
+  try {
+    const docRef = doc(db, 'staff_requests', requestId);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.warn('Firestore deleteStaffRequest error:', err);
   }
 }
 

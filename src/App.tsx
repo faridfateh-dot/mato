@@ -13,7 +13,6 @@ import { PosView } from './components/PosView';
 import { ActivityLogsView } from './components/ActivityLogsView';
 import { AIChatView } from './components/AIChatView';
 import { UsersSettingsView } from './components/UsersSettingsView';
-import { SoftwareSalesView } from './components/SoftwareSalesView';
 import { AuthGate } from './components/AuthGate';
 import { AnnualLicenseLock } from './components/AnnualLicenseLock';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -30,7 +29,7 @@ const AppMainContent: React.FC = () => {
   const validViews: ViewType[] = [
     'dashboard', 'pos', 'products', 'inventory', 
     'suppliers', 'expenses', 'recipes', 'logs', 
-    'ai', 'users', 'saas'
+    'ai', 'users'
   ];
   
   const currentView: ViewType = validViews.includes(pathSegment as ViewType) 
@@ -82,8 +81,6 @@ const AppMainContent: React.FC = () => {
         return <AIChatView />;
       case 'users':
         return <UsersSettingsView />;
-      case 'saas':
-        return <SoftwareSalesView />;
       default:
         return <DashboardView onNavigateView={setCurrentView} />;
     }

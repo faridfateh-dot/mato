@@ -25,8 +25,7 @@ export type ViewType =
   | 'recipes'
   | 'logs'
   | 'ai'
-  | 'users'
-  | 'saas';
+  | 'users';
 
 interface SidebarProps {
   currentView: ViewType;

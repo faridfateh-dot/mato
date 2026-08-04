@@ -222,32 +222,7 @@ const DEFAULT_LICENSE_KEYS: LicenseKeyInfo[] = [
   }
 ];
 
-const DEFAULT_SYSTEM_REGISTRATIONS: SystemRegistration[] = [
-  {
-    id: 'reg_101',
-    restaurantName: 'مطعم ومقهى الشام العريق',
-    ownerName: 'سامر الميداني (مالك النظام)',
-    emailOrPhone: 'samer@mato.sy',
-    method: 'email',
-    planType: 'professional',
-    registeredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'active',
-    tenantId: 'rest_demo_1',
-    deviceInfo: 'متصفح MATO POS Web Desktop'
-  },
-  {
-    id: 'reg_102',
-    restaurantName: 'كافيه الياسمين الدمشقي',
-    ownerName: 'نور الهدى',
-    emailOrPhone: '+963 991 882 334',
-    method: 'phone',
-    planType: 'starter',
-    registeredAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'active',
-    tenantId: 'rest_demo_2',
-    deviceInfo: 'تطبيق أوفلاين PWA Mobile'
-  }
-];
+const DEFAULT_SYSTEM_REGISTRATIONS: SystemRegistration[] = [];
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -280,11 +255,13 @@ function safeStorageArrayParse<T>(key: string, fallback: T[]): T[] {
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Session & Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const loadedUsers = safeStorageArrayParse<User>(`${STORAGE_KEY}_users`, []);
+    if (!Array.isArray(loadedUsers) || loadedUsers.length === 0) return false;
     return safeStorageParse(`${STORAGE_KEY}_is_authenticated`, false);
   });
 
   const [systemRegistrations, setSystemRegistrations] = useState<SystemRegistration[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_system_registrations`, DEFAULT_SYSTEM_REGISTRATIONS);
+    return safeStorageArrayParse(`${STORAGE_KEY}_system_registrations`, []);
   });
 
   // Load state from localStorage or initial seed
@@ -319,12 +296,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentBranch, setCurrentBranchState] = useState<Branch>(() => (Array.isArray(branches) && branches[0]) ? branches[0] : INITIAL_BRANCHES[0]);
 
   const [users, setUsers] = useState<User[]>(() => {
-    const loaded = safeStorageArrayParse(`${STORAGE_KEY}_users`, INITIAL_USERS);
-    const cleaned = loaded.filter(u => u && u.id !== 'usr_manager' && u.id !== 'usr_cashier' && u.id !== 'usr_inventory' && u.email !== 'samer@mato.sy' && u.email !== 'nour@mato.sy' && u.email !== 'ahmad@mato.sy');
-    return cleaned.length > 0 ? cleaned : INITIAL_USERS;
+    return safeStorageArrayParse<User>(`${STORAGE_KEY}_users`, []);
   });
 
-  const [currentUser, setCurrentUserState] = useState<User>(() => (Array.isArray(users) && users[0]) ? users[0] : INITIAL_USERS[0]);
+  const defaultEmptyUser: User = {
+    id: 'usr_owner_default',
+    restaurantId: 'rest_01',
+    branchId: 'br_main',
+    name: 'المالك',
+    email: 'owner@mato.sy',
+    role: 'Owner',
+    isActive: true,
+    createdAt: new Date().toISOString()
+  };
+
+  const [currentUser, setCurrentUserState] = useState<User>(() => (Array.isArray(users) && users[0]) ? users[0] : defaultEmptyUser);
 
   const [categories, setCategories] = useState<Category[]>(() => {
     return safeStorageArrayParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);

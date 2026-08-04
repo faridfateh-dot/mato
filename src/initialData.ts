@@ -42,19 +42,7 @@ export const INITIAL_BRANCHES: Branch[] = [
   }
 ];
 
-export const INITIAL_USERS: User[] = [
-  {
-    id: 'usr_owner',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    name: 'فاريد الفاتح',
-    email: 'farid.fateh@hotmail.com',
-    role: 'Owner',
-    phone: '+963 944 111 222',
-    isActive: true,
-    createdAt: '2026-01-01T08:00:00Z'
-  }
-];
+export const INITIAL_USERS: User[] = [];
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat_croissant', restaurantId: 'rest_01', name: 'كرواسون', icon: 'Croissant' },

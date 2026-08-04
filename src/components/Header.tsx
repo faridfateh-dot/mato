@@ -586,17 +586,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
 
                 <button
                   onClick={() => {
-                    // Log out current user (switch to next available user or cashier)
-                    const otherUser = users.find(u => u.id !== currentUser.id) || users[0];
-                    setCurrentUser(otherUser);
+                    logoutUser();
                     setShowAuthModal(false);
-                    setHeaderSuccessMsg(`تم تسجيل الخروج من حساب ${currentUser.name} والتحويل إلى ${otherUser.name}`);
-                    setTimeout(() => setHeaderSuccessMsg(null), 4000);
                   }}
                   className="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>تسجيل خروج الان</span>
+                  <span>تسجيل خروج الآن</span>
                 </button>
               </div>
 

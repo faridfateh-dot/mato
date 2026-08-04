@@ -27,6 +27,11 @@ export interface User {
   role: UserRole;
   phone?: string;
   isActive: boolean;
+  isPendingApproval?: boolean;
+  requestedAt?: string;
+  requestedRole?: UserRole;
+  restaurantName?: string;
+  approvalNotes?: string;
   createdAt: string;
 }
 

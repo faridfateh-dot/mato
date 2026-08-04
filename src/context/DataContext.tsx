@@ -99,6 +99,7 @@ interface DataContextType {
   approveRestaurantSubscription: (requestId: string, durationYears?: number) => Promise<{ code: string; expiry: string; restaurantName: string; ownerPhone: string }>;
   rejectRestaurantSubscription: (requestId: string, reason?: string) => Promise<void>;
   deleteRestaurantRecord: (restaurantId: string) => Promise<boolean>;
+  deleteSubscriptionRequest: (requestId: string) => Promise<boolean>;
   createDirectRestaurantLicense: (params: {
     name: string;
     ownerName: string;
@@ -133,6 +134,7 @@ interface DataContextType {
   addUser: (user: Omit<User, 'id' | 'createdAt' | 'restaurantId'>) => void;
   approveUser: (userId: string, assignedRole?: UserRole, assignedBranchId?: string) => void;
   rejectUser: (userId: string, reason?: string) => void;
+  deleteStaffRequest: (userId: string) => void;
   requestUserRegistration: (params: { name: string; emailOrPhone: string; role?: UserRole; branchId?: string; notes?: string; password?: string }) => { isPending: boolean; message: string; user: User };
   deleteUser: (userId: string) => boolean;
   toggleUserActive: (userId: string) => void;
@@ -667,6 +669,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const deleteSubscriptionRequest = async (requestId: string): Promise<boolean> => {
+    return await deleteRestaurantRecord(requestId);
+  };
+
   const createDirectRestaurantLicense = async (params: {
     name: string;
     ownerName: string;
@@ -791,13 +797,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Check if annual activation subscription has expired
+  // Check if annual activation subscription has expired (Owner is ALWAYS immune with lifetime access)
   const isLicenseExpired = useMemo(() => {
+    if (currentUser?.role === 'Owner') return false;
     if (!licenseInfo || !licenseInfo.expiresAt) return false;
     const expiry = new Date(licenseInfo.expiresAt).getTime();
     const now = new Date().getTime();
     return now > expiry || licenseInfo.status === 'expired';
-  }, [licenseInfo]);
+  }, [licenseInfo, currentUser?.role]);
 
   // SaaS Commercial & License Redemption
   const redeemLicenseKey = (keyString: string) => {
@@ -1304,21 +1311,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 1. Locate User Profile
+    // 1. Locate User Profile strictly by registered email or phone
     let matchedUser = users.find(u => 
-      (u.email && u.email.toLowerCase() === cleanInput) || 
-      (u.phone && u.phone.trim() === emailOrPhone.trim()) ||
-      (cleanInput === 'farid' && u.email === 'farid.fateh@hotmail.com') ||
-      (cleanInput === 'admin' && (u.email === 'owner@mato.sy' || u.email === 'farid.fateh@hotmail.com')) ||
-      (cleanInput === 'owner' && u.role === 'Owner')
+      (u.email && u.email.trim().toLowerCase() === cleanInput) || 
+      (u.phone && u.phone.trim() === emailOrPhone.trim())
     );
 
-    // Fallback: If user is Farid or Owner and not in list, provision profile
+    // Fallback: If user is Farid or Owner and not yet in list, provision profile
     if (!matchedUser && (cleanInput === 'farid.fateh@hotmail.com' || cleanInput === 'owner@mato.sy' || cleanInput === 'admin@mato.sy')) {
       matchedUser = {
         id: 'usr_owner_farid',
         restaurantId: restaurant.id || 'rest_01',
-        branchId: branches[0]?.id || 'br_main',
+        branchId: '', // Owner has NO branch constraints
         name: cleanInput === 'farid.fateh@hotmail.com' ? 'فريد (مالك المنظومة)' : 'المالك (المدير العام)',
         email: cleanInput,
         phone: '+963991234567',
@@ -1326,7 +1330,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pinCode: '1234',
         role: 'Owner',
         isActive: true,
-        isPendingApproval: false,
+        isPendingApproval: false, // Owner NEVER needs review
         createdAt: '2026-01-01T00:00:00Z'
       };
       setUsers(prev => [matchedUser!, ...prev]);
@@ -1339,7 +1343,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         matchedUser = {
           id: `usr_${matchedReg.id}`,
           restaurantId: matchedReg.tenantId,
-          branchId: branches[0]?.id || 'br_main',
+          branchId: '',
           name: matchedReg.ownerName,
           email: matchedReg.emailOrPhone,
           password: 'admin',
@@ -1358,17 +1362,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         status: 'not_found',
-        message: 'لم يتم العثور على الحساب. يرجى التأكد من كتابة البريد الإلكتروني أو رقم الهاتف بشكل صحيح، أو تقديم طلب انضمام.'
+        message: 'لم يتم العثور على الحساب. يرجى التأكد من كتابة البريد الإلكتروني أو رقم الهاتف وكلمة المرور بشكل صحيح.'
       };
     }
 
-    // 2. Check Account Status
-    if (matchedUser.isPendingApproval) {
+    // Ensure Owner has no branch, is always active, and never requires review/approval
+    if (matchedUser.role === 'Owner') {
+      matchedUser.branchId = '';
+      matchedUser.isPendingApproval = false;
+      matchedUser.isActive = true;
+    }
+
+    // 2. Check Account Status (Owner NEVER requires review/approval)
+    if (matchedUser.role !== 'Owner' && matchedUser.isPendingApproval) {
       logActivity('محاولة دخول معلقة', `حاول (${matchedUser.name}) تسجيل الدخول وحسابه بانتظار موافقة واعتماد المالك`);
       return {
         success: false,
         status: 'pending_approval',
-        message: 'الحساب قيد المراجعة: تم استلام طلبك وبانتظار موافقة واعتماد مالك المطعم لتفعيل الصلاحيات.',
+        message: 'الحساب قيد المراجعة: تم استلام طلبك وبانتظار موافقة واعتماد مالك المنظومة لتفعيل الصلاحيات.',
         user: matchedUser
       };
     }
@@ -1378,15 +1389,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         status: 'inactive',
-        message: 'تم إيقاف أو تعطيل هذا الحساب من قبل إدارة المطعم. يرجى التواصل مع المدير المسؤول.',
+        message: 'تم إيقاف أو تعطيل هذا الحساب من قبل إدارة المنظومة. يرجى التواصل مع المدير المسؤول.',
         user: matchedUser
       };
     }
 
     // 3. Strict Password Verification
     const expectedPassword = matchedUser.password || 'admin';
-    const isOwner = matchedUser.role === 'Owner';
-    const isPasswordValid = cleanPass === expectedPassword || (isOwner && (cleanPass === 'admin' || cleanPass === '123456'));
+    const isPasswordValid = cleanPass === expectedPassword;
 
     if (!isPasswordValid) {
       logActivity('محاولة دخول فاشلة', `محاولة دخول فاشلة لحساب (${matchedUser.name}) بكلمة مرور خاطئة`);
@@ -1436,8 +1446,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteRegistrationRecord = (id: string) => {
-    setSystemRegistrations(prev => prev.filter(r => r.id !== id));
+    setSystemRegistrations(prev => prev.filter(r => r.id !== id && r.tenantId !== id));
+    setSubscriptionRequests(prev => prev.filter(r => r.id !== id));
+    setFirestoreRestaurants(prev => prev.filter(r => r.id !== id));
+    permanentlyDeleteRestaurantFromFirestore(id).catch(console.error);
     logActivity('حذف سجل تسجيل', `تم مسح سجل التسجيل id:${id}`);
+  };
+
+  const deleteStaffRequest = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    logActivity('حذف طلب تسجيل موظف', `تم حذف طلب تسجيل الموظف (${userId}) نهائياً`);
   };
 
   const registerNewTenant = (
@@ -2597,6 +2615,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         approveRestaurantSubscription,
         rejectRestaurantSubscription,
         deleteRestaurantRecord,
+        deleteSubscriptionRequest,
         createDirectRestaurantLicense,
         firestoreRestaurants,
         generateAnnualActivationCode,
@@ -2605,6 +2624,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserPassword,
 
         deleteRegistrationRecord,
+        deleteStaffRequest,
         currentRestaurant: restaurant,
         currentBranch,
         currentUser,

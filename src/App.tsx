@@ -60,8 +60,8 @@ const AppMainContent: React.FC = () => {
     return <AuthGate />;
   }
 
-  // Lock system if 1-year annual activation subscription has expired
-  if (isLicenseExpired) {
+  // Lock system if 1-year annual activation subscription has expired (Owner is ALWAYS immune with lifetime access)
+  if (!isOwner && isLicenseExpired) {
     return <AnnualLicenseLock />;
   }
 

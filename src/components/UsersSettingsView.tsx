@@ -240,6 +240,24 @@ export const UsersSettingsView: React.FC = () => {
                 </span>
               </div>
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <span className="text-slate-500 font-medium">نطاق الفروع:</span>
+                <span className="text-slate-900 font-bold text-[11px] bg-slate-200/80 px-2 py-0.5 rounded">
+                  بدون فروع محددة (إشراف شامل على كامل المنظومة)
+                </span>
+              </div>
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <span className="text-slate-500 font-medium">حالة الحساب والمراجعة:</span>
+                <span className="text-emerald-700 font-bold text-[11px] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                  ✓ معتمد ومفعل تلقائياً (لا يحتاج مراجعة)
+                </span>
+              </div>
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <span className="text-slate-500 font-medium">الترخيص وكود التفعيل:</span>
+                <span className="text-amber-700 font-bold text-[11px] bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                  ★ وصول دائم مدى الحياة (لا يحتاج كود تفعيل)
+                </span>
+              </div>
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
                 <span className="text-slate-500 font-medium">قاعدة البيانات:</span>
                 <span className="text-emerald-700 font-bold flex items-center gap-1">
                   ● Firestore السحابية متصلة
@@ -658,10 +676,11 @@ export const UsersSettingsView: React.FC = () => {
 
                       <button
                         onClick={() => setUserToReject(u)}
-                        className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="حذف ورفض طلب التسجيل"
                       >
-                        <X className="w-4 h-4" />
-                        <span>رفض</span>
+                        <Trash2 className="w-4 h-4" />
+                        <span>حذف الطلب</span>
                       </button>
                     </div>
                   </div>
@@ -1270,21 +1289,21 @@ export const UsersSettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Confirmation Reject Request */}
+      {/* Modal: Confirmation Delete/Reject Request */}
       {userToReject && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-xs">
             <div className="p-4 bg-rose-600 text-white flex items-center gap-2 font-bold text-sm">
-              <X className="w-5 h-5" />
-              <span>رفض طلب الانضمام</span>
+              <Trash2 className="w-5 h-5" />
+              <span>حذف طلب تسجيل الموظف</span>
             </div>
 
             <div className="p-5 space-y-3 text-slate-800">
               <p className="text-xs leading-relaxed font-semibold">
-                هل أنت متأكد من رغبتك برفض طلب الانضمام المقدم من <strong className="text-slate-900 underline">{userToReject.name}</strong> ({userToReject.email || userToReject.phone})؟
+                هل أنت متأكد من رغبتك بحذف طلب التسجيل المقدم من <strong className="text-slate-900 underline">{userToReject.name}</strong> ({userToReject.email || userToReject.phone})؟
               </p>
               <p className="text-[11px] text-slate-500 bg-slate-100 p-2.5 rounded-xl border border-slate-200">
-                لن يتمكن هذا المستخدم من الدخول للمطعم وسيتم حذف طلبه من قائمة الانتظار.
+                سيتم مسح هذا الطلب نهائياً من قائمة الانتظار ولن يتمكن صاحب الطلب من الدخول للنظام.
               </p>
 
               <div className="pt-3 flex items-center justify-end gap-2">
@@ -1296,9 +1315,10 @@ export const UsersSettingsView: React.FC = () => {
                 </button>
                 <button
                   onClick={handleConfirmReject}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold shadow-md cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold shadow-md cursor-pointer flex items-center gap-1.5"
                 >
-                  تأكيد الرفض
+                  <Trash2 className="w-4 h-4" />
+                  <span>تأكيد الحذف النهائي</span>
                 </button>
               </div>
             </div>

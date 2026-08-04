@@ -46,7 +46,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'usr_owner_farid',
     restaurantId: 'rest_01',
-    branchId: 'br_main',
+    branchId: '',
     name: 'فريد (مالك المنظومة)',
     email: 'farid.fateh@hotmail.com',
     phone: '+963991234567',
@@ -60,7 +60,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'usr_owner_default',
     restaurantId: 'rest_01',
-    branchId: 'br_main',
+    branchId: '',
     name: 'المالك (المدير العام)',
     email: 'owner@mato.sy',
     phone: '0991234567',

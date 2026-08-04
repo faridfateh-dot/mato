@@ -45,7 +45,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     ownerContact
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<'login' | 'register_restaurant' | 'register_staff' | 'activate_code'>('login');
+  const [activeTab, setActiveTab] = useState<'login' | 'register_restaurant' | 'activate_code'>('login');
 
   // Login State
   const [loginEmailOrPhone, setLoginEmailOrPhone] = useState('');
@@ -73,21 +73,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     phone: string;
   } | null>(null);
 
-  // Staff Registration Form State (Fast 1-Step)
-  const [staffFullName, setStaffFullName] = useState('');
-  const [staffContact, setStaffContact] = useState('');
-  const [staffRole, setStaffRole] = useState<UserRole>('Cashier');
-  const [staffBranchId, setStaffBranchId] = useState<string>(branches[0]?.id || 'br_main');
-  const [staffPassword, setStaffPassword] = useState('');
-  const [staffNotes, setStaffNotes] = useState('');
-  const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
-  const [staffSubmittedSuccess, setStaffSubmittedSuccess] = useState<{
-    name: string;
-    contact: string;
-    role: string;
-    restaurant: string;
-  } | null>(null);
-
   // Annual Code Activation State
   const [annualCodeInput, setAnnualCodeInput] = useState('');
   const [codeVerificationLoading, setCodeVerificationLoading] = useState(false);
@@ -111,12 +96,12 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
       if (result.status === 'pending_approval') {
         setLoginStatusNotice({
           type: 'pending',
-          message: 'الحساب قيد المراجعة والموافقة: تم استلام طلبك بنجاح وهو بانتظار اعتماد وموافقة مالك المطعم لتفعيل الصلاحيات.'
+          message: 'الحساب قيد المراجعة والموافقة: تم استلام طلبك بنجاح وهو بانتظار اعتماد وموافقة مالك المنظومة لتفعيل الصلاحيات.'
         });
       } else if (result.status === 'inactive') {
         setLoginStatusNotice({
           type: 'inactive',
-          message: 'تم إيقاف هذا الحساب من قبل إدارة المطعم. يرجى التواصل مع المدير.'
+          message: 'تم إيقاف هذا الحساب من قبل إدارة المنظومة. يرجى التواصل مع المدير المسؤول.'
         });
       } else if (result.status === 'wrong_password') {
         setLoginStatusNotice({
@@ -126,7 +111,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
       } else {
         setLoginStatusNotice({
           type: 'error',
-          message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البيانات أو تقديم طلب تسجيل جديد.'
+          message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البريد الإلكتروني أو رقم الهاتف، أو تقديم طلب تسجيل مطعم جديد.'
         });
       }
     }
@@ -161,40 +146,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
       console.error('Restaurant registration error:', err);
     } finally {
       setIsSubmittingRest(false);
-    }
-  };
-
-  // 1-Step Staff Registration Handler
-  const handleRegisterStaffSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!staffFullName.trim() || !staffContact.trim()) return;
-
-    setIsSubmittingStaff(true);
-
-    try {
-      const result = requestUserRegistration({
-        name: staffFullName.trim(),
-        emailOrPhone: staffContact.trim(),
-        role: staffRole,
-        branchId: staffBranchId || branches[0]?.id || 'br_main',
-        notes: staffNotes.trim(),
-        password: staffPassword.trim() || '123456'
-      });
-
-      if (result.isPending) {
-        setStaffSubmittedSuccess({
-          name: staffFullName.trim(),
-          contact: staffContact.trim(),
-          role: staffRole,
-          restaurant: currentRestaurant.name
-        });
-      } else {
-        if (onClose) onClose();
-      }
-    } catch (err) {
-      console.error('Staff registration error:', err);
-    } finally {
-      setIsSubmittingStaff(false);
     }
   };
 
@@ -271,19 +222,19 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
         </p>
 
         {/* Tab Switcher */}
-        <div className="grid grid-cols-3 gap-1 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/60 max-w-md mx-auto mt-5">
+        <div className="grid grid-cols-2 gap-1.5 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/60 max-w-md mx-auto mt-5">
           <button
             onClick={() => {
               setActiveTab('login');
               setLoginStatusNotice(null);
             }}
-            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
               activeTab === 'login'
                 ? 'bg-amber-400 text-slate-950 shadow-md font-black'
                 : 'text-slate-300 hover:text-white'
             }`}
           >
-            تسجيل الدخول
+            🔐 تسجيل الدخول
           </button>
 
           <button
@@ -291,27 +242,13 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               setActiveTab('register_restaurant');
               setRestSubmittedSuccess(null);
             }}
-            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
               activeTab === 'register_restaurant'
                 ? 'bg-amber-400 text-slate-950 shadow-md font-black'
                 : 'text-slate-300 hover:text-white'
             }`}
           >
             🍽️ تسجيل مطعم جديد
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('register_staff');
-              setStaffSubmittedSuccess(null);
-            }}
-            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
-              activeTab === 'register_staff'
-                ? 'bg-amber-400 text-slate-950 shadow-md font-black'
-                : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            👤 انضمام موظف
           </button>
         </div>
       </div>
@@ -398,7 +335,10 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-              <span>حساب تجريبي سريع: <code className="text-amber-300 font-mono">owner@mato.sy / admin</code></span>
+              <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                <Lock className="w-3 h-3 text-amber-400" />
+                <span>الدخول مخصص للمالك والمستخدمين المعتمدين بكلمة المرور</span>
+              </span>
               <button
                 type="button"
                 onClick={() => setActiveTab('activate_code')}
@@ -414,7 +354,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>تسجيل الدخول الآمن</span>
+              <span>تسجيل الدخول بالبريد وكلمة المرور</span>
             </button>
 
             {/* Quick help button */}
@@ -587,7 +527,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   ) : (
                     <>
                       <RocketIcon />
-                      <span>🚀 إرسال طلب تسجيل المطعم والتفعيل الفوري</span>
+                      <span>🚀 إرسال طلب تسجيل المطعم للاعتماد</span>
                     </>
                   )}
                 </button>
@@ -605,7 +545,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                     تم إرسال طلب تسجيل المطعم بنجاح!
                   </h3>
                   <p className="text-xs text-emerald-300 font-bold">
-                    تم حفظ طلبك سحابياً وهو جاهز للاعتماد الفوري وإصدار كود التفعيل
+                    تم حفظ طلبك سحابياً وهو بانتظار الاعتماد وتوليد كود التفعيل السنوي
                   </p>
                 </div>
 
@@ -628,8 +568,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   </div>
                 </div>
 
-                {/* Direct 1-tap WhatsApp Action Button */}
-                <div className="space-y-2 pt-2">
+                {/* Direct 1-tap WhatsApp Action Button & Return to Login */}
+                <div className="space-y-3 pt-2">
                   <a
                     href={getWhatsAppNotifyUrl({
                       name: restSubmittedSuccess.restaurantName,
@@ -645,36 +585,17 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                     <span>📲 إرسال إشعار مباشر لفريد على واتساب لتسريع التفعيل</span>
                   </a>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        // Quick demo provision
-                        registerNewTenant(
-                          restSubmittedSuccess.restaurantName,
-                          restSubmittedSuccess.ownerName,
-                          restSubmittedSuccess.phone,
-                          'phone',
-                          restPassword || '123456'
-                        );
-                        if (onClose) onClose();
-                      }}
-                      className="py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>بدء التجربة الفورية (Demo)</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setActiveTab('login');
-                        setLoginEmailOrPhone(restSubmittedSuccess.phone);
-                        setLoginPassword(restPassword);
-                      }}
-                      className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer"
-                    >
-                      العودة لشاشة الدخول
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveTab('login');
+                      setLoginEmailOrPhone(restSubmittedSuccess.phone);
+                      setLoginPassword(restPassword || '');
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-amber-400" />
+                    <span>العودة لشاشة تسجيل الدخول</span>
+                  </button>
                 </div>
 
               </div>
@@ -682,191 +603,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
           </div>
         )}
 
-        {/* ================= TAB 3: REGISTER STAFF (FAST 1-STEP) ================= */}
-        {activeTab === 'register_staff' && (
-          <div>
-            {!staffSubmittedSuccess ? (
-              <form onSubmit={handleRegisterStaffSubmit} className="space-y-3.5">
-                
-                <div className="p-3 rounded-xl bg-slate-800 border border-slate-700 text-xs text-slate-300 space-y-1">
-                  <div className="font-bold text-amber-400 flex items-center gap-1.5">
-                    <UserIcon className="w-4 h-4" />
-                    <span>طلب انضمام موظف / كاشير لمطعم ({currentRestaurant.name}):</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    سيتم إرسال طلبك فوراً للوحة تحكم مالك المطعم لاعتماده وتحديد الصلاحيات.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    الاسم الكامل للموظف *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: يوسف الشامي"
-                      value={staffFullName}
-                      onChange={e => setStaffFullName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                    />
-                    <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      رقم الهاتف أو البريد *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        required
-                        placeholder="0991234567 أو user@mail.com"
-                        value={staffContact}
-                        onChange={e => setStaffContact(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono"
-                      />
-                      <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      الوظيفة المطلوبة
-                    </label>
-                    <select
-                      value={staffRole}
-                      onChange={e => setStaffRole(e.target.value as UserRole)}
-                      className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      <option value="Cashier">كاشير مبيعات (Cashier)</option>
-                      <option value="Manager">مدير صالة (Manager)</option>
-                      <option value="Inventory Manager">أمين مستودع ومخزون</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      الفرع المطلوب
-                    </label>
-                    <select
-                      value={staffBranchId}
-                      onChange={e => setStaffBranchId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      {branches.map(b => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      كلمة المرور للحساب *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="password"
-                        required
-                        placeholder="••••••••"
-                        value={staffPassword}
-                        onChange={e => setStaffPassword(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                      />
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    ملاحظة للمالك / سبب طلب الانضمام (اختياري)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="مثال: تم تعييني في فرع الشام..."
-                    value={staffNotes}
-                    onChange={e => setStaffNotes(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmittingStaff}
-                  className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
-                >
-                  {isSubmittingStaff ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>جاري إرسال الطلب...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" />
-                      <span>إرسال طلب الانضمام للموافقة</span>
-                    </>
-                  )}
-                </button>
-
-              </form>
-            ) : (
-              <div className="space-y-4 py-2 text-center">
-                <div className="w-16 h-16 rounded-3xl bg-amber-400/20 border border-amber-400/40 text-amber-400 mx-auto flex items-center justify-center animate-bounce">
-                  <Clock className="w-8 h-8" />
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-lg font-black text-white">
-                    تم إرسال طلب انضمام الموظف بنجاح!
-                  </h3>
-                  <p className="text-xs text-amber-300 font-bold">
-                    حسابك بانتظار موافقة واعتماد مالك المطعم ({staffSubmittedSuccess.restaurant})
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-right text-xs space-y-2 text-slate-300">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">الاسم:</span>
-                    <span className="font-bold text-white">{staffSubmittedSuccess.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">وسيلة الاتصال:</span>
-                    <span className="font-mono text-amber-300">{staffSubmittedSuccess.contact}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">الدور المطلوب:</span>
-                    <span className="font-bold text-emerald-400">{staffSubmittedSuccess.role}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    const result = loginUser(staffSubmittedSuccess.contact, staffPassword);
-                    if (result.success && onClose) {
-                      onClose();
-                    } else if (result.status === 'pending_approval') {
-                      alert('طلبك ما يزال قيد المراجعة وبانتظار اعتماد مالك المطعم.');
-                    } else {
-                      alert(result.message);
-                    }
-                  }}
-                  className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>التحقق من حالة الموافقة والتفعيل الآن</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ================= TAB 4: ACTIVATE ANNUAL KEY ================= */}
+        {/* ================= TAB 3: ACTIVATE ANNUAL KEY ================= */}
         {activeTab === 'activate_code' && (
           <form onSubmit={handleVerifySubscriberCode} className="space-y-4">
             

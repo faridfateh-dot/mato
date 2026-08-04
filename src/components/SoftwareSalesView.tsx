@@ -35,6 +35,7 @@ import {
   MessageCircle,
   Phone,
   Trash2,
+  Search,
   X
 } from 'lucide-react';
 import { SaaSPlanType, SoftwareLicense, LicenseKeyInfo, CommercialProposal, RestaurantSubscriptionRequest } from '../types';
@@ -67,13 +68,19 @@ export const SoftwareSalesView: React.FC = () => {
     approveRestaurantSubscription,
     rejectRestaurantSubscription,
     deleteRestaurantRecord,
+    deleteSubscriptionRequest,
     createDirectRestaurantLicense,
     ownerContact,
     updateOwnerContact
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'requests' | 'registrations' | 'contact' | 'license' | 'generator' | 'plans' | 'proposal' | 'backup'>('requests');
-  const [restaurantToDelete, setRestaurantToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [restaurantToDelete, setRestaurantToDelete] = useState<{ id: string; name: string; ownerName?: string; phone?: string; status?: string } | null>(null);
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestStatusFilter, setRequestStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [showBulkDeleteRejectedModal, setShowBulkDeleteRejectedModal] = useState(false);
+  const [isDeletingRestaurant, setIsDeletingRestaurant] = useState(false);
+  const [toastNotification, setToastNotification] = useState<string | null>(null);
 
   // Owner Contact Form State
   const [contactForm, setContactForm] = useState({
@@ -567,7 +574,7 @@ export const SoftwareSalesView: React.FC = () => {
                 <span>الطلبات الواردة من أصحاب المطاعم بانتظار موافقة المالك (فريد)</span>
               </h2>
               <p className="text-xs text-slate-300">
-                عند الموافقة على أي طلب، يتم فورياً توليد كود التفعيل السنوي وإرساله للعميل عبر واتساب بضغطة زر وتفعيل الحساب سحابياً
+                إدارة كاملة لطلبات التسجيل: الموافقة وإصدار كود التفعيل السنوي، رفض الطلبات، أو حذف طلبات التسجيل نهائياً
               </p>
             </div>
 
@@ -582,248 +589,460 @@ export const SoftwareSalesView: React.FC = () => {
             </div>
           </div>
 
-          {/* Requests Table */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  <Store className="w-5 h-5 text-amber-500" />
-                  <span>قائمة طلبات الاشتراك والتفعيل المعلقة والمكتملة</span>
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  طلبات التسجيل السحابية والمحلية الواردة للمنصة
-                </p>
+          {/* Toast Notification */}
+          {toastNotification && (
+            <div className="bg-emerald-500 text-slate-950 px-4 py-3 rounded-2xl font-bold text-xs shadow-lg flex items-center justify-between animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{toastNotification}</span>
               </div>
-
-              {pendingRestaurantRequestsCount > 0 && (
-                <div className="bg-amber-50 text-amber-900 border border-amber-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>يوجد {pendingRestaurantRequestsCount} طلبات جديدة بحاجة لاعتمادك</span>
-                </div>
-              )}
+              <button onClick={() => setToastNotification(null)} className="p-1 hover:bg-emerald-600 rounded-lg cursor-pointer">
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
+          )}
 
-            {/* If no requests */}
-            {subscriptionRequests.length === 0 && firestoreRestaurants.length === 0 ? (
-              <div className="text-center py-12 space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
-                  <Store className="w-8 h-8" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-sm">لا توجد طلبات اشتراك جديدة حالياً</h4>
-                  <p className="text-xs text-slate-400 mt-1">
-                    عندما يقوم صاحب مطعم بطلب ترخيص جديد، سيظهر طلبه هنا فوراً مع بيانات الاتصال للموافقة عليه
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowDirectCreateModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all inline-flex items-center gap-2 cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>ترخيص مطعم لعميل جديد يدوياً</span>
-                </button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-y border-slate-200 text-slate-700 font-bold">
-                      <th className="p-3">اسم المطعم</th>
-                      <th className="p-3">صاحب المطعم</th>
-                      <th className="p-3">رقم الهاتف (واتساب)</th>
-                      <th className="p-3">المدينة / الفروع</th>
-                      <th className="p-3">الباقة المطلوبة</th>
-                      <th className="p-3">حالة الطلب</th>
-                      <th className="p-3">كود التفعيل الصادر</th>
-                      <th className="p-3 text-center">إجراءات المالك فريد</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {/* Combine Subscription Requests and Firestore Records */}
-                    {(() => {
-                      const all = [...subscriptionRequests];
-                      firestoreRestaurants.forEach(fr => {
-                        if (!all.some(a => a.id === fr.id)) {
-                          all.push({
-                            id: fr.id,
-                            restaurantName: fr.name,
-                            ownerName: fr.ownerName,
-                            phone: fr.phone || fr.email || '',
-                            email: fr.email || '',
-                            city: 'دمشق',
-                            branchesCount: 1,
-                            planType: (fr.planType as SaaSPlanType) || 'professional',
-                            status: fr.status === 'active' ? 'approved' : fr.status === 'pending_approval' ? 'pending_approval' : 'rejected',
-                            activationCode: fr.activationCode,
-                            expiresAt: fr.subscriptionExpiry,
-                            requestedAt: fr.registeredAt,
-                            approvedAt: fr.status === 'active' ? fr.registeredAt : undefined
-                          });
-                        }
-                      });
+          {/* Requests Table Container */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+            {/* Table Header & Search/Filters */}
+            {(() => {
+              // Prepare aggregated list of all requests
+              const allRequests: Array<{
+                id: string;
+                restaurantName: string;
+                ownerName: string;
+                phone: string;
+                email: string;
+                city: string;
+                branchesCount: number;
+                planType: SaaSPlanType;
+                status: 'pending_approval' | 'approved' | 'rejected';
+                activationCode?: string;
+                expiresAt?: string;
+                requestedAt?: string;
+                approvedAt?: string;
+              }> = [...subscriptionRequests];
 
-                      return all.map((req) => {
-                        const isPending = req.status === 'pending_approval';
-                        const isApproved = req.status === 'approved';
-                        const whatsappMsg = req.activationCode 
-                          ? `أهلاً بك أستاذ ${req.ownerName}! 🎉\nتمت الموافقة على طلب ترخيص مطعم (${req.restaurantName}) في نظام MATO POS.\n\n🔑 كود التفعيل السنوي الخاص بك: ${req.activationCode}\n📅 تاريخ انتهاء الاشتراك: ${new Date(req.expiresAt || Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SY')}\n\nيمكنك الآن إدخال الكود وتفعيل النظام فوراً.`
-                          : `أهلاً بك أستاذ ${req.ownerName}! بخصوص طلب ترخيص مطعم (${req.restaurantName}) في نظام MATO POS...`;
-                        
-                        const whatsappUrl = req.phone ? getClientWhatsAppLink(req.phone, whatsappMsg) : '';
+              firestoreRestaurants.forEach(fr => {
+                if (!allRequests.some(a => a.id === fr.id)) {
+                  allRequests.push({
+                    id: fr.id,
+                    restaurantName: fr.name,
+                    ownerName: fr.ownerName,
+                    phone: fr.phone || fr.email || '',
+                    email: fr.email || '',
+                    city: 'دمشق',
+                    branchesCount: 1,
+                    planType: (fr.planType as SaaSPlanType) || 'professional',
+                    status: fr.status === 'active' ? 'approved' : fr.status === 'pending_approval' ? 'pending_approval' : 'rejected',
+                    activationCode: fr.activationCode,
+                    expiresAt: fr.subscriptionExpiry,
+                    requestedAt: fr.registeredAt,
+                    approvedAt: fr.status === 'active' ? fr.registeredAt : undefined
+                  });
+                }
+              });
 
-                        return (
-                          <tr key={req.id} className="hover:bg-amber-50/40 transition-all">
-                            <td className="p-3 font-bold text-slate-900">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">
-                                  🍽️
-                                </div>
-                                <div>
-                                  <div className="font-black text-slate-900">{req.restaurantName}</div>
-                                  <div className="text-[10px] text-slate-400">معرف: {req.id}</div>
-                                </div>
-                              </div>
-                            </td>
+              const pendingCount = allRequests.filter(r => r.status === 'pending_approval').length;
+              const approvedCount = allRequests.filter(r => r.status === 'approved').length;
+              const rejectedCount = allRequests.filter(r => r.status === 'rejected').length;
 
-                            <td className="p-3 font-bold text-slate-800">
-                              {req.ownerName}
-                            </td>
+              const filteredRequests = allRequests.filter(req => {
+                if (requestStatusFilter === 'pending' && req.status !== 'pending_approval') return false;
+                if (requestStatusFilter === 'approved' && req.status !== 'approved') return false;
+                if (requestStatusFilter === 'rejected' && req.status !== 'rejected') return false;
 
-                            <td className="p-3 font-mono font-bold text-slate-700 dir-ltr text-right">
-                              <div className="flex items-center gap-2">
-                                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{req.phone || 'غير مسجل'}</span>
-                                {whatsappUrl && (
-                                  <a
-                                    href={whatsappUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="p-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
-                                    title="مراسلة عبر واتساب"
-                                  >
-                                    <MessageCircle className="w-3.5 h-3.5" />
-                                  </a>
-                                )}
-                              </div>
-                            </td>
+                if (requestSearch.trim()) {
+                  const q = requestSearch.toLowerCase().trim();
+                  const matchesName = req.restaurantName.toLowerCase().includes(q);
+                  const matchesOwner = req.ownerName.toLowerCase().includes(q);
+                  const matchesPhone = (req.phone || '').toLowerCase().includes(q);
+                  const matchesId = req.id.toLowerCase().includes(q);
+                  const matchesCode = (req.activationCode || '').toLowerCase().includes(q);
+                  return matchesName || matchesOwner || matchesPhone || matchesId || matchesCode;
+                }
+                return true;
+              });
 
-                            <td className="p-3 text-slate-600">
-                              <div>{req.city || 'دمشق'}</div>
-                              <div className="text-[10px] text-slate-400">{req.branchesCount || 1} فرع</div>
-                            </td>
+              return (
+                <>
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                        <Store className="w-5 h-5 text-amber-500" />
+                        <span>قائمة طلبات التسجيل والاشتراك</span>
+                        <span className="text-xs font-bold text-slate-400">({allRequests.length} إجمالي)</span>
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        إمكانية البحث، الفلترة، الموافقة، الرفض، وحذف طلبات التسجيل نهائياً
+                      </p>
+                    </div>
 
-                            <td className="p-3">
-                              <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-lg font-bold text-[11px]">
-                                {req.planType === 'starter' ? 'الباقة المبتدئة' : req.planType === 'enterprise' ? 'باقة المؤسسات' : 'الباقة الاحترافية'}
-                              </span>
-                            </td>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {rejectedCount > 0 && (
+                        <button
+                          onClick={() => setShowBulkDeleteRejectedModal(true)}
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="حذف جميع الطلبات المرفوضة دفعة واحدة"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>مسح المرفوضة ({rejectedCount})</span>
+                        </button>
+                      )}
 
-                            <td className="p-3">
-                              {isPending ? (
-                                <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full font-black text-[11px] animate-pulse">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <span>بانتظار موافقة فريد</span>
-                                </span>
-                              ) : isApproved ? (
-                                <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full font-black text-[11px]">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>تمت الموافقة والتفعيل</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full font-black text-[11px]">
-                                  <X className="w-3.5 h-3.5" />
-                                  <span>مرفوض</span>
-                                </span>
-                              )}
-                            </td>
+                      {pendingCount > 0 && (
+                        <div className="bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>يوجد {pendingCount} طلبات معلقة</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                            <td className="p-3">
-                              {req.activationCode ? (
-                                <div className="space-y-1">
-                                  <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-2.5 py-1 rounded-lg font-mono font-black text-xs select-all">
-                                    <Key className="w-3 h-3" />
-                                    <span>{req.activationCode}</span>
-                                  </span>
-                                  {req.expiresAt && (
-                                    <div className="text-[10px] text-slate-500">
-                                      ينتهي: {new Date(req.expiresAt).toLocaleDateString('ar-SY')}
+                  {/* Search and Filters Bar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                    {/* Status Filter Tabs */}
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-xs font-bold">
+                      <button
+                        onClick={() => setRequestStatusFilter('all')}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          requestStatusFilter === 'all'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        الكل ({allRequests.length})
+                      </button>
+                      <button
+                        onClick={() => setRequestStatusFilter('pending')}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                          requestStatusFilter === 'pending'
+                            ? 'bg-amber-500 text-slate-950 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>معلقة</span>
+                        {pendingCount > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-amber-900 animate-ping inline-block" />
+                        )}
+                        <span>({pendingCount})</span>
+                      </button>
+                      <button
+                        onClick={() => setRequestStatusFilter('approved')}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          requestStatusFilter === 'approved'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        معتمدة ({approvedCount})
+                      </button>
+                      <button
+                        onClick={() => setRequestStatusFilter('rejected')}
+                        className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                          requestStatusFilter === 'rejected'
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        مرفوضة ({rejectedCount})
+                      </button>
+                    </div>
+
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-xs">
+                      <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={requestSearch}
+                        onChange={e => setRequestSearch(e.target.value)}
+                        placeholder="بحث باسم المطعم، المالك، الهاتف..."
+                        className="w-full pl-3 pr-9 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-amber-400"
+                      />
+                      {requestSearch && (
+                        <button
+                          onClick={() => setRequestSearch('')}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* If no requests found */}
+                  {filteredRequests.length === 0 ? (
+                    <div className="text-center py-12 space-y-4">
+                      <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+                        <Store className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm">
+                          {requestSearch || requestStatusFilter !== 'all'
+                            ? 'لا توجد نتائج تطابق معايير البحث والفلترة'
+                            : 'لا توجد طلبات اشتراك مسجلة حالياً'}
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {requestSearch || requestStatusFilter !== 'all'
+                            ? 'جرب تغيير نص البحث أو اختيار تبويب فلترة آخر'
+                            : 'عندما يقوم صاحب مطعم بطلب ترخيص جديد، سيظهر طلبه هنا فوراً مع بيانات الاتصال للموافقة عليه أو حذفه'}
+                        </p>
+                      </div>
+                      {requestSearch || requestStatusFilter !== 'all' ? (
+                        <button
+                          onClick={() => {
+                            setRequestSearch('');
+                            setRequestStatusFilter('all');
+                          }}
+                          className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all inline-flex items-center gap-2 cursor-pointer"
+                        >
+                          <span>إلغاء الفلترة والبحث</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setShowDirectCreateModal(true)}
+                          className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all inline-flex items-center gap-2 cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4 text-amber-400" />
+                          <span>ترخيص مطعم لعميل جديد يدوياً</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-right text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-y border-slate-200 text-slate-700 font-bold">
+                            <th className="p-3">اسم المطعم</th>
+                            <th className="p-3">صاحب المطعم</th>
+                            <th className="p-3">رقم الهاتف (واتساب)</th>
+                            <th className="p-3">المدينة / الفروع</th>
+                            <th className="p-3">الباقة المطلوبة</th>
+                            <th className="p-3">حالة الطلب</th>
+                            <th className="p-3">كود التفعيل الصادر</th>
+                            <th className="p-3 text-center">إجراءات المالك (موافقة / رفض / حذف)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredRequests.map((req) => {
+                            const isPending = req.status === 'pending_approval';
+                            const isApproved = req.status === 'approved';
+                            const isRejected = req.status === 'rejected';
+
+                            const whatsappMsg = req.activationCode 
+                              ? `أهلاً بك أستاذ ${req.ownerName}! 🎉\nتمت الموافقة على طلب ترخيص مطعم (${req.restaurantName}) في نظام MATO POS.\n\n🔑 كود التفعيل السنوي الخاص بك: ${req.activationCode}\n📅 تاريخ انتهاء الاشتراك: ${new Date(req.expiresAt || Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SY')}\n\nيمكنك الآن إدخال الكود وتفعيل النظام فوراً.`
+                              : `أهلاً بك أستاذ ${req.ownerName}! بخصوص طلب ترخيص مطعم (${req.restaurantName}) في نظام MATO POS...`;
+                            
+                            const whatsappUrl = req.phone ? getClientWhatsAppLink(req.phone, whatsappMsg) : '';
+
+                            return (
+                              <tr key={req.id} className="hover:bg-amber-50/40 transition-all">
+                                <td className="p-3 font-bold text-slate-900">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs shrink-0">
+                                      🍽️
                                     </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 text-[11px]">لم يصدر بعد</span>
-                              )}
-                            </td>
+                                    <div>
+                                      <div className="font-black text-slate-900">{req.restaurantName}</div>
+                                      <div className="text-[10px] text-slate-400">معرف: {req.id}</div>
+                                    </div>
+                                  </div>
+                                </td>
 
-                            <td className="p-3 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                {isPending ? (
-                                  <>
-                                    <button
-                                      disabled={actionLoadingId === req.id}
-                                      onClick={() => handleApproveRequest(req.id)}
-                                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                    >
-                                      {actionLoadingId === req.id ? (
-                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                      ) : (
-                                        <Check className="w-3.5 h-3.5" />
-                                      )}
-                                      <span>موافقة وإصدار الكود السنوي</span>
-                                    </button>
+                                <td className="p-3 font-bold text-slate-800">
+                                  {req.ownerName}
+                                </td>
 
-                                    <button
-                                      disabled={actionLoadingId === req.id}
-                                      onClick={() => handleRejectRequest(req.id, req.restaurantName)}
-                                      className="p-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold transition-all cursor-pointer"
-                                      title="رفض الطلب"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                ) : (
-                                  <>
+                                <td className="p-3 font-mono font-bold text-slate-700 dir-ltr text-right">
+                                  <div className="flex items-center gap-2">
+                                    <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{req.phone || 'غير مسجل'}</span>
                                     {whatsappUrl && (
                                       <a
                                         href={whatsappUrl}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-xs"
+                                        className="p-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
+                                        title="مراسلة عبر واتساب"
                                       >
                                         <MessageCircle className="w-3.5 h-3.5" />
-                                        <span>إرسال الكود واتساب</span>
                                       </a>
                                     )}
+                                  </div>
+                                </td>
 
-                                    <button
-                                      onClick={async () => {
-                                        const res = await generateAnnualActivationCode(req.id, req.restaurantName);
-                                        alert(`تم تجديد الكود بنجاح!\nالكود الجديد: ${res.code}\nصالح حتى: ${new Date(res.newExpiry).toLocaleDateString('ar-SY')}`);
-                                      }}
-                                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all cursor-pointer"
-                                      title="تجديد كود سنة إضافية"
-                                    >
-                                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                                    </button>
+                                <td className="p-3 text-slate-600">
+                                  <div>{req.city || 'دمشق'}</div>
+                                  <div className="text-[10px] text-slate-400">{req.branchesCount || 1} فرع</div>
+                                </td>
 
-                                    <button
-                                      onClick={() => setRestaurantToDelete({ id: req.id, name: req.restaurantName })}
-                                      className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
-                                      title="حذف حساب وترخيص المطعم نهائياً"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                                <td className="p-3">
+                                  <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-lg font-bold text-[11px]">
+                                    {req.planType === 'starter' ? 'الباقة المبتدئة' : req.planType === 'enterprise' ? 'باقة المؤسسات' : 'الباقة الاحترافية'}
+                                  </span>
+                                </td>
+
+                                <td className="p-3">
+                                  {isPending ? (
+                                    <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full font-black text-[11px] animate-pulse">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      <span>بانتظار موافقة فريد</span>
+                                    </span>
+                                  ) : isApproved ? (
+                                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full font-black text-[11px]">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>تمت الموافقة والتفعيل</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full font-black text-[11px]">
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>مرفوض</span>
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="p-3">
+                                  {req.activationCode ? (
+                                    <div className="space-y-1">
+                                      <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-2.5 py-1 rounded-lg font-mono font-black text-xs select-all">
+                                        <Key className="w-3 h-3" />
+                                        <span>{req.activationCode}</span>
+                                      </span>
+                                      {req.expiresAt && (
+                                        <div className="text-[10px] text-slate-500">
+                                          ينتهي: {new Date(req.expiresAt).toLocaleDateString('ar-SY')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-slate-400 text-[11px]">لم يصدر بعد</span>
+                                  )}
+                                </td>
+
+                                <td className="p-3 text-center">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    {isPending && (
+                                      <>
+                                        <button
+                                          disabled={actionLoadingId === req.id}
+                                          onClick={() => handleApproveRequest(req.id)}
+                                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                          title="موافقة وإصدار كود سنوي"
+                                        >
+                                          {actionLoadingId === req.id ? (
+                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                          ) : (
+                                            <Check className="w-3.5 h-3.5" />
+                                          )}
+                                          <span>موافقة وتفعيل</span>
+                                        </button>
+
+                                        <button
+                                          disabled={actionLoadingId === req.id}
+                                          onClick={() => handleRejectRequest(req.id, req.restaurantName)}
+                                          className="p-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold transition-all cursor-pointer"
+                                          title="رفض الطلب"
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        <button
+                                          onClick={() => setRestaurantToDelete({
+                                            id: req.id,
+                                            name: req.restaurantName,
+                                            ownerName: req.ownerName,
+                                            phone: req.phone,
+                                            status: req.status
+                                          })}
+                                          className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
+                                          title="حذف طلب التسجيل نهائياً"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {isApproved && (
+                                      <>
+                                        {whatsappUrl && (
+                                          <a
+                                            href={whatsappUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-xs"
+                                          >
+                                            <MessageCircle className="w-3.5 h-3.5" />
+                                            <span>إرسال الكود</span>
+                                          </a>
+                                        )}
+
+                                        <button
+                                          onClick={async () => {
+                                            const res = await generateAnnualActivationCode(req.id, req.restaurantName);
+                                            setToastNotification(`تم تجديد كود المطعم (${req.restaurantName}) بنجاح! الكود: ${res.code}`);
+                                            setTimeout(() => setToastNotification(null), 5000);
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all cursor-pointer"
+                                          title="تجديد كود سنة إضافية"
+                                        >
+                                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                        </button>
+
+                                        <button
+                                          onClick={() => setRestaurantToDelete({
+                                            id: req.id,
+                                            name: req.restaurantName,
+                                            ownerName: req.ownerName,
+                                            phone: req.phone,
+                                            status: req.status
+                                          })}
+                                          className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
+                                          title="حذف سجل وترخيص المطعم نهائياً"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {isRejected && (
+                                      <>
+                                        <button
+                                          disabled={actionLoadingId === req.id}
+                                          onClick={() => handleApproveRequest(req.id)}
+                                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                          title="إعادة الموافقة والتفعيل"
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                          <span>موافقة وتفعيل الآن</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => setRestaurantToDelete({
+                                            id: req.id,
+                                            name: req.restaurantName,
+                                            ownerName: req.ownerName,
+                                            phone: req.phone,
+                                            status: req.status
+                                          })}
+                                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold text-xs transition-all cursor-pointer flex items-center gap-1"
+                                          title="حذف الطلب المرفوض نهائياً"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                          <span>حذف الطلب</span>
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2243,33 +2462,114 @@ export const SoftwareSalesView: React.FC = () => {
         </div>
       )}
 
-      {/* ==================== DELETE RESTAURANT CONFIRMATION MODAL ==================== */}
+      {/* ==================== DELETE RESTAURANT / REQUEST CONFIRMATION MODAL ==================== */}
       {restaurantToDelete && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn dir-rtl">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-              <Trash2 className="w-6 h-6" />
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+              <Trash2 className="w-7 h-7" />
             </div>
-            <div className="text-center space-y-1.5">
-              <h3 className="text-base font-black text-slate-900">تأكيد حذف حساب وترخيص المطعم</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                هل أنت متأكد من حذف حساب مطعم <strong>({restaurantToDelete.name})</strong> نهائياً من قاعدة البيانات السحابية وسجلات المنصة؟ لن يتمكن صاحب المطعم من الدخول بهذا الترخيص مجدداً.
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-base font-black text-slate-900">تأكيد حذف طلب التسجيل وسجل المطعم</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                هل أنت متأكد من رغبتك بحذف طلب التسجيل / حساب مطعم <strong className="text-rose-600 font-black">({restaurantToDelete.name})</strong> نهائياً من قاعدة البيانات السحابية وسجلات المنصة؟
               </p>
+
+              {restaurantToDelete.ownerName && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-right space-y-1 text-slate-700">
+                  <div><span className="text-slate-400">صاحب المطعم:</span> <strong className="text-slate-900">{restaurantToDelete.ownerName}</strong></div>
+                  {restaurantToDelete.phone && <div><span className="text-slate-400">الهاتف:</span> <strong className="text-slate-900 font-mono">{restaurantToDelete.phone}</strong></div>}
+                  <div><span className="text-slate-400">المعرف:</span> <span className="text-slate-500 font-mono text-[10px]">{restaurantToDelete.id}</span></div>
+                </div>
+              )}
+
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-[11px] text-rose-800 text-right space-y-0.5">
+                <p>• سيتم مسح هذا الطلب بالكامل من قائمة طلبات التسجيل السحابية والمحلية.</p>
+                <p>• سيتم إيقاف وحذف أي كود تفعيل مرتبط بهذا الطلب.</p>
+              </div>
             </div>
+
             <div className="flex gap-2 pt-2">
               <button
+                disabled={isDeletingRestaurant}
                 onClick={async () => {
                   const id = restaurantToDelete.id;
-                  setRestaurantToDelete(null);
-                  await deleteRestaurantRecord(id);
-                  alert(`تم حذف حساب وترخيص المطعم بنجاح.`);
+                  const name = restaurantToDelete.name;
+                  setIsDeletingRestaurant(true);
+                  try {
+                    await deleteRestaurantRecord(id);
+                    setRestaurantToDelete(null);
+                    setToastNotification(`تم حذف طلب وسجل مطعم (${name}) بنجاح.`);
+                    setTimeout(() => setToastNotification(null), 4000);
+                  } catch (err) {
+                    alert('حدث خطأ أثناء محاولة الحذف.');
+                  } finally {
+                    setIsDeletingRestaurant(false);
+                  }
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-md shadow-rose-600/20"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition-all cursor-pointer shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                نعم، حذف نهائي
+                {isDeletingRestaurant ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>نعم، حذف نهائي الآن</span>
               </button>
               <button
+                disabled={isDeletingRestaurant}
                 onClick={() => setRestaurantToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== BULK DELETE REJECTED REQUESTS MODAL ==================== */}
+      {showBulkDeleteRejectedModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn dir-rtl">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-inner">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-base font-black text-slate-900">مسح وحذف كافة الطلبات المرفوضة</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                هل ترغب في حذف كافة طلبات التسجيل المرفوضة نهائياً من قاعدة البيانات السحابية وسجلات المنصة؟
+              </p>
+              <p className="text-[11px] text-slate-500 bg-slate-100 p-2 rounded-xl">
+                هذا الإجراء سيقوم بتنظيف قائمة الطلبات ومسح السجلات المرفوضة القديمة بشكل نهائي.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                disabled={isDeletingRestaurant}
+                onClick={async () => {
+                  setIsDeletingRestaurant(true);
+                  try {
+                    const rejected = subscriptionRequests.filter(r => r.status === 'rejected');
+                    for (const r of rejected) {
+                      await deleteRestaurantRecord(r.id);
+                    }
+                    setShowBulkDeleteRejectedModal(false);
+                    setToastNotification(`تم مسح وحذف كافة الطلبات المرفوضة بنجاح.`);
+                    setTimeout(() => setToastNotification(null), 4000);
+                  } catch (err) {
+                    alert('حدث خطأ أثناء مسح الطلبات المرفوضة.');
+                  } finally {
+                    setIsDeletingRestaurant(false);
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition-all cursor-pointer shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isDeletingRestaurant ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>نعم، مسح كافة المرفوضة</span>
+              </button>
+              <button
+                disabled={isDeletingRestaurant}
+                onClick={() => setShowBulkDeleteRejectedModal(false)}
                 className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
               >
                 إلغاء

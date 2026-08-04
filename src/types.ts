@@ -2,7 +2,7 @@ export type UserRole = 'Owner' | 'Manager' | 'Cashier' | 'Inventory Manager';
 
 export interface LoginResult {
   success: boolean;
-  status: 'active' | 'pending_approval' | 'inactive' | 'not_found';
+  status: 'active' | 'pending_approval' | 'inactive' | 'not_found' | 'wrong_password';
   message: string;
   user?: User;
 }
@@ -34,6 +34,8 @@ export interface User {
   email: string;
   role: UserRole;
   phone?: string;
+  password?: string;
+  pinCode?: string;
   isActive: boolean;
   isPendingApproval?: boolean;
   requestedAt?: string;
@@ -296,9 +298,30 @@ export interface SystemRegistration {
   method: 'email' | 'phone';
   planType: SaaSPlanType;
   registeredAt: string;
-  status: 'active';
+  status: 'active' | 'pending_approval' | 'rejected';
   tenantId: string;
+  city?: string;
+  branchesCount?: number;
+  activationCode?: string;
+  notes?: string;
   deviceInfo?: string;
+}
+
+export interface RestaurantSubscriptionRequest {
+  id: string;
+  restaurantName: string;
+  ownerName: string;
+  phone: string;
+  email?: string;
+  city?: string;
+  branchesCount?: number;
+  planType: SaaSPlanType;
+  status: 'pending_approval' | 'approved' | 'rejected';
+  activationCode?: string;
+  expiresAt?: string;
+  notes?: string;
+  requestedAt: string;
+  approvedAt?: string;
 }
 
 export interface SystemNotification {

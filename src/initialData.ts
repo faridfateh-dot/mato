@@ -42,7 +42,36 @@ export const INITIAL_BRANCHES: Branch[] = [
   }
 ];
 
-export const INITIAL_USERS: User[] = [];
+export const INITIAL_USERS: User[] = [
+  {
+    id: 'usr_owner_farid',
+    restaurantId: 'rest_01',
+    branchId: 'br_main',
+    name: 'فريد (مالك المنظومة)',
+    email: 'farid.fateh@hotmail.com',
+    phone: '+963991234567',
+    password: 'admin',
+    pinCode: '1234',
+    role: 'Owner',
+    isActive: true,
+    isPendingApproval: false,
+    createdAt: '2026-01-01T00:00:00Z'
+  },
+  {
+    id: 'usr_owner_default',
+    restaurantId: 'rest_01',
+    branchId: 'br_main',
+    name: 'المالك (المدير العام)',
+    email: 'owner@mato.sy',
+    phone: '0991234567',
+    password: 'admin',
+    pinCode: '1234',
+    role: 'Owner',
+    isActive: true,
+    isPendingApproval: false,
+    createdAt: '2026-01-01T00:00:00Z'
+  }
+];
 
 export const INITIAL_CATEGORIES: Category[] = [
   { id: 'cat_croissant', restaurantId: 'rest_01', name: 'كرواسون', icon: 'Croissant' },

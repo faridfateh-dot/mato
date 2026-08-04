@@ -13,34 +13,44 @@ import { PosView } from './components/PosView';
 import { ActivityLogsView } from './components/ActivityLogsView';
 import { AIChatView } from './components/AIChatView';
 import { UsersSettingsView } from './components/UsersSettingsView';
+import { SoftwareSalesView } from './components/SoftwareSalesView';
 import { AuthGate } from './components/AuthGate';
 import { AnnualLicenseLock } from './components/AnnualLicenseLock';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppMainContent: React.FC = () => {
-  const { isAuthenticated, isLicenseExpired } = useData();
+  const { isAuthenticated, isLicenseExpired, currentUser } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   const [recipeProductTargetId, setRecipeProductTargetId] = useState<string | undefined>(undefined);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
+  const isOwner = currentUser?.role === 'Owner';
+
   // Derive current view from hash location pathname
   const pathSegment = location.pathname.replace(/^\//, '');
-  const validViews: ViewType[] = [
-    'dashboard', 'pos', 'products', 'inventory', 
-    'suppliers', 'expenses', 'recipes', 'logs', 
-    'ai', 'users'
-  ];
   
-  const currentView: ViewType = validViews.includes(pathSegment as ViewType) 
+  // Owner is strictly dedicated to managing registered restaurant accounts and licenses
+  const allowedViews: ViewType[] = isOwner
+    ? ['sales', 'users', 'logs']
+    : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'logs', 'ai'];
+
+  const defaultView: ViewType = isOwner ? 'sales' : (currentUser?.role === 'Cashier' ? 'pos' : 'dashboard');
+  
+  const currentView: ViewType = allowedViews.includes(pathSegment as ViewType) 
     ? (pathSegment as ViewType) 
-    : 'dashboard';
+    : defaultView;
 
   const setCurrentView = (view: ViewType) => {
-    navigate('/' + (view === 'dashboard' ? '' : view));
+    if (isOwner && !['sales', 'users', 'logs'].includes(view)) {
+      navigate('/sales');
+      return;
+    }
+    navigate('/' + (view === defaultView ? '' : view));
   };
 
   const handleNavigateRecipeForProduct = (productId: string) => {
+    if (isOwner) return;
     setRecipeProductTargetId(productId);
     setCurrentView('recipes');
   };
@@ -56,6 +66,19 @@ const AppMainContent: React.FC = () => {
   }
 
   const renderMainView = () => {
+    // If Owner, strictly render account management and platform security views
+    if (isOwner) {
+      switch (currentView) {
+        case 'logs':
+          return <ActivityLogsView />;
+        case 'users':
+          return <UsersSettingsView />;
+        case 'sales':
+        default:
+          return <SoftwareSalesView />;
+      }
+    }
+
     switch (currentView) {
       case 'dashboard':
         return <DashboardView onNavigateView={setCurrentView} />;
@@ -79,8 +102,6 @@ const AppMainContent: React.FC = () => {
         return <ActivityLogsView />;
       case 'ai':
         return <AIChatView />;
-      case 'users':
-        return <UsersSettingsView />;
       default:
         return <DashboardView onNavigateView={setCurrentView} />;
     }
@@ -93,6 +114,7 @@ const AppMainContent: React.FC = () => {
       <Header
         onOpenAiChat={() => setCurrentView('ai')}
         onOpenAuth={() => setShowAuthModal(true)}
+        onNavigate={(v) => setCurrentView(v as ViewType)}
       />
 
       {/* Main App Layout Container */}

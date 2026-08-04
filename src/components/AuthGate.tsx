@@ -215,7 +215,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     setLoginStatusNotice(null);
     if (!loginEmailOrPhone.trim()) return;
 
-    const result = loginUser(loginEmailOrPhone.trim());
+    const result = loginUser(loginEmailOrPhone.trim(), loginPassword.trim());
     if (result.success) {
       if (onClose) onClose();
     } else {
@@ -229,10 +229,15 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
           type: 'inactive',
           message: 'تم إيقاف هذا الحساب من قبل إدارة المطعم. يرجى التواصل مع المدير.'
         });
+      } else if (result.status === 'wrong_password') {
+        setLoginStatusNotice({
+          type: 'error',
+          message: result.message || 'كلمة المرور غير صحيحة! يرجى إدخال كلمة المرور الصحيحة للحساب.'
+        });
       } else {
         setLoginStatusNotice({
           type: 'error',
-          message: 'لم يتم العثور على الحساب، يرجى التأكد من البيانات أو تقديم طلب تسجيل جديد.'
+          message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البيانات أو تقديم طلب انضمام جديد.'
         });
       }
     }
@@ -357,9 +362,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               </div>
             </div>
 
-            <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-700/60 flex items-center gap-2 text-[11px] text-slate-400">
-              <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>دخول آمن: لا يمكن لأي حساب جديد الدخول إلا بعد اعتماد المالك.</span>
+            <div className="p-3.5 bg-slate-800/60 rounded-xl border border-slate-700/60 text-xs text-slate-300 space-y-1">
+              <div className="flex items-center gap-2 font-bold text-amber-400">
+                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>تسجيل دخول محمي بكلمة المرور:</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                حساب المالك محمي بالكامل ولا يمكن الدخول إليه إلا بعد إدخال البريد الإلكتروني وكلمة المرور الصحيحة.
+              </p>
             </div>
 
             <button
@@ -367,7 +377,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>تسجيل الدخول وفتح النظام</span>
+              <span>تسجيل الدخول الآمن</span>
             </button>
 
           </form>

@@ -18,7 +18,10 @@ import {
   HardDrive,
   Info,
   CheckCircle2,
-  Users
+  Users,
+  Lock,
+  ShieldCheck,
+  History
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -26,9 +29,10 @@ interface HeaderProps {
   onOpenAuth?: (mode: 'login' | 'register') => void;
   onOpenAiChat?: () => void;
   onOpenAIChat?: () => void;
+  onNavigate?: (view: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpenAIChat }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpenAIChat, onNavigate }) => {
   const handleOpenAi = () => {
     if (onOpenAiChat) onOpenAiChat();
     else if (onOpenAIChat) onOpenAIChat();
@@ -50,7 +54,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
     toggleOfflineSimulation,
     isSimulatedOffline,
     logoutUser,
-    systemRegistrations
+    systemRegistrations,
+    pendingRestaurantRequestsCount,
+    firestoreRestaurants
   } = useData();
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -64,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
 
   const stats = getDashboardStats();
   const lowStockCount = stats.lowStockIngredients.length;
+  const isOwner = currentUser?.role === 'Owner';
 
   const handleCreateBranchHeader = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
   };
 
   const roleLabels: Record<UserRole, string> = {
-    Owner: 'المالك (Owner)',
+    Owner: 'المالك العام للمنظومة (Super Owner)',
     Manager: 'المدير (Manager)',
     Cashier: 'كاشير (Cashier)',
     'Inventory Manager': 'مدير المخزون (Inventory)',
@@ -118,7 +125,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
           
           {/* Left / Brand Section */}
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5 cursor-pointer">
+            <div
+              className="flex items-center gap-2.5 cursor-pointer"
+              onClick={() => onNavigate && onNavigate(isOwner ? 'sales' : 'dashboard')}
+            >
               <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xl tracking-wider shadow-lg shadow-amber-400/20">
                 M
               </div>
@@ -126,74 +136,76 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                 <div className="flex items-center gap-1.5">
                   <span className="font-extrabold text-xl text-white tracking-tight">MATO</span>
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/30">
-                    SaaS
+                    {isOwner ? 'لوحة المالك العام' : 'SaaS'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate max-w-[140px] sm:max-w-xs">
-                  {currentRestaurant.name}
+                <p className="text-[11px] text-slate-400 truncate max-w-[150px] sm:max-w-xs">
+                  {isOwner ? 'إدارة حسابات وتراخيص المطاعم المسجلة' : currentRestaurant.name}
                 </p>
               </div>
             </div>
 
-            {/* Branch Switcher */}
-            <div className="relative hidden md:block">
-              <button
-                onClick={() => setShowBranchMenu(!showBranchMenu)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
-              >
-                <Store className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-medium truncate max-w-[130px]">{currentBranch.name}</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
+            {/* Branch Switcher (Only shown for restaurant internal staff/managers, NOT for Platform Owner) */}
+            {!isOwner && (
+              <div className="relative hidden md:block">
+                <button
+                  onClick={() => setShowBranchMenu(!showBranchMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
+                >
+                  <Store className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="font-medium truncate max-w-[130px]">{currentBranch.name}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
 
-              {showBranchMenu && (
-                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl py-1 z-[100] max-h-[75vh] overflow-y-auto">
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-700/60 flex items-center justify-between">
-                    <span>اختر الفرع / المطعم الحالي</span>
-                    <button
-                      onClick={() => {
-                        setShowBranchMenu(false);
-                        setShowNewBranchModal(true);
-                      }}
-                      className="text-amber-400 hover:text-amber-300 text-[10px] font-bold flex items-center gap-1 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>جديد</span>
-                    </button>
-                  </div>
-                  {branches.map(b => (
-                    <button
-                      key={b.id}
-                      onClick={() => {
-                        setCurrentBranch(b);
-                        setShowBranchMenu(false);
-                      }}
-                      className={`w-full text-right px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-700/50 transition-colors ${
-                        b.id === currentBranch.id ? 'text-amber-400 font-semibold bg-slate-700/30' : 'text-slate-200'
-                      }`}
-                    >
-                      <span>{b.name}</span>
-                      {b.isMain && (
-                        <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">الرئيسي</span>
-                      )}
-                    </button>
-                  ))}
+                {showBranchMenu && (
+                  <div className="absolute right-0 mt-2 w-64 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl py-1 z-[100] max-h-[75vh] overflow-y-auto">
+                    <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 border-b border-slate-700/60 flex items-center justify-between">
+                      <span>اختر الفرع / المطعم الحالي</span>
+                      <button
+                        onClick={() => {
+                          setShowBranchMenu(false);
+                          setShowNewBranchModal(true);
+                        }}
+                        className="text-amber-400 hover:text-amber-300 text-[10px] font-bold flex items-center gap-1 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>جديد</span>
+                      </button>
+                    </div>
+                    {branches.map(b => (
+                      <button
+                        key={b.id}
+                        onClick={() => {
+                          setCurrentBranch(b);
+                          setShowBranchMenu(false);
+                        }}
+                        className={`w-full text-right px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-700/50 transition-colors ${
+                          b.id === currentBranch.id ? 'text-amber-400 font-semibold bg-slate-700/30' : 'text-slate-200'
+                        }`}
+                      >
+                        <span>{b.name}</span>
+                        {b.isMain && (
+                          <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">الرئيسي</span>
+                        )}
+                      </button>
+                    ))}
 
-                  <div className="p-1.5 border-t border-slate-700/60 mt-1">
-                    <button
-                      onClick={() => {
-                        setShowBranchMenu(false);
-                        setShowNewBranchModal(true);
-                      }}
-                      className="w-full text-center py-1.5 px-3 rounded-lg bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-300 transition-all shadow cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>إنشاء مطعم / فرع جديد</span>
-                    </button>
+                    <div className="p-1.5 border-t border-slate-700/60 mt-1">
+                      <button
+                        onClick={() => {
+                          setShowBranchMenu(false);
+                          setShowNewBranchModal(true);
+                        }}
+                        className="w-full text-center py-1.5 px-3 rounded-lg bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-300 transition-all shadow cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>إنشاء مطعم / فرع جديد</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right / Actions & Profile */}
@@ -222,68 +234,89 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
               )}
             </button>
 
-            {/* AI Quick Button */}
-            <button
-              onClick={handleOpenAi}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/10 hover:brightness-105 transition-all"
-            >
-              <Sparkles className="w-4 h-4 fill-slate-950" />
-              <span className="hidden sm:inline">مساعد MATO AI</span>
-            </button>
-
-          {/* Notifications Bell */}
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700/80 text-slate-300 relative transition-colors"
-              title="تنبيهات المخزون"
-            >
-              <Bell className="w-4 h-4" />
-              {lowStockCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
-                  {lowStockCount}
-                </span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute left-0 sm:right-0 mt-2 w-72 sm:w-80 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl py-2 z-[100] max-h-[75vh] overflow-y-auto text-slate-200">
-                <div className="px-3 py-1.5 border-b border-slate-700 flex items-center justify-between text-xs font-bold">
-                  <span>تنبيهات المخزون المنخفض</span>
-                  <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full">{lowStockCount} تنبيهات</span>
-                </div>
-                <div className="max-h-60 overflow-y-auto divide-y divide-slate-700/50">
-                  {lowStockCount === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400">
-                      جميع المواد الأولية بالمخزون متوفرة بجميع الفروع ✅
-                    </div>
-                  ) : (
-                    stats.lowStockIngredients.map(ing => (
-                      <div key={ing.id} className="p-3 hover:bg-slate-700/40 text-xs">
-                        <div className="font-semibold text-rose-300">{ing.name}</div>
-                        <div className="text-slate-400 text-[11px] mt-0.5">
-                          المتبقي: <span className="font-bold text-white">{ing.currentStock} {ing.unit}</span> (الحد الأدنى: {ing.minStockThreshold} {ing.unit})
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+            {/* AI Quick Button (for non-owner) */}
+            {!isOwner && (
+              <button
+                onClick={handleOpenAi}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/10 hover:brightness-105 transition-all"
+              >
+                <Sparkles className="w-4 h-4 fill-slate-950" />
+                <span className="hidden sm:inline">مساعد MATO AI</span>
+              </button>
             )}
-          </div>
 
-          {/* User Profile & Demo Role Switcher */}
+            {/* Owner Quick Button for Registered Restaurants & Subscriptions */}
+            {isOwner && (
+              <button
+                onClick={() => onNavigate && onNavigate('sales')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-bold transition-all cursor-pointer"
+                title="إدارة حسابات المطاعم المسجلة"
+              >
+                <Store className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">المطاعم المسجلة</span>
+                {pendingRestaurantRequestsCount > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse">
+                    {pendingRestaurantRequestsCount} طلب جديد
+                  </span>
+                )}
+              </button>
+            )}
+
+          {/* Notifications Bell (for operational roles) */}
+          {!isOwner && (
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700/80 text-slate-300 relative transition-colors cursor-pointer"
+                title="تنبيهات المخزون"
+              >
+                <Bell className="w-4 h-4" />
+                {lowStockCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                    {lowStockCount}
+                  </span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute left-0 sm:right-0 mt-2 w-72 sm:w-80 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl py-2 z-[100] max-h-[75vh] overflow-y-auto text-slate-200">
+                  <div className="px-3 py-1.5 border-b border-slate-700 flex items-center justify-between text-xs font-bold">
+                    <span>تنبيهات المخزون المنخفض</span>
+                    <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full">{lowStockCount} تنبيهات</span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto divide-y divide-slate-700/50">
+                    {lowStockCount === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        جميع المواد الأولية بالمخزون متوفرة بجميع الفروع ✅
+                      </div>
+                    ) : (
+                      stats.lowStockIngredients.map(ing => (
+                        <div key={ing.id} className="p-3 hover:bg-slate-700/40 text-xs">
+                          <div className="font-semibold text-rose-300">{ing.name}</div>
+                          <div className="text-slate-400 text-[11px] mt-0.5">
+                            المتبقي: <span className="font-bold text-white">{ing.currentStock} {ing.unit}</span> (الحد الأدنى: {ing.minStockThreshold} {ing.unit})
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* User Profile Dropdown Menu */}
           <div className="relative">
             <button
               onClick={() => setShowRoleMenu(!showRoleMenu)}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-xs transition-colors"
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-xs transition-colors cursor-pointer"
             >
-              <div className="w-7 h-7 rounded-full bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-xs border border-slate-600">
+              <div className="w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs border border-amber-300">
                 {currentUser.name.charAt(0)}
               </div>
               <div className="text-right hidden lg:block">
                 <div className="font-bold text-slate-100 leading-tight">{currentUser.name}</div>
-                <div className="text-[10px] text-amber-400">{currentUser.role}</div>
+                <div className="text-[10px] text-amber-400">{isOwner ? 'المالك الرئيسي' : currentUser.role}</div>
               </div>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
@@ -295,31 +328,83 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                   <div className="text-[11px] text-slate-400">{currentUser.email}</div>
                   <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400">
                     <Shield className="w-3 h-3" />
-                    <span>الدور الحالي: {roleLabels[currentUser.role]}</span>
+                    <span>{roleLabels[currentUser.role]}</span>
                   </div>
                 </div>
 
                 <div className="border-t border-slate-700 pt-1 mt-1 px-2 flex flex-col gap-1">
-                  <button
-                    onClick={() => {
-                      setShowRoleMenu(false);
-                      setShowNewBranchModal(true);
-                    }}
-                    className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>إنشاء مطعم / فرع جديد</span>
-                  </button>
+                  {isOwner ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowRoleMenu(false);
+                          if (onNavigate) onNavigate('sales');
+                        }}
+                        className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-bold cursor-pointer"
+                      >
+                        <Store className="w-3.5 h-3.5" />
+                        <span>إدارة حسابات المطاعم المسجلة</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowRoleMenu(false);
+                          if (onNavigate) onNavigate('users');
+                        }}
+                        className="w-full text-right px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-amber-400" />
+                        <span>أمان وكلمة مرور المالك</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowRoleMenu(false);
+                          if (onNavigate) onNavigate('logs');
+                        }}
+                        className="w-full text-right px-2 py-1.5 text-xs text-slate-200 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
+                      >
+                        <History className="w-3.5 h-3.5 text-amber-400" />
+                        <span>سجل نشاط المنظومة والأمان</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {currentUser.role === 'Manager' && (
+                        <button
+                          onClick={() => {
+                            setShowRoleMenu(false);
+                            if (onNavigate) onNavigate('users');
+                          }}
+                          className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          <span>إدارة موظفي المطعم</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setShowRoleMenu(false);
+                          setShowNewBranchModal(true);
+                        }}
+                        className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-medium cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>إنشاء فرع جديد للمطعم</span>
+                      </button>
+                    </>
+                  )}
 
                   <button
                     onClick={() => {
                       setShowRoleMenu(false);
                       logoutUser();
                     }}
-                    className="w-full text-right px-2 py-1.5 text-xs text-rose-400 hover:bg-slate-700/40 rounded flex items-center gap-2 cursor-pointer font-bold"
+                    className="w-full text-right px-2 py-1.5 text-xs text-rose-400 hover:bg-slate-700/40 rounded flex items-center gap-2 cursor-pointer font-bold border-t border-slate-700/60 mt-1 pt-2"
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    <span>تسجيل الخروج والإفلاق الأمن</span>
+                    <span>تسجيل الخروج الآمن</span>
                   </button>
                 </div>
               </div>

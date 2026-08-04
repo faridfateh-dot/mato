@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useData } from '../context/DataContext';
-import { Lock, ShieldCheck, Key, RefreshCw, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
+import { useData, PLATFORM_OWNER_CONTACT } from '../context/DataContext';
+import { Lock, ShieldCheck, Key, RefreshCw, CheckCircle2, Sparkles, AlertTriangle, MessageCircle } from 'lucide-react';
 
 export const AnnualLicenseLock: React.FC = () => {
-  const { licenseInfo, redeemLicenseKey } = useData();
+  const { licenseInfo, redeemLicenseKey, restaurantInfo } = useData();
   const [code, setCode] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +25,11 @@ export const AnnualLicenseLock: React.FC = () => {
       }
     }, 600);
   };
+
+  const whatsappMessage = encodeURIComponent(
+    `مرحباً أستاذ فريد! انتهت صلاحية الترخيص السنوي لمطعم (${restaurantInfo?.name || 'مطعمنا'}). نرغب في تجديد الاشتراك السنوي واستلام كود التفعيل الجديد.`
+  );
+  const whatsappUrl = `https://wa.me/${PLATFORM_OWNER_CONTACT.whatsappNumber.replace(/\+/g, '')}?text=${whatsappMessage}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 dir-rtl text-right">
@@ -113,6 +118,19 @@ export const AnnualLicenseLock: React.FC = () => {
             )}
           </button>
         </form>
+
+        {/* Direct WhatsApp Contact Button */}
+        <div className="mt-4 pt-4 border-t border-slate-800 text-center">
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>تواصل مع المالك فريد عبر واتساب لطلب الكود ({PLATFORM_OWNER_CONTACT.whatsappNumber})</span>
+          </a>
+        </div>
 
       </div>
     </div>

@@ -11,7 +11,9 @@ import {
   Sparkles,
   Users,
   Building2,
-  ShieldCheck
+  ShieldCheck,
+  Store,
+  Lock
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
@@ -25,7 +27,8 @@ export type ViewType =
   | 'recipes'
   | 'logs'
   | 'ai'
-  | 'users';
+  | 'users'
+  | 'sales';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -33,42 +36,61 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) => {
-  const { currentUser, pendingUsersCount } = useData();
+  const { currentUser, pendingUsersCount, pendingRestaurantRequestsCount } = useData();
 
   // Check permission by role
   const isAllowed = (view: ViewType) => {
     const role = currentUser.role;
-    if (role === 'Owner') return true;
-    if (role === 'Manager') return view !== 'users';
+    if (role === 'Owner') {
+      // Owner account is strictly dedicated to account and user management, security logs, and tenant licenses
+      return ['users', 'logs', 'sales'].includes(view);
+    }
+    if (role === 'Manager') return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'logs', 'ai'].includes(view);
     if (role === 'Cashier') return ['pos', 'products', 'ai', 'dashboard'].includes(view);
     if (role === 'Inventory Manager') return ['inventory', 'suppliers', 'recipes', 'logs', 'ai', 'dashboard'].includes(view);
     return true;
   };
 
-  const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string; countBadge?: number }[] = [
-    { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
-    { id: 'pos', label: 'نظام الكاشير (POS)', icon: ShoppingBag, badge: 'سريع' },
-    { id: 'products', label: 'المنتجات والمنيو', icon: UtensilsCrossed },
-    { id: 'inventory', label: 'المخزون والمواد', icon: Boxes },
-    { id: 'suppliers', label: 'الموردون والشراء', icon: Truck },
-    { id: 'expenses', label: 'المصاريف والأجور', icon: Wallet },
-    { id: 'recipes', label: 'الوصفات والتكلفة', icon: ChefHat },
-    { id: 'logs', label: 'سجل العمليات', icon: History },
-    { id: 'ai', label: 'مساعد MATO AI', icon: Sparkles, badge: 'ذكي' },
-    {
-      id: 'users',
-      label: 'الموظفون والموافقات',
-      icon: Users,
-      countBadge: currentUser.role === 'Owner' && pendingUsersCount > 0 ? pendingUsersCount : undefined
-    },
-  ];
+  const isOwner = currentUser.role === 'Owner';
+
+  const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string; countBadge?: number }[] = isOwner
+    ? [
+        {
+          id: 'sales',
+          label: 'إدارة حسابات المطاعم المسجلة',
+          icon: Store,
+          badge: 'الرئيسية',
+          countBadge: pendingRestaurantRequestsCount > 0 ? pendingRestaurantRequestsCount : undefined
+        },
+        {
+          id: 'users',
+          label: 'أمان وكلمة مرور المالك',
+          icon: Lock
+        },
+        {
+          id: 'logs',
+          label: 'سجل نشاط وأمان المنظومة',
+          icon: History
+        },
+      ]
+    : [
+        { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
+        { id: 'pos', label: 'نظام الكاشير (POS)', icon: ShoppingBag, badge: 'سريع' },
+        { id: 'products', label: 'المنتجات والمنيو', icon: UtensilsCrossed },
+        { id: 'inventory', label: 'المخزون والمواد', icon: Boxes },
+        { id: 'suppliers', label: 'الموردون والشراء', icon: Truck },
+        { id: 'expenses', label: 'المصاريف والأجور', icon: Wallet },
+        { id: 'recipes', label: 'الوصفات والتكلفة', icon: ChefHat },
+        { id: 'logs', label: 'سجل العمليات', icon: History },
+        { id: 'ai', label: 'مساعد MATO AI', icon: Sparkles, badge: 'ذكي' },
+      ];
 
   return (
     <aside className="w-full lg:w-64 bg-slate-900 border-b lg:border-b-0 lg:border-l border-slate-800 text-slate-300 flex-shrink-0">
       <div className="p-3 lg:p-4 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible no-scrollbar">
         
         <div className="hidden lg:block text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
-          القائمة الرئيسية
+          {isOwner ? 'بوابة المالك وإدارة الحسابات' : 'القائمة الرئيسية'}
         </div>
 
         {navItems.map(item => {

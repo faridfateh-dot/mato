@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import {
+  deleteRestaurantFromFirestore,
+  getClientWhatsAppLink,
+  PLATFORM_OWNER_CONTACT
+} from '../lib/firebase';
+import {
   ShieldCheck,
   Key,
   Building2,
@@ -27,9 +32,12 @@ import {
   HelpCircle,
   ShoppingBag,
   Share2,
+  MessageCircle,
+  Phone,
+  Trash2,
   X
 } from 'lucide-react';
-import { SaaSPlanType, SoftwareLicense, LicenseKeyInfo, CommercialProposal } from '../types';
+import { SaaSPlanType, SoftwareLicense, LicenseKeyInfo, CommercialProposal, RestaurantSubscriptionRequest } from '../types';
 
 export const SoftwareSalesView: React.FC = () => {
   const {
@@ -53,11 +61,17 @@ export const SoftwareSalesView: React.FC = () => {
     systemRegistrations,
     deleteRegistrationRecord,
     firestoreRestaurants,
-    generateAnnualActivationCode
+    generateAnnualActivationCode,
+    subscriptionRequests,
+    pendingRestaurantRequestsCount,
+    approveRestaurantSubscription,
+    rejectRestaurantSubscription,
+    deleteRestaurantRecord,
+    createDirectRestaurantLicense
   } = useData();
 
-
-  const [activeTab, setActiveTab] = useState<'license' | 'generator' | 'plans' | 'proposal' | 'backup' | 'registrations'>('registrations');
+  const [activeTab, setActiveTab] = useState<'requests' | 'registrations' | 'license' | 'generator' | 'plans' | 'proposal' | 'backup'>('requests');
+  const [restaurantToDelete, setRestaurantToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Key Activation Input
   const [inputKey, setInputKey] = useState('');
@@ -72,6 +86,26 @@ export const SoftwareSalesView: React.FC = () => {
     durationDays: 365,
   });
   const [createdKeySuccess, setCreatedKeySuccess] = useState<string | null>(null);
+
+  // Direct Manual Restaurant Creation Modal (by Farid)
+  const [showDirectCreateModal, setShowDirectCreateModal] = useState(false);
+  const [directForm, setDirectForm] = useState({
+    name: '',
+    ownerName: '',
+    phone: '',
+    email: '',
+    city: 'دمشق',
+    planType: 'professional' as SaaSPlanType,
+    durationYears: 1
+  });
+  const [directSuccessResult, setDirectSuccessResult] = useState<{
+    restaurantId: string;
+    code: string;
+    expiry: string;
+    name: string;
+    phone: string;
+  } | null>(null);
+  const [isSubmittingDirect, setIsSubmittingDirect] = useState(false);
 
   // Proposal State
   const [proposal, setProposal] = useState<CommercialProposal>({
@@ -88,6 +122,7 @@ export const SoftwareSalesView: React.FC = () => {
   });
 
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // White-label branding form
   const [brandingForm, setBrandingForm] = useState({
@@ -137,6 +172,74 @@ export const SoftwareSalesView: React.FC = () => {
     });
 
     setCreatedKeySuccess(generatedKey);
+  };
+
+  // Handle Approve Restaurant Request
+  const handleApproveRequest = async (reqId: string) => {
+    setActionLoadingId(reqId);
+    try {
+      const res = await approveRestaurantSubscription(reqId, 1);
+      const msg = `أهلاً بك أستاذ ${res.restaurantName}! 🎉\nتمت الموافقة على طلب ترخيص مطعمكم وتفعيله في نظام MATO POS.\n\n🔑 كود التفعيل السنوي الخاص بك: ${res.code}\n📅 تاريخ انتهاء الاشتراك: ${new Date(res.expiry).toLocaleDateString('ar-SY')}\n\nيمكنك الآن إدخال الكود وتفعيل النظام فوراً.`;
+      
+      const whatsappUrl = res.ownerPhone ? getClientWhatsAppLink(res.ownerPhone, msg) : '';
+      
+      if (whatsappUrl) {
+        if (confirm(`تمت الموافقة وتوليد كود التفعيل بنجاح! 🎉\nالكود: ${res.code}\n\nهل ترغب في فتح واتساب لإرسال كود التفعيل لصاحب المطعم مباشرة؟`)) {
+          window.open(whatsappUrl, '_blank');
+        }
+      } else {
+        alert(`تمت الموافقة وتوليد كود التفعيل السنوي بنجاح! 🎉\nالكود: ${res.code}`);
+      }
+    } catch (err) {
+      alert('حدث خطأ أثناء الموافقة على الطلب.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Reject Request
+  const handleRejectRequest = async (reqId: string, name: string) => {
+    if (!confirm(`هل أنت متأكد من رفض طلب ترخيص مطعم (${name})؟`)) return;
+    setActionLoadingId(reqId);
+    try {
+      await rejectRestaurantSubscription(reqId);
+      alert('تم رفض وحذف الطلب بنجاح.');
+    } catch {
+      alert('حدث خطأ أثناء العملية.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Handle Direct Restaurant Creation Submit
+  const handleDirectCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directForm.name.trim() || !directForm.ownerName.trim() || !directForm.phone.trim()) return;
+
+    setIsSubmittingDirect(true);
+    try {
+      const res = await createDirectRestaurantLicense({
+        name: directForm.name.trim(),
+        ownerName: directForm.ownerName.trim(),
+        phone: directForm.phone.trim(),
+        email: directForm.email.trim(),
+        city: directForm.city.trim(),
+        planType: directForm.planType,
+        durationYears: Number(directForm.durationYears)
+      });
+
+      setDirectSuccessResult({
+        restaurantId: res.restaurantId,
+        code: res.code,
+        expiry: res.expiry,
+        name: directForm.name.trim(),
+        phone: directForm.phone.trim()
+      });
+    } catch (err) {
+      alert('حدث خطأ أثناء إنشاء وترخيص المطعم.');
+    } finally {
+      setIsSubmittingDirect(false);
+    }
   };
 
   // Calculate Proposal Price
@@ -214,43 +317,62 @@ export const SoftwareSalesView: React.FC = () => {
     <div className="space-y-6 pb-12">
       
       {/* Top SaaS Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-800">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-850 to-amber-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-800">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 bg-amber-400/20 text-amber-300 border border-amber-400/30 px-3 py-1 rounded-full text-xs font-black">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>مركز المبيعات وإدارة التراخيص والتسويق التجاري</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>لوحة المالك العام — إدارة حسابات واشتراكات المطاعم المسجلة</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              <span>نظام بيع وترخيص برنامج MATO SaaS</span>
+              <span>إدارة حسابات المطاعم المسجلة وتراخيص MATO SaaS</span>
               <span className="text-xs font-mono font-bold bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700">v4.5 Enterprise</span>
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-              إدارة تفعيل الاشتراكات، مفاتيح الترخيص للمطاعم، حاسبة باقات الأسعار، طباعة عروض الأسعار الرسمية، واستخراج وتنسيق النسخ الاحتياطية للعملاء الجدد.
+              إدارة واعتماد طلبات المطاعم الجديدة، إصدار وتجديد التراخيص السنوية، إدارة بيانات أصحاب المطاعم، وحسابات باقات الأسعار وعروض الأسعار الرسمية.
             </p>
           </div>
 
           {/* Quick Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="bg-slate-800/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/60 text-center">
-              <span className="block text-[10px] text-slate-400 font-bold mb-0.5">العميل الحالي</span>
-              <span className="font-extrabold text-amber-400 text-xs truncate block">{licenseInfo.clientName}</span>
+              <span className="block text-[10px] text-slate-400 font-bold mb-0.5">المطاعم المسجلة</span>
+              <span className="font-extrabold text-amber-400 text-sm truncate block">{Math.max(firestoreRestaurants.length, systemRegistrations.length, 1)} مطعم</span>
             </div>
             <div className="bg-slate-800/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/60 text-center">
-              <span className="block text-[10px] text-slate-400 font-bold mb-0.5">الباقة المفعّلة</span>
-              <span className="font-extrabold text-emerald-400 text-xs">{licenseInfo.planNameAr}</span>
+              <span className="block text-[10px] text-slate-400 font-bold mb-0.5">طلبات جديدة معلقة</span>
+              <span className={`font-extrabold text-sm ${pendingRestaurantRequestsCount > 0 ? 'text-rose-400 animate-pulse' : 'text-emerald-400'}`}>
+                {pendingRestaurantRequestsCount} طلب
+              </span>
             </div>
             <div className="bg-slate-800/80 backdrop-blur-md p-3.5 rounded-2xl border border-slate-700/60 text-center col-span-2 sm:col-span-1">
-              <span className="block text-[10px] text-slate-400 font-bold mb-0.5">صلاحية الاشتراك</span>
-              <span className="font-extrabold text-amber-300 text-xs">{getDaysRemaining()} يوم متبقي</span>
+              <span className="block text-[10px] text-slate-400 font-bold mb-0.5">حساب المالك الرئيسي</span>
+              <span className="font-extrabold text-amber-300 text-xs truncate block">{currentUser.email}</span>
             </div>
           </div>
         </div>
 
         {/* Tab Navigation Controls */}
         <div className="flex items-center gap-2 mt-8 pt-4 border-t border-slate-800/80 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'requests'
+                ? 'bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/20 font-black'
+                : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Clock className="w-4 h-4 text-amber-400" />
+            <span>طلبات ترخيص المطاعم الجديدة</span>
+            {pendingRestaurantRequestsCount > 0 && (
+              <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                {pendingRestaurantRequestsCount} جديد
+              </span>
+            )}
+          </button>
+
           <button
             onClick={() => setActiveTab('registrations')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
@@ -259,8 +381,16 @@ export const SoftwareSalesView: React.FC = () => {
                 : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white'
             }`}
           >
-            <Users className="w-4 h-4 text-amber-400" />
-            <span>سجل التسجيلات والمستخدمين الجدد ({systemRegistrations.length})</span>
+            <Store className="w-4 h-4 text-amber-400" />
+            <span>المطاعم المرخصة والاشتراكات ({Math.max(systemRegistrations.length, firestoreRestaurants.length, 1)})</span>
+          </button>
+
+          <button
+            onClick={() => setShowDirectCreateModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-900/30 mr-auto"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>➕ إنشاء وترخيص مطعم مباشر (فريد)</span>
           </button>
 
           <button
@@ -324,6 +454,498 @@ export const SoftwareSalesView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* ==================== TAB: PENDING SUBSCRIPTION REQUESTS ==================== */}
+      {activeTab === 'requests' && (
+        <div className="space-y-6">
+          
+          {/* Header Card */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white border border-slate-700 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+                <span className="font-black text-sm text-amber-400">بوابة طلبات الاشتراك والتراخيص السنوية</span>
+              </div>
+              <h2 className="text-xl font-black tracking-tight text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-400" />
+                <span>الطلبات الواردة من أصحاب المطاعم بانتظار موافقة المالك (فريد)</span>
+              </h2>
+              <p className="text-xs text-slate-300">
+                عند الموافقة على أي طلب، يتم فورياً توليد كود التفعيل السنوي وإرساله للعميل عبر واتساب بضغطة زر وتفعيل الحساب سحابياً
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowDirectCreateModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-400/20 flex items-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>إضافة وترخيص مطعم جديد مباشرة</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Requests Table */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <Store className="w-5 h-5 text-amber-500" />
+                  <span>قائمة طلبات الاشتراك والتفعيل المعلقة والمكتملة</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  طلبات التسجيل السحابية والمحلية الواردة للمنصة
+                </p>
+              </div>
+
+              {pendingRestaurantRequestsCount > 0 && (
+                <div className="bg-amber-50 text-amber-900 border border-amber-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>يوجد {pendingRestaurantRequestsCount} طلبات جديدة بحاجة لاعتمادك</span>
+                </div>
+              )}
+            </div>
+
+            {/* If no requests */}
+            {subscriptionRequests.length === 0 && firestoreRestaurants.length === 0 ? (
+              <div className="text-center py-12 space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
+                  <Store className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-800 text-sm">لا توجد طلبات اشتراك جديدة حالياً</h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    عندما يقوم صاحب مطعم بطلب ترخيص جديد، سيظهر طلبه هنا فوراً مع بيانات الاتصال للموافقة عليه
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDirectCreateModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>ترخيص مطعم لعميل جديد يدوياً</span>
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-y border-slate-200 text-slate-700 font-bold">
+                      <th className="p-3">اسم المطعم</th>
+                      <th className="p-3">صاحب المطعم</th>
+                      <th className="p-3">رقم الهاتف (واتساب)</th>
+                      <th className="p-3">المدينة / الفروع</th>
+                      <th className="p-3">الباقة المطلوبة</th>
+                      <th className="p-3">حالة الطلب</th>
+                      <th className="p-3">كود التفعيل الصادر</th>
+                      <th className="p-3 text-center">إجراءات المالك فريد</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {/* Combine Subscription Requests and Firestore Records */}
+                    {(() => {
+                      const all = [...subscriptionRequests];
+                      firestoreRestaurants.forEach(fr => {
+                        if (!all.some(a => a.id === fr.id)) {
+                          all.push({
+                            id: fr.id,
+                            restaurantName: fr.name,
+                            ownerName: fr.ownerName,
+                            phone: fr.phone || fr.email || '',
+                            email: fr.email || '',
+                            city: 'دمشق',
+                            branchesCount: 1,
+                            planType: (fr.planType as SaaSPlanType) || 'professional',
+                            status: fr.status === 'active' ? 'approved' : fr.status === 'pending_approval' ? 'pending_approval' : 'rejected',
+                            activationCode: fr.activationCode,
+                            expiresAt: fr.subscriptionExpiry,
+                            requestedAt: fr.registeredAt,
+                            approvedAt: fr.status === 'active' ? fr.registeredAt : undefined
+                          });
+                        }
+                      });
+
+                      return all.map((req) => {
+                        const isPending = req.status === 'pending_approval';
+                        const isApproved = req.status === 'approved';
+                        const whatsappMsg = req.activationCode 
+                          ? `أهلاً بك أستاذ ${req.ownerName}! 🎉\nتمت الموافقة على طلب ترخيص مطعم (${req.restaurantName}) في نظام MATO POS.\n\n🔑 كود التفعيل السنوي الخاص بك: ${req.activationCode}\n📅 تاريخ انتهاء الاشتراك: ${new Date(req.expiresAt || Date.now() + 365 * 24 * 60 * 60 * 1000).toLocaleDateString('ar-SY')}\n\nيمكنك الآن إدخال الكود وتفعيل النظام فوراً.`
+                          : `أهلاً بك أستاذ ${req.ownerName}! بخصوص طلب ترخيص مطعم (${req.restaurantName}) في نظام MATO POS...`;
+                        
+                        const whatsappUrl = req.phone ? getClientWhatsAppLink(req.phone, whatsappMsg) : '';
+
+                        return (
+                          <tr key={req.id} className="hover:bg-amber-50/40 transition-all">
+                            <td className="p-3 font-bold text-slate-900">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 font-black flex items-center justify-center text-xs">
+                                  🍽️
+                                </div>
+                                <div>
+                                  <div className="font-black text-slate-900">{req.restaurantName}</div>
+                                  <div className="text-[10px] text-slate-400">معرف: {req.id}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="p-3 font-bold text-slate-800">
+                              {req.ownerName}
+                            </td>
+
+                            <td className="p-3 font-mono font-bold text-slate-700 dir-ltr text-right">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{req.phone || 'غير مسجل'}</span>
+                                {whatsappUrl && (
+                                  <a
+                                    href={whatsappUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
+                                    title="مراسلة عبر واتساب"
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="p-3 text-slate-600">
+                              <div>{req.city || 'دمشق'}</div>
+                              <div className="text-[10px] text-slate-400">{req.branchesCount || 1} فرع</div>
+                            </td>
+
+                            <td className="p-3">
+                              <span className="bg-slate-100 text-slate-800 px-2 py-1 rounded-lg font-bold text-[11px]">
+                                {req.planType === 'starter' ? 'الباقة المبتدئة' : req.planType === 'enterprise' ? 'باقة المؤسسات' : 'الباقة الاحترافية'}
+                              </span>
+                            </td>
+
+                            <td className="p-3">
+                              {isPending ? (
+                                <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-full font-black text-[11px] animate-pulse">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>بانتظار موافقة فريد</span>
+                                </span>
+                              ) : isApproved ? (
+                                <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-full font-black text-[11px]">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>تمت الموافقة والتفعيل</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-1 rounded-full font-black text-[11px]">
+                                  <X className="w-3.5 h-3.5" />
+                                  <span>مرفوض</span>
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="p-3">
+                              {req.activationCode ? (
+                                <div className="space-y-1">
+                                  <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-2.5 py-1 rounded-lg font-mono font-black text-xs select-all">
+                                    <Key className="w-3 h-3" />
+                                    <span>{req.activationCode}</span>
+                                  </span>
+                                  {req.expiresAt && (
+                                    <div className="text-[10px] text-slate-500">
+                                      ينتهي: {new Date(req.expiresAt).toLocaleDateString('ar-SY')}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">لم يصدر بعد</span>
+                              )}
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {isPending ? (
+                                  <>
+                                    <button
+                                      disabled={actionLoadingId === req.id}
+                                      onClick={() => handleApproveRequest(req.id)}
+                                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                    >
+                                      {actionLoadingId === req.id ? (
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <Check className="w-3.5 h-3.5" />
+                                      )}
+                                      <span>موافقة وإصدار الكود السنوي</span>
+                                    </button>
+
+                                    <button
+                                      disabled={actionLoadingId === req.id}
+                                      onClick={() => handleRejectRequest(req.id, req.restaurantName)}
+                                      className="p-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold transition-all cursor-pointer"
+                                      title="رفض الطلب"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    {whatsappUrl && (
+                                      <a
+                                        href={whatsappUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all flex items-center gap-1 shadow-xs"
+                                      >
+                                        <MessageCircle className="w-3.5 h-3.5" />
+                                        <span>إرسال الكود واتساب</span>
+                                      </a>
+                                    )}
+
+                                    <button
+                                      onClick={async () => {
+                                        const res = await generateAnnualActivationCode(req.id, req.restaurantName);
+                                        alert(`تم تجديد الكود بنجاح!\nالكود الجديد: ${res.code}\nصالح حتى: ${new Date(res.newExpiry).toLocaleDateString('ar-SY')}`);
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all cursor-pointer"
+                                      title="تجديد كود سنة إضافية"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                    </button>
+
+                                    <button
+                                      onClick={() => setRestaurantToDelete({ id: req.id, name: req.restaurantName })}
+                                      className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
+                                      title="حذف حساب وترخيص المطعم نهائياً"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ==================== DIRECT RESTAURANT CREATION MODAL ==================== */}
+      {showDirectCreateModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn dir-rtl">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-slate-200 shadow-2xl space-y-5 text-right relative">
+            
+            <button
+              onClick={() => {
+                setShowDirectCreateModal(false);
+                setDirectSuccessResult(null);
+              }}
+              className="absolute top-4 left-4 p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {!directSuccessResult ? (
+              <>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>صلاحية خاصة بالمالك فريد</span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    إنشاء وترخيص مطعم جديد مباشرة وإصدار كود سنوي
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    أدخل بيانات المطعم الجديد لتوليد الترخيص السنوي وحفظه سحابياً في Firestore فورياً
+                  </p>
+                </div>
+
+                <form onSubmit={handleDirectCreateSubmit} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">اسم المطعم / المنشأة *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: مطعم قصر الشام"
+                      value={directForm.name}
+                      onChange={e => setDirectForm({ ...directForm, name: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-amber-500 text-xs font-bold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">اسم صاحب المطعم / المدير *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: حسام الدين"
+                        value={directForm.ownerName}
+                        onChange={e => setDirectForm({ ...directForm, ownerName: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-amber-500 text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">رقم هاتف الواتساب *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: +963991234567"
+                        value={directForm.phone}
+                        onChange={e => setDirectForm({ ...directForm, phone: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-amber-500 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">المدينة</label>
+                      <select
+                        value={directForm.city}
+                        onChange={e => setDirectForm({ ...directForm, city: e.target.value })}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-amber-500 text-xs"
+                      >
+                        <option value="دمشق">دمشق</option>
+                        <option value="ريف دمشق">ريف دمشق</option>
+                        <option value="حلب">حلب</option>
+                        <option value="حمص">حمص</option>
+                        <option value="اللاذقية">اللاذقية</option>
+                        <option value="طرطوس">طرطوس</option>
+                        <option value="حماة">حماة</option>
+                        <option value="السويداء">السويداء</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">الباقة المطلوبة</label>
+                      <select
+                        value={directForm.planType}
+                        onChange={e => setDirectForm({ ...directForm, planType: e.target.value as SaaSPlanType })}
+                        className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-amber-500 text-xs font-bold"
+                      >
+                        <option value="starter">الباقة المبتدئة (1200$/سنة)</option>
+                        <option value="professional">الباقة الاحترافية (2400$/سنة)</option>
+                        <option value="enterprise">باقة المؤسسات (4500$/سنة)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">مدة الترخيص</label>
+                    <select
+                      value={directForm.durationYears}
+                      onChange={e => setDirectForm({ ...directForm, durationYears: Number(e.target.value) })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:border-amber-500 text-xs font-bold"
+                    >
+                      <option value={1}>سنة واحدة (365 يوماً)</option>
+                      <option value={2}>سنتان (730 يوماً)</option>
+                      <option value={3}>3 سنوات (تفعيل مميز)</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingDirect}
+                    className="w-full py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs mt-4"
+                  >
+                    {isSubmittingDirect ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>جاري إنشاء وترخيص المطعم سحابياً...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>تأكيد الترخيص وتوليد كود التفعيل فوراً</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="text-center space-y-4 py-2">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center font-black text-2xl">
+                  🎉
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-slate-900">
+                    تم ترخيص مطعم ({directSuccessResult.name}) بنجاح!
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    تم تسجيل المطعم في Firebase وتوليد كود التفعيل السنوي الخاص به
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-2 text-xs">
+                  <div className="text-slate-400 text-[11px]">كود التفعيل السنوي الخاص بالمطعم:</div>
+                  <div className="font-mono font-black text-lg text-amber-400 select-all tracking-wider">
+                    {directSuccessResult.code}
+                  </div>
+                  <div className="text-[10px] text-slate-400 border-t border-slate-800 pt-2">
+                    تاريخ انتهاء الترخيص: {new Date(directSuccessResult.expiry).toLocaleDateString('ar-SY')}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-2">
+                  {directSuccessResult.phone && (
+                    <a
+                      href={getClientWhatsAppLink(
+                        directSuccessResult.phone,
+                        `أهلاً بك أستاذ ${directForm.ownerName}! 🎉\nتم ترخيص مطعمكم (${directSuccessResult.name}) في نظام MATO POS بنجاح.\n\n🔑 كود التفعيل السنوي الخاص بكم هو:\n${directSuccessResult.code}\n\n📅 تاريخ انتهاء الاشتراك: ${new Date(directSuccessResult.expiry).toLocaleDateString('ar-SY')}\n\nشكراً لثقتكم بنظامنا!`
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs transition-all shadow-md flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>📱 إرسال كود التفعيل لصاحب المطعم عبر واتساب فوراً</span>
+                    </a>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(directSuccessResult.code);
+                      alert('تم نسخ كود التفعيل بنجاح!');
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Copy className="w-4 h-4 text-slate-600" />
+                    <span>نسخ كود التفعيل</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowDirectCreateModal(false);
+                      setDirectSuccessResult(null);
+                      setDirectForm({
+                        name: '',
+                        ownerName: '',
+                        phone: '',
+                        email: '',
+                        city: 'دمشق',
+                        planType: 'professional',
+                        durationYears: 1
+                      });
+                    }}
+                    className="w-full py-2 rounded-xl text-slate-500 hover:text-slate-800 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    إغلاق والعودة للقائمة
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
 
       {/* ==================== TAB 1: CURRENT LICENSE & KEY REDEMPTION ==================== */}
       {activeTab === 'license' && (
@@ -1162,9 +1784,25 @@ export const SoftwareSalesView: React.FC = () => {
                         </td>
 
                         <td className="p-3 font-mono font-bold text-slate-700 dir-ltr text-right">
-                          <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-xs">
-                            {rest.phone || rest.email || 'غير محدد'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="bg-slate-100 px-2.5 py-1 rounded-lg text-xs">
+                              {rest.phone || rest.email || 'غير محدد'}
+                            </span>
+                            {rest.phone && (
+                              <a
+                                href={getClientWhatsAppLink(
+                                  rest.phone,
+                                  `مرحباً أستاذ ${rest.ownerName}! بخصوص اشتراك وترخيص مطعم (${rest.name}) في نظام MATO POS...`
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-all"
+                                title="مراسلة العميل عبر واتساب"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                          </div>
                         </td>
 
                         <td className="p-3">
@@ -1191,23 +1829,62 @@ export const SoftwareSalesView: React.FC = () => {
                         </td>
 
                         <td className="p-3">
-                          <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-3 py-1 rounded-xl font-mono font-black text-xs select-all shadow-xs">
-                            <Key className="w-3.5 h-3.5" />
-                            <span>{rest.activationCode || 'لم يولد كود بعد'}</span>
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1.5 bg-slate-900 text-amber-400 border border-amber-400/40 px-3 py-1 rounded-xl font-mono font-black text-xs select-all shadow-xs">
+                              <Key className="w-3.5 h-3.5" />
+                              <span>{rest.activationCode || 'لم يولد كود بعد'}</span>
+                            </span>
+                            {rest.activationCode && (
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(rest.activationCode || '');
+                                  alert('تم نسخ كود التفعيل بنجاح!');
+                                }}
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer"
+                                title="نسخ الكود"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
 
                         <td className="p-3 text-center">
-                          <button
-                            onClick={async () => {
-                              const res = await generateAnnualActivationCode(rest.id, rest.name);
-                              alert(`تمت العملية بنجاح! 🎉\n\nتم توليد كود تفعيل سنوي جديد للمطعم (${rest.name}):\nالكود: ${res.code}\nتاريخ الانتهاء الجديد: ${new Date(res.newExpiry).toLocaleDateString('ar-SY')}\nتم تعديل حالة الاشتراك سحابياً فورياً إلى (فعّال).`);
-                            }}
-                            className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-400/20 flex items-center justify-center gap-1.5 mx-auto cursor-pointer"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>توليد كود تفعيل سنوي جديد وتعديل الحالة لـ (فعّال)</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={async () => {
+                                const res = await generateAnnualActivationCode(rest.id, rest.name);
+                                alert(`تمت العملية بنجاح! 🎉\n\nتم توليد كود تفعيل سنوي جديد للمطعم (${rest.name}):\nالكود: ${res.code}\nتاريخ الانتهاء الجديد: ${new Date(res.newExpiry).toLocaleDateString('ar-SY')}\nتم تعديل حالة الاشتراك سحابياً فورياً إلى (فعّال).`);
+                              }}
+                              className="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-400/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>توليد كود سنوي جديد (تمديد سنة)</span>
+                            </button>
+
+                            {rest.phone && rest.activationCode && (
+                              <a
+                                href={getClientWhatsAppLink(
+                                  rest.phone,
+                                  `أهلاً بك أستاذ ${rest.ownerName}! 🎉\nكود التفعيل السنوي الخاص بمطعمكم (${rest.name}) في نظام MATO POS هو:\n${rest.activationCode}\n\nتاريخ انتهاء الاشتراك: ${expiryDate.toLocaleDateString('ar-SY')}`
+                                )}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-xs"
+                                title="إرسال الكود عبر واتساب"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                              </a>
+                            )}
+
+                            <button
+                              onClick={() => setRestaurantToDelete({ id: rest.id, name: rest.name })}
+                              className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
+                              title="حذف حساب وترخيص المطعم نهائياً"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1219,6 +1896,41 @@ export const SoftwareSalesView: React.FC = () => {
         </div>
       )}
 
+      {/* ==================== DELETE RESTAURANT CONFIRMATION MODAL ==================== */}
+      {restaurantToDelete && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn dir-rtl">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full border border-slate-200 shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-black text-slate-900">تأكيد حذف حساب وترخيص المطعم</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                هل أنت متأكد من حذف حساب مطعم <strong>({restaurantToDelete.name})</strong> نهائياً من قاعدة البيانات السحابية وسجلات المنصة؟ لن يتمكن صاحب المطعم من الدخول بهذا الترخيص مجدداً.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={async () => {
+                  const id = restaurantToDelete.id;
+                  setRestaurantToDelete(null);
+                  await deleteRestaurantRecord(id);
+                  alert(`تم حذف حساب وترخيص المطعم بنجاح.`);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all cursor-pointer shadow-md shadow-rose-600/20"
+              >
+                نعم، حذف نهائي
+              </button>
+              <button
+                onClick={() => setRestaurantToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

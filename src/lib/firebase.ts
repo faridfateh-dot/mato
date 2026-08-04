@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   query,
   where,
   onSnapshot
@@ -34,7 +35,7 @@ export interface FirestoreRestaurantRecord {
   ownerName: string;
   phone: string;
   email: string;
-  status: 'active' | 'expired' | 'pending';
+  status: 'active' | 'expired' | 'pending' | 'pending_approval' | 'rejected';
   activationCode: string;
   subscriptionExpiry: string; // ISO date string
   registeredAt: string;
@@ -199,6 +200,95 @@ export async function verifyActivationCodeInFirestore(code: string): Promise<{
     valid: false,
     message: 'كود التفعيل غير صحيح أو غير موجود في قاعدة البيانات السحابية.'
   };
+}
+
+export const PLATFORM_OWNER_CONTACT = {
+  name: 'فريد (مالك منصة MATO POS)',
+  phone: '+963 991 234 567',
+  whatsappNumber: '963991234567',
+  email: 'farid.fateh@hotmail.com',
+  company: 'MATO POS Systems & SaaS'
+};
+
+// Generate WhatsApp Contact Link with custom pre-filled message
+export function getOwnerWhatsAppLink(customMessage: string): string {
+  const encoded = encodeURIComponent(customMessage);
+  return `https://wa.me/${PLATFORM_OWNER_CONTACT.whatsappNumber}?text=${encoded}`;
+}
+
+// Approve Restaurant & Issue Activation Code in Firestore
+export async function approveRestaurantInFirestore(
+  restaurantId: string,
+  activationCode: string,
+  newExpiryDate: string
+): Promise<boolean> {
+  if (!db) return true;
+  try {
+    const docRef = doc(db, 'restaurants', restaurantId);
+    await updateDoc(docRef, {
+      status: 'active',
+      activationCode,
+      subscriptionExpiry: newExpiryDate
+    });
+
+    // Also record in activation_codes collection
+    const codeRef = doc(db, 'activation_codes', activationCode);
+    await setDoc(codeRef, {
+      code: activationCode,
+      restaurantId,
+      expiresAt: newExpiryDate,
+      issuedAt: new Date().toISOString()
+    });
+
+    return true;
+  } catch (err) {
+    console.warn('Firestore approveRestaurant error:', err);
+    return false;
+  }
+}
+
+// Generate WhatsApp Link for Client
+export function getClientWhatsAppLink(phone: string, message: string): string {
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const encoded = encodeURIComponent(message);
+  return `https://wa.me/${cleanPhone}?text=${encoded}`;
+}
+
+// Delete / Reject Restaurant from Firestore
+export async function deleteRestaurantFromFirestore(restaurantId: string): Promise<boolean> {
+  if (!db) return true;
+  try {
+    const docRef = doc(db, 'restaurants', restaurantId);
+    await updateDoc(docRef, { status: 'rejected' });
+    return true;
+  } catch (err) {
+    console.warn('Firestore deleteRestaurant error:', err);
+    return false;
+  }
+}
+
+// Permanently Delete Restaurant & its activation codes from Firestore
+export async function permanentlyDeleteRestaurantFromFirestore(restaurantId: string): Promise<boolean> {
+  if (!db) return true;
+  try {
+    const docRef = doc(db, 'restaurants', restaurantId);
+    await deleteDoc(docRef);
+
+    // Also delete any activation codes associated with this restaurant
+    const codesCol = collection(db, 'activation_codes');
+    const qCodes = query(codesCol, where('restaurantId', '==', restaurantId));
+    const codeSnap = await getDocs(qCodes);
+    const deletePromises: Promise<void>[] = [];
+    codeSnap.forEach((d) => {
+      deletePromises.push(deleteDoc(d.ref));
+    });
+    await Promise.all(deletePromises);
+
+    return true;
+  } catch (err) {
+    console.warn('Firestore permanentlyDeleteRestaurant error:', err);
+    return false;
+  }
 }
 
 // Listen to Restaurants Realtime updates from Firestore

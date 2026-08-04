@@ -33,7 +33,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) => {
-  const { currentUser } = useData();
+  const { currentUser, pendingUsersCount } = useData();
 
   // Check permission by role
   const isAllowed = (view: ViewType) => {
@@ -45,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
     return true;
   };
 
-  const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string }[] = [
+  const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string; countBadge?: number }[] = [
     { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
     { id: 'pos', label: 'نظام الكاشير (POS)', icon: ShoppingBag, badge: 'سريع' },
     { id: 'products', label: 'المنتجات والمنيو', icon: UtensilsCrossed },
@@ -55,7 +55,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
     { id: 'recipes', label: 'الوصفات والتكلفة', icon: ChefHat },
     { id: 'logs', label: 'سجل العمليات', icon: History },
     { id: 'ai', label: 'مساعد MATO AI', icon: Sparkles, badge: 'ذكي' },
-    { id: 'users', label: 'إعدادات المستخدمين', icon: Users },
+    {
+      id: 'users',
+      label: 'الموظفون والموافقات',
+      icon: Users,
+      countBadge: currentUser.role === 'Owner' && pendingUsersCount > 0 ? pendingUsersCount : undefined
+    },
   ];
 
   return (
@@ -87,15 +92,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
                 <Icon className={`w-4 h-4 ${active ? 'text-slate-950' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
               </div>
-              {item.badge && (
-                <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    active ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-400/20 text-amber-400'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
+              <div className="flex items-center gap-1">
+                {item.countBadge !== undefined && item.countBadge > 0 && (
+                  <span className="bg-rose-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse shadow-sm">
+                    {item.countBadge} طلبات
+                  </span>
+                )}
+                {item.badge && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      active ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-400/20 text-amber-400'
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </div>
             </button>
           );
         })}

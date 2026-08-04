@@ -1,11 +1,19 @@
 export type UserRole = 'Owner' | 'Manager' | 'Cashier' | 'Inventory Manager';
 
+export interface LoginResult {
+  success: boolean;
+  status: 'active' | 'pending_approval' | 'inactive' | 'not_found';
+  message: string;
+  user?: User;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
   type: 'restaurant' | 'cafe' | 'fast_food';
   currency: string;
   logoUrl?: string;
+  requireOwnerApproval?: boolean;
   createdAt: string;
 }
 

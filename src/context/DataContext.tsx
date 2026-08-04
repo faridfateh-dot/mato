@@ -4,6 +4,7 @@ import {
   Branch,
   User,
   UserRole,
+  LoginResult,
   Category,
   Product,
   Ingredient,
@@ -59,6 +60,10 @@ interface DataContextType {
   currentUser: User;
   branches: Branch[];
   users: User[];
+  pendingUsers: User[];
+  pendingUsersCount: number;
+  requireOwnerApproval: boolean;
+  setRequireOwnerApproval: (val: boolean) => void;
   systemRegistrations: SystemRegistration[];
   
   // Data Collections
@@ -76,12 +81,15 @@ interface DataContextType {
   chatMessages: AIChatMessage[];
 
   // User Authentication & Switching
-  loginUser: (emailOrPhone: string) => boolean;
+  loginUser: (emailOrPhone: string) => LoginResult;
   logoutUser: () => void;
   setCurrentUser: (user: User) => void;
   setCurrentBranch: (branch: Branch) => void;
   updateUserRole: (userId: string, newRole: UserRole) => void;
   addUser: (user: Omit<User, 'id' | 'createdAt' | 'restaurantId'>) => void;
+  approveUser: (userId: string, assignedRole?: UserRole, assignedBranchId?: string) => void;
+  rejectUser: (userId: string, reason?: string) => void;
+  requestUserRegistration: (params: { name: string; emailOrPhone: string; role?: UserRole; branchId?: string; notes?: string; password?: string }) => { isPending: boolean; message: string; user: User };
   deleteUser: (userId: string) => boolean;
   toggleUserActive: (userId: string) => void;
   addBranch: (name: string, address: string, phone: string) => void;
@@ -298,6 +306,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [users, setUsers] = useState<User[]>(() => {
     return safeStorageArrayParse<User>(`${STORAGE_KEY}_users`, []);
   });
+
+  const [requireOwnerApproval, setRequireOwnerApprovalState] = useState<boolean>(() => {
+    return safeStorageParse<boolean>(`${STORAGE_KEY}_require_owner_approval`, true);
+  });
+
+  const setRequireOwnerApproval = (val: boolean) => {
+    setRequireOwnerApprovalState(val);
+    localStorage.setItem(`${STORAGE_KEY}_require_owner_approval`, JSON.stringify(val));
+    logActivity('إعدادات الأمان', `تم ${val ? 'تفعيل' : 'تعطيل'} شرط موافقة المالك المسبقة على الحسابات الجديدة`);
+  };
+
+  const pendingUsers = useMemo(() => {
+    return users.filter(u => u.isPendingApproval === true);
+  }, [users]);
+
+  const pendingUsersCount = pendingUsers.length;
 
   const defaultEmptyUser: User = {
     id: 'usr_owner_default',
@@ -740,10 +764,90 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...userData,
       id: `usr_${Date.now()}`,
       restaurantId: restaurant.id,
+      isActive: userData.isActive !== undefined ? userData.isActive : true,
+      isPendingApproval: false,
       createdAt: new Date().toISOString()
     };
     setUsers(prev => [...prev, newUser]);
     logActivity('إضافة مستخدم', `إضافة المستخدم الجديد ${newUser.name} بدور ${newUser.role}`);
+  };
+
+  const approveUser = (userId: string, assignedRole?: UserRole, assignedBranchId?: string) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const updated: User = {
+          ...u,
+          isPendingApproval: false,
+          isActive: true,
+          role: assignedRole || u.requestedRole || u.role || 'Cashier',
+          branchId: assignedBranchId || u.branchId || branches[0]?.id || 'br_main',
+        };
+        logActivity('اعتماد مستخدم', `تمت الموافقة وتفعيل حساب ${updated.name} (${updated.email}) بدور ${updated.role}`);
+        return updated;
+      }
+      return u;
+    }));
+  };
+
+  const rejectUser = (userId: string, reason?: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    setUsers(prev => prev.filter(u => u.id !== userId));
+    logActivity('رفض تسجيل مستخدم', `تم رفض طلب انضمام ${target.name} (${target.email}) ${reason ? `السبب: ${reason}` : ''}`);
+  };
+
+  const requestUserRegistration = (params: {
+    name: string;
+    emailOrPhone: string;
+    role?: UserRole;
+    branchId?: string;
+    notes?: string;
+    password?: string;
+  }): { isPending: boolean; message: string; user: User } => {
+    const cleanContact = params.emailOrPhone.trim();
+    const isEmail = cleanContact.includes('@');
+    
+    // If there are no existing active users in the system, this user is the primary Owner
+    const isFirstEverUser = users.filter(u => !u.isPendingApproval).length === 0;
+
+    const newUser: User = {
+      id: `usr_${Date.now()}`,
+      restaurantId: restaurant.id,
+      branchId: params.branchId || branches[0]?.id || 'br_main',
+      name: params.name.trim(),
+      email: isEmail ? cleanContact : `${cleanContact}@restaurant.sy`,
+      phone: isEmail ? undefined : cleanContact,
+      role: isFirstEverUser ? 'Owner' : (params.role || 'Cashier'),
+      requestedRole: params.role || 'Cashier',
+      isActive: isFirstEverUser || !requireOwnerApproval,
+      isPendingApproval: !isFirstEverUser && requireOwnerApproval,
+      requestedAt: new Date().toISOString(),
+      approvalNotes: params.notes,
+      createdAt: new Date().toISOString()
+    };
+
+    setUsers(prev => [
+      ...prev.filter(u => u.email !== newUser.email && (!newUser.phone || u.phone !== newUser.phone)),
+      newUser
+    ]);
+
+    if (isFirstEverUser || !requireOwnerApproval) {
+      setCurrentUserState(newUser);
+      setIsAuthenticated(true);
+      logActivity('تسجيل وتفعيل حساب', `تم إنشاء وتفعيل حساب ${newUser.name} بدور ${newUser.role}`);
+      return {
+        isPending: false,
+        message: 'تم تفعيل حسابك والدخول بنجاح!',
+        user: newUser
+      };
+    } else {
+      logActivity('طلب انضمام بانتظار الموافقة', `طلب تسجيل موظف جديد من (${newUser.name}) بانتظار اعتماد المالك`);
+      return {
+        isPending: true,
+        message: 'تم استلام طلب التسجيل بنجاح! الحساب بانتظار موافقة واعتماد مالك المطعم لتفعيل الصلاحيات.',
+        user: newUser
+      };
+    }
   };
 
   const deleteUser = (userId: string): boolean => {
@@ -836,17 +940,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const loginUser = (emailOrPhone: string): boolean => {
+  const loginUser = (emailOrPhone: string): LoginResult => {
     const cleanInput = emailOrPhone.trim().toLowerCase();
     const matchedUser = users.find(u => 
       (u.email && u.email.toLowerCase() === cleanInput) || 
       (u.phone && u.phone.trim() === emailOrPhone.trim())
     );
     if (matchedUser) {
+      // 1. Check if user is pending owner approval
+      if (matchedUser.isPendingApproval) {
+        logActivity('محاولة دخول معلقة', `حاول (${matchedUser.name}) تسجيل الدخول وحسابه بانتظار موافقة واعتماد المالك`);
+        return {
+          success: false,
+          status: 'pending_approval',
+          message: 'الحساب قيد المراجعة: تم استلام طلبك وبانتظار موافقة واعتماد مالك المطعم لتفعيل الدخول والصلاحيات.',
+          user: matchedUser
+        };
+      }
+
+      // 2. Check if user account is deactivated
+      if (!matchedUser.isActive) {
+        logActivity('محاولة دخول معطلة', `حاول (${matchedUser.name}) الدخول ولكن حسابه معطل`);
+        return {
+          success: false,
+          status: 'inactive',
+          message: 'تم إيقاف أو تعطيل هذا الحساب من قبل إدارة المطعم. يرجى التواصل مع المدير.',
+          user: matchedUser
+        };
+      }
+
       setCurrentUserState(matchedUser);
       setIsAuthenticated(true);
-      logActivity('تسجيل دخول', `تم تسجيل الدخول بنجاح لحساب ${matchedUser.name}`);
-      return true;
+      logActivity('تسجيل دخول', `تم تسجيل الدخول بنجاح لحساب ${matchedUser.name} (${matchedUser.role})`);
+      return {
+        success: true,
+        status: 'active',
+        message: `أهلاً وسهلاً بك، ${matchedUser.name}`,
+        user: matchedUser
+      };
     }
 
     const matchedReg = systemRegistrations.find(r => r.emailOrPhone.trim().toLowerCase() === cleanInput);
@@ -859,16 +990,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: matchedReg.emailOrPhone,
         role: 'Owner',
         isActive: true,
+        isPendingApproval: false,
         createdAt: matchedReg.registeredAt
       };
       setUsers(prev => [tenantOwner, ...prev.filter(u => u.email !== matchedReg.emailOrPhone)]);
       setCurrentUserState(tenantOwner);
       setIsAuthenticated(true);
       logActivity('تسجيل دخول', `تم تسجيل الدخول بنجاح لـ ${matchedReg.ownerName}`);
-      return true;
+      return {
+        success: true,
+        status: 'active',
+        message: `أهلاً وسهلاً بك، ${matchedReg.ownerName}`,
+        user: tenantOwner
+      };
     }
 
-    return false;
+    return {
+      success: false,
+      status: 'not_found',
+      message: 'لم يتم العثور على الحساب. يرجى التأكد من البريد أو رقم الهاتف المدخل أو تقديم طلب تسجيل جديد.'
+    };
   };
 
   const logoutUser = () => {
@@ -2039,6 +2180,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser,
         branches,
         users,
+        pendingUsers,
+        pendingUsersCount,
+        requireOwnerApproval,
+        setRequireOwnerApproval,
         categories,
         rawMaterialCategories,
         products,
@@ -2055,6 +2200,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentBranch,
         updateUserRole,
         addUser,
+        approveUser,
+        rejectUser,
+        requestUserRegistration,
         deleteUser,
         toggleUserActive,
         addBranch,

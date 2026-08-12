@@ -371,11 +371,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
           </div>
         </div>
 
-        {/* Recent Transactions & Audit Log - Only visible to Owner */}
-        {isOwner ? (
+        {/* Recent Transactions & Audit Log - Exclusively visible to Platform Owner Farid */}
+        {isPlatformOwner ? (
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900">آخر العمليات والتغييرات</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">آخر العمليات والتغييرات</h2>
+                <span className="text-[10px] bg-amber-400/20 text-amber-800 font-bold px-2 py-0.5 rounded-md">خاص بالمالك فريد</span>
+              </div>
               <button
                 onClick={() => onNavigateView('logs')}
                 className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"

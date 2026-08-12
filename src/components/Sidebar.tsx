@@ -38,17 +38,20 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) => {
   const { currentUser, isPlatformOwner, pendingUsersCount, pendingRestaurantRequestsCount } = useData();
 
-  // Check permission by role - Logs is strictly restricted to Owner / Platform Owner
+  // Check permission by role - Logs is strictly restricted to Platform Owner Farid
   const isAllowed = (view: ViewType) => {
-    if (isPlatformOwner) return true; // Platform SuperAdmin has access to inspect all views
+    if (view === 'logs' || view === 'sales') {
+      return isPlatformOwner;
+    }
+
+    if (isPlatformOwner) return true; // Platform SuperAdmin Farid has access to inspect all views
 
     const role = currentUser?.role;
     if (role === 'Owner') {
-      // Restaurant Owner has full access to all restaurant modules including logs and users
-      return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai'].includes(view);
+      // Restaurant Owner has access to restaurant modules (logs is restricted to Farid)
+      return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'ai'].includes(view);
     }
     if (role === 'Manager') {
-      // Manager has access to operational views, but NOT logs (سجل العمليات) or user permission administration
       return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'ai'].includes(view);
     }
     if (role === 'Cashier') return ['pos', 'products', 'ai', 'dashboard'].includes(view);
@@ -90,7 +93,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
           icon: Users,
           countBadge: pendingUsersCount > 0 ? pendingUsersCount : undefined
         },
-        { id: 'logs', label: 'سجل العمليات', icon: History },
         { id: 'ai', label: 'مساعد MATO AI', icon: Sparkles, badge: 'ذكي' },
       ];
 

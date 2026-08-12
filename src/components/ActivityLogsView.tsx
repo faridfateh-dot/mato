@@ -7,9 +7,7 @@ export const ActivityLogsView: React.FC = () => {
   const [filterRole, setFilterRole] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
-
-  if (!isOwner) {
+  if (!isPlatformOwner) {
     return (
       <div className="p-8 bg-white rounded-3xl border border-rose-200 text-center max-w-md mx-auto my-12 shadow-sm">
         <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 mx-auto flex items-center justify-center mb-3">
@@ -17,7 +15,7 @@ export const ActivityLogsView: React.FC = () => {
         </div>
         <h2 className="text-base font-bold text-slate-900 mb-1">صلاحية وصول مقيدة</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
-          سجل العمليات وإدارة التدقيق الأمني متاح حصرياً لحسابات المالك والمدير العام (Owner).
+          سجل العمليات وإدارة التدقيق الأمني متاح حصرياً للمالك العام للمنظومة (فريد).
         </p>
       </div>
     );

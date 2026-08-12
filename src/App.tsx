@@ -30,13 +30,13 @@ const AppMainContent: React.FC = () => {
   
   const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
 
-  // Platform Owner (Farid) defaults to sales dashboard but can preview everything
-  // Restaurant Owner accesses all modules including logs and users
-  // Non-owner accounts (Cashier, Inventory Manager, Manager) are restricted from sensitive logs
+  // Platform Owner (Farid) defaults to sales dashboard and has exclusive access to logs & system audit
+  // Restaurant Owner accesses restaurant operational modules and users
+  // Non-owner accounts (Cashier, Inventory Manager, Manager) are restricted accordingly
   const allowedViews: ViewType[] = isPlatformOwner
     ? ['sales', 'dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai']
     : (isOwner
-        ? ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai']
+        ? ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'ai']
         : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'ai']
       );
 
@@ -92,7 +92,7 @@ const AppMainContent: React.FC = () => {
       case 'recipes':
         return <RecipesView initialProductId={recipeProductTargetId} />;
       case 'logs':
-        return isOwner ? <ActivityLogsView /> : <DashboardView onNavigateView={setCurrentView} />;
+        return isPlatformOwner ? <ActivityLogsView /> : <DashboardView onNavigateView={setCurrentView} />;
       case 'ai':
         return <AIChatView />;
       default:

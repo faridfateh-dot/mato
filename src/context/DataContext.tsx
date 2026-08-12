@@ -43,7 +43,13 @@ import {
   INITIAL_STOCK_MOVEMENTS,
   INITIAL_ORDERS,
   INITIAL_LOGS,
-  INITIAL_EXPENSES
+  INITIAL_EXPENSES,
+  FOOD_BREAK_RESTAURANT,
+  FOOD_BREAK_BRANCHES,
+  FOOD_BREAK_CATEGORIES,
+  FOOD_BREAK_PRODUCTS,
+  usr_foodbreak_owner,
+  INITIAL_FOOD_BREAK_SUBSCRIPTION
 } from '../initialData';
 import { convertQuantity, convertCostPerUnit, convertQuantityAdvanced, convertCostPerUnitAdvanced } from '../lib/unitUtils';
 import { playNotificationChime, playSuccessChime } from '../lib/notificationSound';
@@ -373,6 +379,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!hasOwner) {
       result = [...INITIAL_USERS, ...result];
     }
+    // Ensure Food Break owner is always available
+    if (!result.some(u => u.email === 'foodbreak@mato.sy' || u.id === 'usr_foodbreak_owner')) {
+      result = [...result, usr_foodbreak_owner];
+    }
     // Ensure all accounts have a password defined
     return result.map(u => {
       if (!u.password) {
@@ -576,7 +586,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Subscription Requests State (Pending / Approved Restaurant Registrations)
   const [subscriptionRequests, setSubscriptionRequests] = useState<RestaurantSubscriptionRequest[]>(() => {
-    return safeStorageArrayParse<RestaurantSubscriptionRequest>(`${STORAGE_KEY}_subscription_requests`, []);
+    const list = safeStorageArrayParse<RestaurantSubscriptionRequest>(`${STORAGE_KEY}_subscription_requests`, [INITIAL_FOOD_BREAK_SUBSCRIPTION]);
+    let result = (Array.isArray(list) && list.length > 0) ? list : [INITIAL_FOOD_BREAK_SUBSCRIPTION];
+    if (!result.some(r => r.id === 'rest_foodbreak' || r.email === 'foodbreak@mato.sy')) {
+      result = [INITIAL_FOOD_BREAK_SUBSCRIPTION, ...result];
+    }
+    return result;
   });
 
   useEffect(() => {
@@ -1552,6 +1567,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUsers(prev => [matchedUser!, ...prev]);
     }
 
+    // Check if input is for Food Break restaurant owner
+    if (!matchedUser && (cleanInput === 'foodbreak' || cleanInput === 'food break' || cleanInput === 'foodbreak@mato.sy' || cleanInput === '0988776655')) {
+      matchedUser = usr_foodbreak_owner;
+      setUsers(prev => prev.some(u => u.id === usr_foodbreak_owner.id) ? prev : [usr_foodbreak_owner, ...prev]);
+    }
+
     // Check system registrations
     if (!matchedUser) {
       const matchedReg = systemRegistrations.find(r => r.emailOrPhone.trim().toLowerCase() === cleanInput);
@@ -1624,7 +1645,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 4. Authenticate User
+    // 4. Authenticate User and apply restaurant context if switching tenant
+    if (matchedUser.restaurantId === 'rest_foodbreak') {
+      setRestaurant(FOOD_BREAK_RESTAURANT);
+      setBranches(FOOD_BREAK_BRANCHES);
+      setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
+      setCategories(prev => {
+        const hasFb = prev.some(c => c.id.startsWith('cat_fb_'));
+        return hasFb ? prev : [...FOOD_BREAK_CATEGORIES, ...prev];
+      });
+      setProducts(prev => {
+        const hasFb = prev.some(p => p.id.startsWith('prod_fb_'));
+        return hasFb ? prev : [...FOOD_BREAK_PRODUCTS, ...prev];
+      });
+    } else if (matchedUser.restaurantId === 'rest_01' || matchedUser.isPlatformOwner) {
+      setRestaurant(INITIAL_RESTAURANT);
+      setBranches(INITIAL_BRANCHES);
+      setCurrentBranchState(INITIAL_BRANCHES[0]);
+    }
+
     setCurrentUserState(matchedUser);
     setIsAuthenticated(true);
     logActivity('تسجيل دخول ناجح', `تم تسجيل الدخول بنجاح لحساب ${matchedUser.name} (${matchedUser.role})`);

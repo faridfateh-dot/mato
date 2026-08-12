@@ -38,18 +38,22 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) => {
   const { currentUser, isPlatformOwner, pendingUsersCount, pendingRestaurantRequestsCount } = useData();
 
-  // Check permission by role
+  // Check permission by role - Logs is strictly restricted to Owner / Platform Owner
   const isAllowed = (view: ViewType) => {
     if (isPlatformOwner) return true; // Platform SuperAdmin has access to inspect all views
 
     const role = currentUser?.role;
-    if (role === 'Owner' || role === 'Manager') {
-      // Restaurant Owner & Manager have full access to all restaurant modules
+    if (role === 'Owner') {
+      // Restaurant Owner has full access to all restaurant modules including logs and users
       return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai'].includes(view);
     }
+    if (role === 'Manager') {
+      // Manager has access to operational views, but NOT logs (سجل العمليات) or user permission administration
+      return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'ai'].includes(view);
+    }
     if (role === 'Cashier') return ['pos', 'products', 'ai', 'dashboard'].includes(view);
-    if (role === 'Inventory Manager') return ['inventory', 'suppliers', 'recipes', 'logs', 'ai', 'dashboard'].includes(view);
-    return true;
+    if (role === 'Inventory Manager') return ['inventory', 'suppliers', 'recipes', 'ai', 'dashboard'].includes(view);
+    return false;
   };
 
   const navItems: { id: ViewType; label: string; icon: React.FC<{ className?: string }>; badge?: string; countBadge?: number }[] = isPlatformOwner

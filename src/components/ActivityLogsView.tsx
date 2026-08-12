@@ -3,9 +3,25 @@ import { useData } from '../context/DataContext';
 import { History, Shield, Search, UserCheck, Clock } from 'lucide-react';
 
 export const ActivityLogsView: React.FC = () => {
-  const { activityLogs, currentRestaurant } = useData();
+  const { activityLogs, currentRestaurant, currentUser, isPlatformOwner } = useData();
   const [filterRole, setFilterRole] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
+
+  if (!isOwner) {
+    return (
+      <div className="p-8 bg-white rounded-3xl border border-rose-200 text-center max-w-md mx-auto my-12 shadow-sm">
+        <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 mx-auto flex items-center justify-center mb-3">
+          <Shield className="w-6 h-6" />
+        </div>
+        <h2 className="text-base font-bold text-slate-900 mb-1">صلاحية وصول مقيدة</h2>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          سجل العمليات وإدارة التدقيق الأمني متاح حصرياً لحسابات المالك والمدير العام (Owner).
+        </p>
+      </div>
+    );
+  }
 
   const filteredLogs = activityLogs.filter(log => {
     const matchesRole = filterRole === 'all' || log.userRole === filterRole;

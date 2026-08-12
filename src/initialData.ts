@@ -11,7 +11,8 @@ import {
   StockMovement,
   Order,
   ActivityLog,
-  Expense
+  Expense,
+  RestaurantSubscriptionRequest
 } from './types';
 
 export const INITIAL_RESTAURANT: Restaurant = {
@@ -42,6 +43,23 @@ export const INITIAL_BRANCHES: Branch[] = [
   }
 ];
 
+export const usr_foodbreak_owner: User = {
+  id: 'usr_foodbreak_owner',
+  restaurantId: 'rest_foodbreak',
+  branchId: 'br_foodbreak_main',
+  name: 'مدير مطعم Food Break',
+  email: 'foodbreak@mato.sy',
+  phone: '0988776655',
+  password: 'foodbreak123',
+  pinCode: '1234',
+  role: 'Owner',
+  isPlatformOwner: false,
+  isActive: true,
+  isPendingApproval: false,
+  restaurantName: 'مطعم Food Break',
+  createdAt: '2026-01-01T00:00:00Z'
+};
+
 export const INITIAL_USERS: User[] = [
   {
     id: 'usr_owner_farid',
@@ -58,6 +76,7 @@ export const INITIAL_USERS: User[] = [
     isPendingApproval: false,
     createdAt: '2026-01-01T00:00:00Z'
   },
+  usr_foodbreak_owner,
   {
     id: 'usr_owner_default',
     restaurantId: 'rest_01',
@@ -72,6 +91,114 @@ export const INITIAL_USERS: User[] = [
     isActive: true,
     isPendingApproval: false,
     createdAt: '2026-01-01T00:00:00Z'
+  }
+];
+
+export const FOOD_BREAK_RESTAURANT: Restaurant = {
+  id: 'rest_foodbreak',
+  name: 'مطعم فود بريك (Food Break)',
+  type: 'fast_food',
+  currency: 'ل.س',
+  logoUrl: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=150&auto=format&fit=crop&q=80',
+  createdAt: '2026-01-01T08:00:00Z',
+};
+
+export const FOOD_BREAK_BRANCHES: Branch[] = [
+  {
+    id: 'br_foodbreak_main',
+    restaurantId: 'rest_foodbreak',
+    name: 'الفرع الرئيسي - Food Break',
+    address: 'دمشق، المزة أوتوستراد، بجانب برج دمشق',
+    phone: '+963 11 661 2345',
+    isMain: true,
+  }
+];
+
+export const FOOD_BREAK_CATEGORIES: Category[] = [
+  { id: 'cat_fb_burgers', restaurantId: 'rest_foodbreak', name: 'برغر وساندويش', icon: 'Sandwich' },
+  { id: 'cat_fb_pizza', restaurantId: 'rest_foodbreak', name: 'بيتزا ومعجنات', icon: 'UtensilsCrossed' },
+  { id: 'cat_fb_appetizers', restaurantId: 'rest_foodbreak', name: 'مقبلات وبطاطا', icon: 'Boxes' },
+  { id: 'cat_fb_drinks', restaurantId: 'rest_foodbreak', name: 'مشروبات وعصائر', icon: 'Coffee' },
+  { id: 'cat_fb_desserts', restaurantId: 'rest_foodbreak', name: 'حلويات ووافل', icon: 'Cake' },
+];
+
+export const FOOD_BREAK_PRODUCTS: Product[] = [
+  {
+    id: 'prod_fb_01',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'برغر فود بريك دبل سبيشال',
+    price: 45000,
+    categoryId: 'cat_fb_burgers',
+    categoryName: 'برغر وساندويش',
+    isAvailable: true,
+    description: 'شريحتان من اللحم البقري الصافي مع جبنة الشيدر والصوص الخاص وخضار طازجة'
+  },
+  {
+    id: 'prod_fb_02',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'ساندويش زنجر كرسبي حار',
+    price: 38000,
+    categoryId: 'cat_fb_burgers',
+    categoryName: 'برغر وساندويش',
+    isAvailable: true,
+    description: 'صدر دجاج مقرمش حار مع صوص الرانش والخس وصلصة الفود بريك'
+  },
+  {
+    id: 'prod_fb_03',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'بيتزا بيبيروني سوبريم (كبير)',
+    price: 58000,
+    categoryId: 'cat_fb_pizza',
+    categoryName: 'بيتزا ومعجنات',
+    isAvailable: true,
+    description: 'جبنة موزاريلا فاخرة مع شرائح البيبيروني وصلصة الطماطم الإيطالية'
+  },
+  {
+    id: 'prod_fb_04',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'بطاطا ويدجز مبهرة مع صوص الشيدر',
+    price: 22000,
+    categoryId: 'cat_fb_appetizers',
+    categoryName: 'مقبلات وبطاطا',
+    isAvailable: true,
+    description: 'قطع بطاطا ويدجز مقرمشة مع بهارات الأعشاب وصوص الجبن الذائب'
+  },
+  {
+    id: 'prod_fb_05',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'أصابع جبنة موزاريلا مقرمشة (6 قطع)',
+    price: 26000,
+    categoryId: 'cat_fb_appetizers',
+    categoryName: 'مقبلات وبطاطا',
+    isAvailable: true,
+    description: 'أصابع موزاريلا ذهبية مقرمشة مع صوص المارينارا'
+  },
+  {
+    id: 'prod_fb_06',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'عصير برتقال طبيعي طازج',
+    price: 18000,
+    categoryId: 'cat_fb_drinks',
+    categoryName: 'مشروبات وعصائر',
+    isAvailable: true,
+    description: 'عصير برتقال طبيعي معصور طازجاً بدون سكر مضاف'
+  },
+  {
+    id: 'prod_fb_07',
+    restaurantId: 'rest_foodbreak',
+    branchId: 'br_foodbreak_main',
+    name: 'كولا مثلجة 330 مل',
+    price: 8000,
+    categoryId: 'cat_fb_drinks',
+    categoryName: 'مشروبات وعصائر',
+    isAvailable: true,
+    description: 'مشروب غازي بارد مع ثلج'
   }
 ];
 
@@ -306,3 +433,20 @@ export const INITIAL_EXPENSES: Expense[] = [
     createdByName: 'فاريد الفاتح'
   }
 ];
+
+export const INITIAL_FOOD_BREAK_SUBSCRIPTION: RestaurantSubscriptionRequest = {
+  id: 'rest_foodbreak',
+  restaurantName: 'مطعم فود بريك (Food Break)',
+  ownerName: 'مدير مطعم Food Break',
+  phone: '0988776655',
+  email: 'foodbreak@mato.sy',
+  city: 'دمشق - المزة',
+  branchesCount: 1,
+  planType: 'professional',
+  status: 'approved',
+  activationCode: 'MATO-2026-8899',
+  expiresAt: '2027-08-31T23:59:59Z',
+  requestedAt: '2026-01-01T08:00:00Z',
+  approvedAt: '2026-01-01T08:00:00Z',
+  notes: 'حساب مرخص ومعتمد بالكامل'
+};

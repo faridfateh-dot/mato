@@ -25,8 +25,9 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) => {
-  const { currentRestaurant, getDashboardStats, orders } = useData();
+  const { currentRestaurant, getDashboardStats, orders, currentUser, isPlatformOwner } = useData();
   const stats = getDashboardStats();
+  const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
 
   return (
     <div className="space-y-6">
@@ -370,31 +371,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
           </div>
         </div>
 
-        {/* Recent Transactions & Audit Log */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900">آخر العمليات والتغييرات</h2>
-            <button
-              onClick={() => onNavigateView('logs')}
-              className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
-            >
-              <span>عرض سجل العمليات الكامل</span>
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        {/* Recent Transactions & Audit Log - Only visible to Owner */}
+        {isOwner ? (
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-900">آخر العمليات والتغييرات</h2>
+              <button
+                onClick={() => onNavigateView('logs')}
+                className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>عرض سجل العمليات الكامل</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-          <div className="space-y-3">
-            {stats.recentActivities.slice(0, 4).map((log) => (
-              <div key={log.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-                <div className="flex items-center justify-between text-slate-500 mb-1">
-                  <span className="font-bold text-slate-700">{log.userName} ({log.userRole})</span>
-                  <span className="text-[10px]">{new Date(log.createdAt).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}</span>
+            <div className="space-y-3">
+              {stats.recentActivities.slice(0, 4).map((log) => (
+                <div key={log.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1">
+                    <span className="font-bold text-slate-700">{log.userName} ({log.userRole})</span>
+                    <span className="text-[10px]">{new Date(log.createdAt).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <div className="font-medium text-slate-900">{log.description}</div>
                 </div>
-                <div className="font-medium text-slate-900">{log.description}</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3">حالة الفرع ونقطة البيع</h2>
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200/60 text-xs text-amber-900 space-y-2">
+              <div className="font-bold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span>نظام الكاشير والطلبات جاهز للعمل</span>
+              </div>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                يمكنك التوجه مباشرة لقسم الكاشير ونقطة البيع (POS) لبدء تسجيل الطلبات وإصدار الفواتير فوراً.
+              </p>
+              <button
+                onClick={() => onNavigateView('pos')}
+                className="mt-2 px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>الانتقال إلى شاشة الكاشير (POS)</span>
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
 

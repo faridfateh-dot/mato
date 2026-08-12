@@ -28,11 +28,17 @@ const AppMainContent: React.FC = () => {
   // Derive current view from hash location pathname
   const pathSegment = location.pathname.replace(/^\//, '');
   
+  const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
+
   // Platform Owner (Farid) defaults to sales dashboard but can preview everything
-  // Restaurant subscribers and users access the full restaurant suite
+  // Restaurant Owner accesses all modules including logs and users
+  // Non-owner accounts (Cashier, Inventory Manager, Manager) are restricted from sensitive logs
   const allowedViews: ViewType[] = isPlatformOwner
     ? ['sales', 'dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai']
-    : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai'];
+    : (isOwner
+        ? ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'users', 'logs', 'ai']
+        : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'ai']
+      );
 
   const defaultView: ViewType = isPlatformOwner 
     ? 'sales' 
@@ -66,7 +72,7 @@ const AppMainContent: React.FC = () => {
       case 'sales':
         return isPlatformOwner ? <SoftwareSalesView /> : <DashboardView onNavigateView={setCurrentView} />;
       case 'users':
-        return <UsersSettingsView />;
+        return isOwner ? <UsersSettingsView /> : <DashboardView onNavigateView={setCurrentView} />;
       case 'dashboard':
         return <DashboardView onNavigateView={setCurrentView} />;
       case 'pos':
@@ -86,7 +92,7 @@ const AppMainContent: React.FC = () => {
       case 'recipes':
         return <RecipesView initialProductId={recipeProductTargetId} />;
       case 'logs':
-        return <ActivityLogsView />;
+        return isOwner ? <ActivityLogsView /> : <DashboardView onNavigateView={setCurrentView} />;
       case 'ai':
         return <AIChatView />;
       default:

@@ -677,11 +677,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-xs transition-colors cursor-pointer"
             >
               <div className="w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs border border-amber-300">
-                {currentUser.name.charAt(0)}
+                {currentUser?.name ? currentUser.name.charAt(0) : 'م'}
               </div>
               <div className="text-right hidden lg:block">
-                <div className="font-bold text-slate-100 leading-tight">{currentUser.name}</div>
-                <div className="text-[10px] text-amber-400">{isOwner ? 'المالك الرئيسي' : currentUser.role}</div>
+                <div className="font-bold text-slate-100 leading-tight">{currentUser?.name || 'المستخدم'}</div>
+                <div className="text-[10px] text-amber-400">{isOwner ? 'المالك الرئيسي' : (currentUser?.role || '')}</div>
               </div>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
@@ -689,11 +689,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
             {showRoleMenu && (
               <div className="absolute left-0 mt-2 w-64 rounded-xl bg-slate-800 border border-slate-700 shadow-2xl py-2 z-[100] max-h-[75vh] overflow-y-auto text-slate-200">
                 <div className="px-3 py-1.5 border-b border-slate-700">
-                  <div className="font-bold text-xs text-slate-100">{currentUser.name}</div>
-                  <div className="text-[11px] text-slate-400">{currentUser.email}</div>
+                  <div className="font-bold text-xs text-slate-100">{currentUser?.name || 'المستخدم'}</div>
+                  <div className="text-[11px] text-slate-400">{currentUser?.email || ''}</div>
                   <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400">
                     <Shield className="w-3 h-3" />
-                    <span>{roleLabels[currentUser.role]}</span>
+                    <span>{currentUser?.role ? (roleLabels[currentUser.role] || currentUser.role) : 'مستخدم'}</span>
                   </div>
                 </div>
 

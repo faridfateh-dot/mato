@@ -337,11 +337,16 @@ function safeStorageArrayParse<T>(key: string, fallback: T[]): T[] {
 }
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Session & Authentication State
+  // Session & Authentication State (Session-only, defaults to false on fresh visits/shared links)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    const loadedUsers = safeStorageArrayParse<User>(`${STORAGE_KEY}_users`, []);
-    if (!Array.isArray(loadedUsers) || loadedUsers.length === 0) return false;
-    return safeStorageParse(`${STORAGE_KEY}_is_authenticated`, false);
+    try {
+      // Clear legacy permanent auto-login key from localStorage so shared links never auto-enter
+      localStorage.removeItem(`${STORAGE_KEY}_is_authenticated`);
+      const sessionUserId = sessionStorage.getItem(`${STORAGE_KEY}_session_user_id`);
+      return Boolean(sessionUserId);
+    } catch {
+      return false;
+    }
   });
 
   const [systemRegistrations, setSystemRegistrations] = useState<SystemRegistration[]>(() => {
@@ -419,29 +424,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const pendingUsersCount = pendingUsers.length;
 
-  const defaultEmptyUser: User = {
-    id: 'usr_owner_default',
+  const defaultGuestUser: User = {
+    id: 'usr_guest',
     restaurantId: 'rest_01',
     branchId: 'br_main',
-    name: 'المالك',
-    email: 'owner@mato.sy',
-    role: 'Owner',
+    name: 'زائر',
+    email: '',
+    role: 'Cashier',
     isPlatformOwner: false,
-    isActive: true,
+    isActive: false,
     createdAt: new Date().toISOString()
   };
 
-  const [currentUser, setCurrentUserState] = useState<User>(() => (Array.isArray(users) && users[0]) ? users[0] : defaultEmptyUser);
+  const [currentUser, setCurrentUserState] = useState<User>(() => {
+    try {
+      const sessionUserId = sessionStorage.getItem(`${STORAGE_KEY}_session_user_id`);
+      if (sessionUserId && Array.isArray(users)) {
+        const found = users.find(u => u.id === sessionUserId);
+        if (found) return found;
+      }
+    } catch {
+      // ignore
+    }
+    return defaultGuestUser;
+  });
 
-  // Platform Owner flag: true strictly for Farid (SaaS Platform Creator & System SuperAdmin)
+  // Platform Owner flag: true strictly for Farid (SaaS Platform Creator & System SuperAdmin) ONLY when Authenticated
   const isPlatformOwner = useMemo(() => {
-    if (!currentUser) return false;
+    if (!isAuthenticated || !currentUser) return false;
     return (
       currentUser.isPlatformOwner === true ||
       currentUser.email?.toLowerCase() === 'farid.fateh@hotmail.com' ||
       currentUser.id === 'usr_owner_farid'
     );
-  }, [currentUser]);
+  }, [isAuthenticated, currentUser]);
 
   const [categories, setCategories] = useState<Category[]>(() => {
     return safeStorageArrayParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);
@@ -1370,7 +1386,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Persist data locally on change
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_is_authenticated`, JSON.stringify(isAuthenticated));
+    localStorage.removeItem(`${STORAGE_KEY}_is_authenticated`); // Clean up legacy persistent auth key
     localStorage.setItem(`${STORAGE_KEY}_system_registrations`, JSON.stringify(systemRegistrations));
     localStorage.setItem(`${STORAGE_KEY}_restaurant`, JSON.stringify(restaurant));
     localStorage.setItem(`${STORAGE_KEY}_branches`, JSON.stringify(branches));
@@ -1388,17 +1404,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(`${STORAGE_KEY}_activityLogs`, JSON.stringify(activityLogs));
     localStorage.setItem(`${STORAGE_KEY}_licenseInfo`, JSON.stringify(licenseInfo));
     localStorage.setItem(`${STORAGE_KEY}_licenseKeys`, JSON.stringify(licenseKeys));
-  }, [isAuthenticated, systemRegistrations, restaurant, branches, users, categories, rawMaterialCategories, products, ingredients, recipes, suppliers, purchases, stockMovements, orders, expenses, activityLogs, licenseInfo, licenseKeys]);
+  }, [systemRegistrations, restaurant, branches, users, categories, rawMaterialCategories, products, ingredients, recipes, suppliers, purchases, stockMovements, orders, expenses, activityLogs, licenseInfo, licenseKeys]);
 
   // Helper logging
   const logActivity = (actionType: string, description: string, details?: string) => {
     const newLog: ActivityLog = {
       id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      restaurantId: restaurant.id,
-      branchId: currentBranch.id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
+      restaurantId: restaurant?.id || 'rest_01',
+      branchId: currentBranch?.id || 'br_main',
+      userId: currentUser?.id || 'usr_guest',
+      userName: currentUser?.name || 'مستخدم',
+      userRole: currentUser?.role || 'Cashier',
       actionType,
       description,
       details,
@@ -1410,6 +1426,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Auth & Roles
   const setCurrentUser = (user: User) => {
     setCurrentUserState(user);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, user.id);
+    } catch {
+      // ignore
+    }
     logActivity('تبديل المستخدم', `تم تسجيل الدخول بصفتك ${user.name} (${user.role})`);
   };
 
@@ -1523,6 +1544,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isFirstEverUser || !requireOwnerApproval) {
       setCurrentUserState(newUser);
       setIsAuthenticated(true);
+      try {
+        sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, newUser.id);
+      } catch {
+        // ignore
+      }
       logActivity('تسجيل وتفعيل حساب', `تم إنشاء وتفعيل حساب ${newUser.name} بدور ${newUser.role}`);
       return {
         isPending: false,
@@ -1849,6 +1875,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setCurrentUserState(matchedUser);
     setIsAuthenticated(true);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, matchedUser.id);
+    } catch {
+      // ignore
+    }
     logActivity('تسجيل دخول ناجح', `تم تسجيل الدخول بنجاح لحساب ${matchedUser.name} (${matchedUser.role})`);
     return {
       success: true,
@@ -1881,7 +1912,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logoutUser = () => {
     setIsAuthenticated(false);
-    logActivity('تسجيل خروج', `تم إغلاق الجلسة الحالية وحفظ البيانات أوفلاين`);
+    setCurrentUserState(defaultGuestUser);
+    try {
+      sessionStorage.removeItem(`${STORAGE_KEY}_session_user_id`);
+    } catch {
+      // ignore
+    }
+    logActivity('تسجيل خروج', `تم إغلاق الجلسة الحالية وتسجيل الخروج بنجاح`);
   };
 
   const deleteRegistrationRecord = (id: string) => {
@@ -1989,6 +2026,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setExpenses([]);
 
     setIsAuthenticated(true);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, newOwner.id);
+    } catch {
+      // ignore
+    }
     logActivity('تسجيل مطعم جديد', `تم إنشاء مطعم جديد حقيقي ومستقل (${restaurantName}) بواسطة (${ownerName})`);
   };
 

@@ -1184,39 +1184,62 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (Array.isArray(cloudData.products)) {
           setProducts(cloudData.products);
+          localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(cloudData.products));
         }
         if (Array.isArray(cloudData.categories) && cloudData.categories.length > 0) {
           setCategories(cloudData.categories);
+          localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(cloudData.categories));
         }
         if (Array.isArray(cloudData.rawMaterialCategories) && cloudData.rawMaterialCategories.length > 0) {
           setRawMaterialCategories(cloudData.rawMaterialCategories);
+          localStorage.setItem(`${STORAGE_KEY}_rawMaterialCategories`, JSON.stringify(cloudData.rawMaterialCategories));
         }
         if (Array.isArray(cloudData.ingredients)) {
           setIngredients(cloudData.ingredients);
+          localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(cloudData.ingredients));
         }
         if (Array.isArray(cloudData.recipes)) {
           setRecipes(cloudData.recipes);
+          localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(cloudData.recipes));
         }
         if (Array.isArray(cloudData.suppliers)) {
           setSuppliers(cloudData.suppliers);
+          localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(cloudData.suppliers));
         }
         if (Array.isArray(cloudData.purchases)) {
           setPurchases(cloudData.purchases);
+          localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(cloudData.purchases));
         }
         if (Array.isArray(cloudData.stockMovements)) {
           setStockMovements(cloudData.stockMovements);
+          localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(cloudData.stockMovements));
         }
         if (Array.isArray(cloudData.orders)) {
           setOrders(cloudData.orders);
+          localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(cloudData.orders));
         }
         if (Array.isArray(cloudData.expenses)) {
           setExpenses(cloudData.expenses);
+          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(cloudData.expenses));
         }
         if (Array.isArray(cloudData.branches) && cloudData.branches.length > 0) {
           setBranches(cloudData.branches);
+          localStorage.setItem(`${STORAGE_KEY}_branches`, JSON.stringify(cloudData.branches));
+        }
+        if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
+          setUsers(prev => {
+            const mergedMap = new Map<string, User>();
+            prev.forEach(u => mergedMap.set(u.id, u));
+            cloudData.users!.forEach((cu: User) => {
+              const existing = mergedMap.get(cu.id);
+              mergedMap.set(cu.id, { ...existing, ...cu });
+            });
+            return Array.from(mergedMap.values());
+          });
         }
         if (cloudData.restaurant && cloudData.restaurant.name) {
           setRestaurant(prev => ({ ...prev, ...cloudData.restaurant }));
+          localStorage.setItem(`${STORAGE_KEY}_restaurant`, JSON.stringify(cloudData.restaurant));
         }
 
         setIsCloudSynced(true);
@@ -1224,7 +1247,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setTimeout(() => {
           isRemoteSyncRef.current = false;
-        }, 400);
+        }, 350);
       } else if (!cloudData) {
         // Document does not exist in Firestore yet for this restaurant
         // Seed initial data to Firestore
@@ -1255,7 +1278,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             purchases,
             stockMovements,
             orders,
-            expenses
+            expenses,
+            users
+          }).then(() => {
+            setIsCloudSynced(true);
+            setLastCloudSyncTime(new Date().toISOString());
           }).catch(console.warn);
         }
       }
@@ -1270,8 +1297,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (isRemoteSyncRef.current) return;
     if (!restaurant?.id) return;
+    if (!hasInitializedRestRef.current[restaurant.id]) {
+      // Avoid uploading local default data before initial cloud load is established
+      return;
+    }
 
     const timer = setTimeout(() => {
+      if (isRemoteSyncRef.current) return;
       saveRestaurantAppDataToFirestore(restaurant.id, {
         restaurantId: restaurant.id,
         restaurant,
@@ -1285,14 +1317,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         purchases,
         stockMovements,
         orders,
-        expenses
+        expenses,
+        users
       }).then(() => {
         setIsCloudSynced(true);
         setLastCloudSyncTime(new Date().toISOString());
       }).catch(err => {
         console.warn('Auto cloud sync warning:', err);
       });
-    }, 500);
+    }, 120);
 
     return () => clearTimeout(timer);
   }, [
@@ -1307,7 +1340,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     purchases,
     stockMovements,
     orders,
-    expenses
+    expenses,
+    users
   ]);
 
   const syncCloudNow = async () => {
@@ -1326,7 +1360,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       purchases,
       stockMovements,
       orders,
-      expenses
+      expenses,
+      users
     });
     setIsCloudSynced(true);
     setLastCloudSyncTime(new Date().toISOString());

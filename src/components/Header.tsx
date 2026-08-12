@@ -288,41 +288,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
           {/* Right / Actions & Profile */}
           <div className="flex items-center gap-3">
 
-            {/* Cloud Sync Status Badge */}
-            <button
-              onClick={() => setShowOfflineModal(true)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                isCloudSynced
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
-              }`}
-              title="حالة المزامنة السحابية عبر الأجهزة (Cloud Sync)"
-            >
-              <Database className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">
-                {isCloudSynced ? 'سحابي متزامن ⚡' : 'جاري المزامنة...'}
-              </span>
-            </button>
-
-            {/* Offline Status Badge */}
+            {/* Offline & Auto-Save Status Badge */}
             <button
               onClick={() => setShowOfflineModal(true)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                 isOnline
-                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
                   : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
               }`}
-              title="حالة الاتصال والعمل بدون إنترنت"
+              title="حفظ سحابي تلقائي بالكامل (Auto-Saved to Cloud)"
             >
               {isOnline ? (
                 <>
-                  <Wifi className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="hidden md:inline">متصل</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="hidden md:inline text-[11px]">حفظ سحابي تلقائي</span>
+                  <span className="md:hidden text-[11px]">متصل</span>
                 </>
               ) : (
                 <>
                   <WifiOff className="w-3.5 h-3.5 text-amber-300" />
-                  <span>أوفلاين</span>
+                  <span>أوفلاين (حفظ محلي)</span>
                 </>
               )}
             </button>
@@ -893,31 +878,24 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
-                <button
-                  onClick={async () => {
-                    await syncCloudNow();
-                    triggerOfflineSync();
-                    setHeaderSuccessMsg('تمت المزامنة السحابية الفورية لكافة بيانات وأصناف المطعم بنجاح!');
-                    setTimeout(() => setHeaderSuccessMsg(null), 3000);
-                  }}
-                  className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>مزامنة سحابية فورية الآن ⚡</span>
-                </button>
+              {/* Auto Sync Info & Actions */}
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>الحفظ التلقائي نشط: أي عملية أو تعديل تقوم به يُحفظ ويتزامن فورياً على السحابة تلقائياً.</span>
+              </div>
 
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
                 <button
                   onClick={toggleOfflineSimulation}
-                  className={`w-full sm:flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
+                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
                     isSimulatedOffline
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
                       : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                   }`}
                 >
                   <WifiOff className="w-4 h-4" />
-                  <span>{isSimulatedOffline ? 'إيقاف محاكاة الأوفلاين' : 'اختبار وضع بدون إنترنت'}</span>
+                  <span>{isSimulatedOffline ? 'إيقاف محاكاة وضع الأوفلاين' : 'اختبار وضع بدون إنترنت (محاكاة أوفلاين)'}</span>
                 </button>
               </div>
 

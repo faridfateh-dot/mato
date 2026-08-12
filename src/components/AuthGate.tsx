@@ -386,68 +386,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
               <span>تسجيل الدخول بالبريد وكلمة المرور</span>
             </button>
 
-            {/* Quick Demo & Fast Fill Accounts */}
-            <div className="pt-3 border-t border-slate-800 space-y-2">
-              <div className="text-[11px] font-bold text-slate-400 flex items-center justify-between">
-                <span className="flex items-center gap-1 text-amber-400">
-                  <Zap className="w-3.5 h-3.5" />
-                  <span>حسابات تجريبية سريعة بنقرة واحدة:</span>
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {/* Food Break Account */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginEmailOrPhone('foodbreak@mato.sy');
-                    setLoginPassword('foodbreak123');
-                  }}
-                  className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-right transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-amber-300 group-hover:text-amber-200 flex items-center gap-1.5">
-                      <span>🍔</span>
-                      <span>مطعم Food Break</span>
-                    </span>
-                    <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">مالك</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400 mt-1 font-mono">
-                    foodbreak@mato.sy
-                  </div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">
-                    كلمة المرور: <span className="text-slate-300 font-mono">foodbreak123</span>
-                  </div>
-                </button>
-
-                {/* Platform SuperAdmin Account */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginEmailOrPhone('farid.fateh@hotmail.com');
-                    setLoginPassword('admin');
-                  }}
-                  className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-750 border border-slate-700 text-right transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-white group-hover:text-amber-300 flex items-center gap-1.5">
-                      <span>👑</span>
-                      <span>فريد (مالك المنظومة)</span>
-                    </span>
-                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-mono">SuperAdmin</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400 mt-1 font-mono truncate">
-                    farid.fateh@hotmail.com
-                  </div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">
-                    كلمة المرور: <span className="text-slate-300 font-mono">admin</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
             {/* Quick help button */}
-            <div className="pt-2 text-center">
+            <div className="pt-3 border-t border-slate-800 text-center">
               <a
                 href={`https://wa.me/${(ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً أستاذ فريد، أحتاج مساعدة في تسجيل الدخول لمنظومة MATO POS.')}`}
                 target="_blank"

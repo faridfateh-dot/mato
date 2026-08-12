@@ -15,6 +15,38 @@
       },
       "required": ["name", "phone", "status"]
     },
+    "restaurant_data": {
+      "title": "Restaurant Data & Menu Sync",
+      "description": "Full multi-device cloud synchronization state for restaurant products, categories, recipes, ingredients, orders, expenses, and operational records",
+      "properties": {
+        "restaurantId": { "type": "string", "description": "Restaurant Unique ID" },
+        "products": { "type": "array", "description": "List of products and menu items" },
+        "categories": { "type": "array", "description": "List of categories" },
+        "ingredients": { "type": "array", "description": "List of raw materials and inventory" },
+        "recipes": { "type": "array", "description": "List of product cost recipes" },
+        "orders": { "type": "array", "description": "List of sales orders" },
+        "expenses": { "type": "array", "description": "List of operational expenses" },
+        "suppliers": { "type": "array", "description": "List of suppliers" },
+        "purchases": { "type": "array", "description": "List of supplier purchase invoices" },
+        "stockMovements": { "type": "array", "description": "List of stock adjustments and waste" },
+        "branches": { "type": "array", "description": "List of restaurant branches" },
+        "restaurant": { "type": "object", "description": "Restaurant branding and metadata" },
+        "updatedAt": { "type": "string", "description": "Last update timestamp" }
+      },
+      "required": ["restaurantId"]
+    },
+    "staff_requests": {
+      "title": "Staff Requests",
+      "description": "Staff registration and role approval requests",
+      "properties": {
+        "name": { "type": "string", "description": "Staff member name" },
+        "emailOrPhone": { "type": "string", "description": "Email or phone" },
+        "role": { "type": "string", "description": "Role requested" },
+        "restaurantId": { "type": "string", "description": "Restaurant ID" },
+        "status": { "type": "string", "description": "pending, approved, or rejected" }
+      },
+      "required": ["name", "emailOrPhone", "restaurantId", "status"]
+    },
     "activation_codes": {
       "title": "Activation Codes",
       "description": "Generated annual activation codes",

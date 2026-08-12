@@ -451,3 +451,111 @@ export function subscribeRestaurantsRealtime(
     return () => {};
   }
 }
+
+// Full Multi-Device Restaurant Cloud Persistence Structure
+export interface RestaurantCloudData {
+  restaurantId: string;
+  restaurant?: any;
+  branches?: any[];
+  categories?: any[];
+  rawMaterialCategories?: any[];
+  products?: any[];
+  ingredients?: any[];
+  recipes?: any[];
+  suppliers?: any[];
+  purchases?: any[];
+  stockMovements?: any[];
+  orders?: any[];
+  expenses?: any[];
+  activityLogs?: any[];
+  users?: any[];
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+// Clean undefined values so Firestore doesn't reject document writes
+function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForFirestore);
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val !== undefined) {
+        cleaned[key] = sanitizeForFirestore(val);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+// Save Full Restaurant Data to Firestore Cloud for Cross-Device Sync
+export async function saveRestaurantAppDataToFirestore(
+  restaurantId: string,
+  data: Partial<RestaurantCloudData>
+): Promise<void> {
+  if (!db || !restaurantId) return;
+  try {
+    const docRef = doc(db, 'restaurant_data', restaurantId);
+    const sanitizedData = sanitizeForFirestore({
+      ...data,
+      restaurantId,
+      updatedAt: new Date().toISOString()
+    });
+    await setDoc(docRef, sanitizedData, { merge: true });
+  } catch (err) {
+    console.warn('Firestore saveRestaurantAppData error:', err);
+  }
+}
+
+// Fetch Restaurant Cloud Data
+export async function fetchRestaurantAppDataFromFirestore(
+  restaurantId: string
+): Promise<RestaurantCloudData | null> {
+  if (!db || !restaurantId) return null;
+  try {
+    const docRef = doc(db, 'restaurant_data', restaurantId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data() as RestaurantCloudData;
+    }
+    return null;
+  } catch (err) {
+    console.warn('Firestore fetchRestaurantAppData error:', err);
+    return null;
+  }
+}
+
+// Real-Time Subscribe to Restaurant Cloud Data
+export function subscribeRestaurantAppDataRealtime(
+  restaurantId: string,
+  callback: (data: RestaurantCloudData | null) => void
+): () => void {
+  if (!db || !restaurantId) {
+    callback(null);
+    return () => {};
+  }
+  try {
+    const docRef = doc(db, 'restaurant_data', restaurantId);
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          callback(snapshot.data() as RestaurantCloudData);
+        } else {
+          callback(null);
+        }
+      },
+      (err) => {
+        console.warn('Realtime restaurant_data subscription error:', err);
+      }
+    );
+  } catch (err) {
+    console.warn('subscribeRestaurantAppDataRealtime error:', err);
+    return () => {};
+  }
+}
+

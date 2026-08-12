@@ -69,6 +69,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
     triggerOfflineSync,
     toggleOfflineSimulation,
     isSimulatedOffline,
+    isCloudSynced,
+    lastCloudSyncTime,
+    syncCloudNow,
     logoutUser,
     systemRegistrations,
     pendingRestaurantRequestsCount,
@@ -285,25 +288,41 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
           {/* Right / Actions & Profile */}
           <div className="flex items-center gap-3">
 
+            {/* Cloud Sync Status Badge */}
+            <button
+              onClick={() => setShowOfflineModal(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                isCloudSynced
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
+              }`}
+              title="حالة المزامنة السحابية عبر الأجهزة (Cloud Sync)"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">
+                {isCloudSynced ? 'سحابي متزامن ⚡' : 'جاري المزامنة...'}
+              </span>
+            </button>
+
             {/* Offline Status Badge */}
             <button
               onClick={() => setShowOfflineModal(true)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                 isOnline
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/20'
                   : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30 animate-pulse'
               }`}
               title="حالة الاتصال والعمل بدون إنترنت"
             >
               {isOnline ? (
                 <>
-                  <Wifi className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">أوفلاين جاهز (متصل)</span>
+                  <Wifi className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="hidden md:inline">متصل</span>
                 </>
               ) : (
                 <>
                   <WifiOff className="w-3.5 h-3.5 text-amber-300" />
-                  <span>دون إنترنت (أوفلاين)</span>
+                  <span>أوفلاين</span>
                 </>
               )}
             </button>
@@ -805,15 +824,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
             {/* Modal Body */}
             <div className="p-6 space-y-4">
               
-              {/* Feature Explanation Banner */}
-              <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-amber-400">
-                  <Database className="w-4 h-4" />
-                  <span>ميزة الإصرار والاستقلالية عن الإنترنت (Local-First PWA):</span>
+              {/* Cloud Sync Status Banner */}
+              <div className="p-3.5 rounded-xl bg-slate-800/80 border border-emerald-500/30 text-xs text-slate-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-emerald-400">
+                    <Database className="w-4 h-4" />
+                    <span>المزامنة السحابية المباشرة (Cloud Sync):</span>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    isCloudSynced ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                  }`}>
+                    {isCloudSynced ? 'متزامن مع السحابة ✅' : 'جاري التحديث...'}
+                  </span>
                 </div>
-                <p className="leading-relaxed">
-                  نظام **MATO POS** مصمم للعمل **100% دون حاجة لاتصال بالإنترنت**. يتم حفظ الفواتير، المخزون، الوصفات، والمصاريف تلقائياً في ذاكرة الجهاز المحلية ذات السرعة الفائقة.
+                <p className="leading-relaxed text-slate-300">
+                  جميع تعديلات الوجبات، الأصناف، الأسعار، المواد الأولية، الفواتير والمصاريف يتم حفظها ومزامنتها لحظياً عبر قاعدة بيانات **Firebase Firestore** السحابية لتظهر وتتطابق فوراً على الموبايل، اللابتوب، والشاشات الأخرى.
                 </p>
+                <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-700/60">
+                  <span>آخر مزامنة سحابية:</span>
+                  <span className="font-mono text-slate-300">{new Date(lastCloudSyncTime).toLocaleTimeString('ar-SY')}</span>
+                </div>
               </div>
 
               {/* Status Grid */}
@@ -821,16 +851,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                 <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
                   <div className="text-slate-400 mb-1 flex items-center gap-1.5">
                     <Wifi className="w-3.5 h-3.5 text-blue-400" />
-                    <span>حالة الاتصال بالشبكة:</span>
+                    <span>الاتصال بالشبكة:</span>
                   </div>
                   <div className="font-bold text-sm">
                     {isOnline ? (
                       <span className="text-emerald-400 flex items-center gap-1">
-                        ● متصل بالسحابة (Online)
+                        ● متصل بالسحابة
                       </span>
                     ) : (
                       <span className="text-amber-300 flex items-center gap-1">
-                        ⚡ وضع أوفلاين (Offline)
+                        ⚡ وضع أوفلاين
                       </span>
                     )}
                   </div>
@@ -839,14 +869,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                 <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
                   <div className="text-slate-400 mb-1 flex items-center gap-1.5">
                     <HardDrive className="w-3.5 h-3.5 text-purple-400" />
-                    <span>عمليات بانتظار المزامنة:</span>
+                    <span>المزامنة عبر الأجهزة:</span>
                   </div>
                   <div className="font-bold text-sm text-white">
-                    {pendingOfflineCount > 0 ? (
-                      <span className="text-amber-400">{pendingOfflineCount} عمليات محليّة</span>
-                    ) : (
-                      <span className="text-emerald-400">محدث ومزامن بالكامل ✅</span>
-                    )}
+                    <span className="text-emerald-400">سحابي نشط (Multi-Device)</span>
                   </div>
                 </div>
               </div>
@@ -854,34 +880,37 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
               {/* Local Storage details */}
               <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs space-y-1.5">
                 <div className="flex justify-between text-slate-400">
-                  <span>نوع الذاكرة المحلية:</span>
+                  <span>المطعم النشط:</span>
+                  <span className="font-semibold text-amber-300">{currentRestaurant.name}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>الحفظ الاحتياطي المحلي:</span>
                   <span className="font-semibold text-slate-200">LocalStorage & PWA Cache</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
                   <span>المطبخ والكاشير:</span>
-                  <span className="font-semibold text-emerald-400">جاهز للطباعة والعمل 100% بدون إنترنت</span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>محاكاة وضع الأوفلاين:</span>
-                  <span className="font-semibold text-amber-300">{isSimulatedOffline ? 'نشط (مفعل يدوياً)' : 'غير مفعل'}</span>
+                  <span className="font-semibold text-emerald-400">جاهز للعمل حتى في حال انقطاع الإنترنت</span>
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    await syncCloudNow();
                     triggerOfflineSync();
+                    setHeaderSuccessMsg('تمت المزامنة السحابية الفورية لكافة بيانات وأصناف المطعم بنجاح!');
+                    setTimeout(() => setHeaderSuccessMsg(null), 3000);
                   }}
-                  className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
+                  className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  <span>مزامنة فورية للبيانات المحفوظة</span>
+                  <span>مزامنة سحابية فورية الآن ⚡</span>
                 </button>
 
                 <button
                   onClick={toggleOfflineSimulation}
-                  className={`w-full sm:flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border ${
+                  className={`w-full sm:flex-1 py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all border cursor-pointer ${
                     isSimulatedOffline
                       ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
                       : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'

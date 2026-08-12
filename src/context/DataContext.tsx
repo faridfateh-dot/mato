@@ -72,7 +72,11 @@ import {
   getPlatformOwnerContact,
   savePlatformOwnerContactToFirestore,
   subscribePlatformOwnerContact,
-  PLATFORM_OWNER_CONTACT
+  PLATFORM_OWNER_CONTACT,
+  RestaurantCloudData,
+  saveRestaurantAppDataToFirestore,
+  fetchRestaurantAppDataFromFirestore,
+  subscribeRestaurantAppDataRealtime
 } from '../lib/firebase';
 
 
@@ -214,6 +218,9 @@ interface DataContextType {
   triggerOfflineSync: () => void;
   toggleOfflineSimulation: () => void;
   isSimulatedOffline: boolean;
+  isCloudSynced: boolean;
+  lastCloudSyncTime: string;
+  syncCloudNow: () => Promise<void>;
 
   // Reports & Analytics Helpers
   getDashboardStats: () => DashboardStats;
@@ -1157,27 +1164,176 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify([]));
     localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify([]));
     localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify([]));
-    localStorage.setItem(`${STORAGE_KEY}_cleared_v2`, 'true');
     logActivity('مسح البيانات', 'تم مسح جميع الوجبات والمواد الأولية بطلب المستخدم');
   };
 
-  // Enforce initial wipe on mount if flag is not set
-  useEffect(() => {
-    if (localStorage.getItem(`${STORAGE_KEY}_cleared_v2`) !== 'true') {
-      clearAllProductsAndIngredients();
-    } else {
-      // Clean image URLs from any existing salad products
-      setProducts(prev => prev.map(p => {
-        const isSalad = p.name?.includes('سلطة') || p.name?.includes('سلطه') || p.categoryName?.includes('سلطة') || p.categoryName?.includes('سلطه') || p.categoryId === 'cat_salads';
-        if (isSalad && p.imageUrl) {
-          return { ...p, imageUrl: undefined };
-        }
-        return p;
-      }));
-    }
-  }, []);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>(() => new Date().toISOString());
+  const isRemoteSyncRef = React.useRef<boolean>(false);
+  const hasInitializedRestRef = React.useRef<Record<string, boolean>>({});
 
-  // Persist data on change
+  // Real-time Firestore Cloud Synchronization for the active Restaurant
+  useEffect(() => {
+    if (!restaurant?.id) return;
+    const currentRestId = restaurant.id;
+
+    const unsubscribe = subscribeRestaurantAppDataRealtime(currentRestId, (cloudData) => {
+      if (cloudData && cloudData.restaurantId === currentRestId) {
+        isRemoteSyncRef.current = true;
+        hasInitializedRestRef.current[currentRestId] = true;
+
+        if (Array.isArray(cloudData.products)) {
+          setProducts(cloudData.products);
+        }
+        if (Array.isArray(cloudData.categories) && cloudData.categories.length > 0) {
+          setCategories(cloudData.categories);
+        }
+        if (Array.isArray(cloudData.rawMaterialCategories) && cloudData.rawMaterialCategories.length > 0) {
+          setRawMaterialCategories(cloudData.rawMaterialCategories);
+        }
+        if (Array.isArray(cloudData.ingredients)) {
+          setIngredients(cloudData.ingredients);
+        }
+        if (Array.isArray(cloudData.recipes)) {
+          setRecipes(cloudData.recipes);
+        }
+        if (Array.isArray(cloudData.suppliers)) {
+          setSuppliers(cloudData.suppliers);
+        }
+        if (Array.isArray(cloudData.purchases)) {
+          setPurchases(cloudData.purchases);
+        }
+        if (Array.isArray(cloudData.stockMovements)) {
+          setStockMovements(cloudData.stockMovements);
+        }
+        if (Array.isArray(cloudData.orders)) {
+          setOrders(cloudData.orders);
+        }
+        if (Array.isArray(cloudData.expenses)) {
+          setExpenses(cloudData.expenses);
+        }
+        if (Array.isArray(cloudData.branches) && cloudData.branches.length > 0) {
+          setBranches(cloudData.branches);
+        }
+        if (cloudData.restaurant && cloudData.restaurant.name) {
+          setRestaurant(prev => ({ ...prev, ...cloudData.restaurant }));
+        }
+
+        setIsCloudSynced(true);
+        setLastCloudSyncTime(cloudData.updatedAt || new Date().toISOString());
+
+        setTimeout(() => {
+          isRemoteSyncRef.current = false;
+        }, 400);
+      } else if (!cloudData) {
+        // Document does not exist in Firestore yet for this restaurant
+        // Seed initial data to Firestore
+        if (!hasInitializedRestRef.current[currentRestId]) {
+          hasInitializedRestRef.current[currentRestId] = true;
+          const initialProducts = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_PRODUCTS : (products.length > 0 ? products : INITIAL_PRODUCTS);
+          const initialCats = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_CATEGORIES : (categories.length > 0 ? categories : INITIAL_CATEGORIES);
+          const initialBranchesList = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_BRANCHES : (branches.length > 0 ? branches : INITIAL_BRANCHES);
+          const initialRest = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_RESTAURANT : (restaurant.name ? restaurant : INITIAL_RESTAURANT);
+
+          if (currentRestId === 'rest_foodbreak') {
+            setProducts(FOOD_BREAK_PRODUCTS);
+            setCategories(FOOD_BREAK_CATEGORIES);
+            setBranches(FOOD_BREAK_BRANCHES);
+            setRestaurant(FOOD_BREAK_RESTAURANT);
+          }
+
+          saveRestaurantAppDataToFirestore(currentRestId, {
+            restaurantId: currentRestId,
+            restaurant: initialRest,
+            branches: initialBranchesList,
+            categories: initialCats,
+            rawMaterialCategories,
+            products: initialProducts,
+            ingredients,
+            recipes,
+            suppliers,
+            purchases,
+            stockMovements,
+            orders,
+            expenses
+          }).catch(console.warn);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [restaurant?.id]);
+
+  // Debounced Auto-Sync from local changes up to Firestore Cloud
+  useEffect(() => {
+    if (isRemoteSyncRef.current) return;
+    if (!restaurant?.id) return;
+
+    const timer = setTimeout(() => {
+      saveRestaurantAppDataToFirestore(restaurant.id, {
+        restaurantId: restaurant.id,
+        restaurant,
+        branches,
+        categories,
+        rawMaterialCategories,
+        products,
+        ingredients,
+        recipes,
+        suppliers,
+        purchases,
+        stockMovements,
+        orders,
+        expenses
+      }).then(() => {
+        setIsCloudSynced(true);
+        setLastCloudSyncTime(new Date().toISOString());
+      }).catch(err => {
+        console.warn('Auto cloud sync warning:', err);
+      });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [
+    restaurant,
+    branches,
+    categories,
+    rawMaterialCategories,
+    products,
+    ingredients,
+    recipes,
+    suppliers,
+    purchases,
+    stockMovements,
+    orders,
+    expenses
+  ]);
+
+  const syncCloudNow = async () => {
+    if (!restaurant?.id) return;
+    setIsCloudSynced(false);
+    await saveRestaurantAppDataToFirestore(restaurant.id, {
+      restaurantId: restaurant.id,
+      restaurant,
+      branches,
+      categories,
+      rawMaterialCategories,
+      products,
+      ingredients,
+      recipes,
+      suppliers,
+      purchases,
+      stockMovements,
+      orders,
+      expenses
+    });
+    setIsCloudSynced(true);
+    setLastCloudSyncTime(new Date().toISOString());
+    logActivity('مزامنة سحابية يدوية', 'تمت المزامنة الفورية لكافة المنتجات والبيانات مع السحابة بنجاح');
+  };
+
+  // Persist data locally on change
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_is_authenticated`, JSON.stringify(isAuthenticated));
     localStorage.setItem(`${STORAGE_KEY}_system_registrations`, JSON.stringify(systemRegistrations));
@@ -1650,14 +1806,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRestaurant(FOOD_BREAK_RESTAURANT);
       setBranches(FOOD_BREAK_BRANCHES);
       setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
-      setCategories(prev => {
-        const hasFb = prev.some(c => c.id.startsWith('cat_fb_'));
-        return hasFb ? prev : [...FOOD_BREAK_CATEGORIES, ...prev];
-      });
-      setProducts(prev => {
-        const hasFb = prev.some(p => p.id.startsWith('prod_fb_'));
-        return hasFb ? prev : [...FOOD_BREAK_PRODUCTS, ...prev];
-      });
     } else if (matchedUser.restaurantId === 'rest_01' || matchedUser.isPlatformOwner) {
       setRestaurant(INITIAL_RESTAURANT);
       setBranches(INITIAL_BRANCHES);
@@ -2957,6 +3105,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         triggerOfflineSync,
         toggleOfflineSimulation,
         isSimulatedOffline,
+        isCloudSynced,
+        lastCloudSyncTime,
+        syncCloudNow,
         getDashboardStats,
         getLowMarginProducts,
 

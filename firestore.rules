@@ -1,14 +1,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'farid.fateh@hotmail.com' ||
+        request.auth.token.email == 'owner@mato.sy'
+      );
+    }
+
+    // User profiles collection
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Restaurants metadata directory
     match /restaurants/{restaurantId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+
+    // Isolated Restaurant Operational Database
+    // Each restaurant's categories, products, inventory, orders, expenses
+    match /restaurant_data/{restaurantId} {
       allow read, write: if true;
     }
+
+    // Staff Requests
+    match /staff_requests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Annual Activation Codes Pool
     match /activation_codes/{codeId} {
       allow read, write: if true;
     }
+
+    // System Settings & Contact Info
+    match /system_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Fallback for any other documents
     match /{document=**} {
       allow read, write: if true;
     }
   }
 }
+

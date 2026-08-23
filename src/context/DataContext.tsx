@@ -76,8 +76,17 @@ import {
   RestaurantCloudData,
   saveRestaurantAppDataToFirestore,
   fetchRestaurantAppDataFromFirestore,
-  subscribeRestaurantAppDataRealtime
+  subscribeRestaurantAppDataRealtime,
+  auth,
+  firebaseUserSignIn,
+  firebaseUserSignUp,
+  firebaseUserSignOut,
+  firebaseUserResetPassword,
+  saveUserProfileToFirestore,
+  fetchUserProfileFromFirestore,
+  type FirestoreUserProfile
 } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 
 export { PLATFORM_OWNER_CONTACT };
@@ -139,7 +148,7 @@ interface DataContextType {
   chatMessages: AIChatMessage[];
 
   // User Authentication & Switching
-  loginUser: (emailOrPhone: string, passwordInput?: string) => LoginResult;
+  loginUser: (emailOrPhone: string, passwordInput?: string) => Promise<LoginResult>;
   logoutUser: () => void;
   updateUserPassword: (userId: string, newPass: string) => { success: boolean; message: string };
   setCurrentUser: (user: User) => void;
@@ -155,7 +164,7 @@ interface DataContextType {
   addBranch: (name: string, address: string, phone: string) => void;
   updateBranch: (branchId: string, updates: Partial<Branch>) => void;
   deleteBranch: (branchId: string) => boolean;
-  registerNewTenant: (restaurantName: string, ownerName: string, emailOrPhone: string, method?: 'email' | 'phone', password?: string) => void;
+  registerNewTenant: (restaurantName: string, ownerName: string, emailOrPhone: string, method?: 'email' | 'phone', password?: string) => Promise<{ success: boolean; tenantId?: string; error?: string }>;
   deleteRegistrationRecord: (id: string) => void;
 
   // Domain Actions
@@ -459,13 +468,82 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }, [isAuthenticated, currentUser]);
 
+  // Sync state automatically with Firebase Auth
+  useEffect(() => {
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        try {
+          const isFarid = fbUser.email?.toLowerCase() === 'farid.fateh@hotmail.com';
+          let profile = await fetchUserProfileFromFirestore(fbUser.uid);
+
+          if (!profile) {
+            profile = {
+              uid: fbUser.uid,
+              name: fbUser.displayName || (isFarid ? 'فريد الفاتح' : 'صاحب المطعم'),
+              email: fbUser.email || '',
+              role: 'Owner',
+              restaurantId: isFarid ? 'rest_01' : `rest_${fbUser.uid.substring(0, 10)}`,
+              restaurantName: isFarid ? 'منظومة MATO POS المركزية' : 'مطعمي',
+              branchId: 'br_main',
+              isPlatformOwner: isFarid,
+              isActive: true,
+              createdAt: new Date().toISOString()
+            };
+            await saveUserProfileToFirestore(profile);
+          }
+
+          const activeUser: User = {
+            id: profile.uid,
+            name: profile.name,
+            email: profile.email,
+            phone: profile.phone,
+            role: profile.role as UserRole,
+            restaurantId: profile.restaurantId,
+            branchId: profile.branchId || '',
+            isPlatformOwner: profile.isPlatformOwner,
+            isActive: profile.isActive !== false,
+            createdAt: profile.createdAt || new Date().toISOString()
+          };
+
+          setUsers(prev => {
+            const filtered = prev.filter(u => u.id !== activeUser.id && u.email !== activeUser.email);
+            return [activeUser, ...filtered];
+          });
+
+          if (profile.restaurantId) {
+            setRestaurant(prev => ({
+              ...prev,
+              id: profile!.restaurantId,
+              name: profile!.restaurantName || prev.name
+            }));
+          }
+
+          setCurrentUserState(activeUser);
+          setIsAuthenticated(true);
+          try {
+            sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, activeUser.id);
+          } catch {
+            // ignore
+          }
+        } catch (e) {
+          console.warn('Error loading user profile on auth state change:', e);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const [categories, setCategories] = useState<Category[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_categories`, INITIAL_CATEGORIES);
+    const saved = safeStorageArrayParse<Category | null>(`${STORAGE_KEY}_categories`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_CATEGORIES;
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const initialList = safeStorageArrayParse<Product>(`${STORAGE_KEY}_products`, INITIAL_PRODUCTS);
-    const list = Array.isArray(initialList) && initialList.length > 0 ? initialList : INITIAL_PRODUCTS;
+    const initialList = safeStorageArrayParse<Product | null>(`${STORAGE_KEY}_products`, null as any);
+    const list = Array.isArray(initialList) ? initialList : INITIAL_PRODUCTS;
     return list.map(p => {
       if (!p) return p;
       const isSalad = p.name?.includes('سلطة') || p.name?.includes('سلطه') || p.categoryName?.includes('سلطة') || p.categoryName?.includes('سلطه') || p.categoryId === 'cat_salads';
@@ -477,35 +555,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_ingredients`, INITIAL_INGREDIENTS);
+    const saved = safeStorageArrayParse<Ingredient | null>(`${STORAGE_KEY}_ingredients`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_INGREDIENTS;
   });
 
   const [recipes, setRecipes] = useState<Recipe[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_recipes`, INITIAL_RECIPES);
+    const saved = safeStorageArrayParse<Recipe | null>(`${STORAGE_KEY}_recipes`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_RECIPES;
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_suppliers`, INITIAL_SUPPLIERS);
+    const saved = safeStorageArrayParse<Supplier | null>(`${STORAGE_KEY}_suppliers`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_SUPPLIERS;
   });
 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_purchases`, INITIAL_PURCHASES);
+    const saved = safeStorageArrayParse<Purchase | null>(`${STORAGE_KEY}_purchases`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_PURCHASES;
   });
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_stockMovements`, INITIAL_STOCK_MOVEMENTS);
+    const saved = safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_stockMovements`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_STOCK_MOVEMENTS;
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_orders`, INITIAL_ORDERS);
+    const saved = safeStorageArrayParse<Order | null>(`${STORAGE_KEY}_orders`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_ORDERS;
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_expenses`, INITIAL_EXPENSES);
+    const saved = safeStorageArrayParse<Expense | null>(`${STORAGE_KEY}_expenses`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_EXPENSES;
   });
 
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    return safeStorageArrayParse(`${STORAGE_KEY}_activityLogs`, INITIAL_LOGS);
+    const saved = safeStorageArrayParse<ActivityLog | null>(`${STORAGE_KEY}_activityLogs`, null as any);
+    if (Array.isArray(saved)) return saved;
+    return INITIAL_LOGS;
   });
 
   const [licenseInfo, setLicenseInfo] = useState<SoftwareLicense>(() => {
@@ -1202,7 +1296,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProducts(cloudData.products);
           localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(cloudData.products));
         }
-        if (Array.isArray(cloudData.categories) && cloudData.categories.length > 0) {
+        if (Array.isArray(cloudData.categories)) {
           setCategories(cloudData.categories);
           localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(cloudData.categories));
         }
@@ -1737,7 +1831,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const loginUser = (emailOrPhone: string, passwordInput?: string): LoginResult => {
+  const loginUser = async (emailOrPhone: string, passwordInput?: string): Promise<LoginResult> => {
     const cleanInput = emailOrPhone.trim().toLowerCase();
     const cleanPass = (passwordInput || '').trim();
 
@@ -1757,7 +1851,77 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 1. Locate User Profile strictly by registered email or phone
+    // 1. Authenticate with Firebase Auth directly
+    try {
+      const authRes = await firebaseUserSignIn(cleanInput, cleanPass);
+      if (authRes.success && authRes.user) {
+        let profile = authRes.profile;
+        const isFarid = authRes.user.email?.toLowerCase() === 'farid.fateh@hotmail.com' || cleanInput === 'farid.fateh@hotmail.com';
+
+        if (!profile) {
+          profile = {
+            uid: authRes.user.uid,
+            name: authRes.user.displayName || (isFarid ? 'فريد الفاتح' : 'صاحب المنشأة'),
+            email: authRes.user.email || cleanInput,
+            role: 'Owner',
+            restaurantId: isFarid ? 'rest_01' : `rest_${authRes.user.uid.substring(0, 10)}`,
+            restaurantName: isFarid ? 'منظومة MATO POS المركزية' : 'مطعمي',
+            branchId: 'br_main',
+            isPlatformOwner: isFarid,
+            isActive: true,
+            createdAt: new Date().toISOString()
+          };
+          await saveUserProfileToFirestore(profile);
+        }
+
+        const activeUser: User = {
+          id: profile.uid,
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          role: profile.role as UserRole,
+          restaurantId: profile.restaurantId,
+          branchId: profile.branchId || '',
+          isPlatformOwner: profile.isPlatformOwner,
+          isActive: profile.isActive !== false,
+          createdAt: profile.createdAt || new Date().toISOString()
+        };
+
+        setUsers(prev => {
+          const filtered = prev.filter(u => u.id !== activeUser.id && u.email !== activeUser.email);
+          return [activeUser, ...filtered];
+        });
+
+        // Switch restaurant context strictly to this tenant's isolated database
+        if (profile.restaurantId) {
+          setRestaurant(prev => ({
+            ...prev,
+            id: profile!.restaurantId,
+            name: profile!.restaurantName || prev.name
+          }));
+        }
+
+        setCurrentUserState(activeUser);
+        setIsAuthenticated(true);
+        try {
+          sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, activeUser.id);
+        } catch {
+          // ignore
+        }
+        logActivity('تسجيل دخول سحابي ناجح', `تم تسجيل الدخول عبر Firebase Auth لحساب ${activeUser.name} (${activeUser.role})`);
+
+        return {
+          success: true,
+          status: 'active',
+          message: `أهلاً وسهلاً بك، ${activeUser.name}`,
+          user: activeUser
+        };
+      }
+    } catch (firebaseErr) {
+      console.warn('Firebase Auth sign in attempt notice:', firebaseErr);
+    }
+
+    // 2. Locate User Profile strictly by registered email or phone for local fallback
     let matchedUser = users.find(u => 
       (u.email && u.email.trim().toLowerCase() === cleanInput) || 
       (u.phone && u.phone.trim() === emailOrPhone.trim())
@@ -1773,7 +1937,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: isFarid ? 'فريد (مالك المنظومة)' : 'مدير المطعم (صاحب المنشأة)',
         email: cleanInput,
         phone: '+963991234567',
-        password: 'admin',
+        password: isFarid ? 'admin' : 'admin',
         pinCode: '1234',
         role: 'Owner',
         isPlatformOwner: isFarid,
@@ -1863,14 +2027,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 4. Authenticate User and apply restaurant context if switching tenant
-    if (matchedUser.restaurantId === 'rest_foodbreak') {
+    if (matchedUser.restaurantId === 'rest_foodbreak' && restaurant.id !== 'rest_foodbreak') {
       setRestaurant(FOOD_BREAK_RESTAURANT);
       setBranches(FOOD_BREAK_BRANCHES);
       setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
-    } else if (matchedUser.restaurantId === 'rest_01' || matchedUser.isPlatformOwner) {
-      setRestaurant(INITIAL_RESTAURANT);
-      setBranches(INITIAL_BRANCHES);
-      setCurrentBranchState(INITIAL_BRANCHES[0]);
+    } else if (matchedUser.restaurantId && matchedUser.restaurantId !== restaurant.id && matchedUser.restaurantId !== 'rest_01') {
+      const tenantRest = firestoreRestaurants.find(r => r.id === matchedUser.restaurantId);
+      if (tenantRest) {
+        setRestaurant(prev => ({
+          ...prev,
+          id: tenantRest.id,
+          name: tenantRest.name
+        }));
+      }
     }
 
     setCurrentUserState(matchedUser);
@@ -1910,7 +2079,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, message: 'تم تحديث وتأمين كلمة المرور بنجاح!' };
   };
 
-  const logoutUser = () => {
+  const logoutUser = async () => {
     setIsAuthenticated(false);
     setCurrentUserState(defaultGuestUser);
     try {
@@ -1918,7 +2087,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore
     }
-    logActivity('تسجيل خروج', `تم إغلاق الجلسة الحالية وتسجيل الخروج بنجاح`);
+    await firebaseUserSignOut();
+    logActivity('تسجيل خروج', `تم إغلاق الجلسة الحالية وتسجيل الخروج بنجاح من Firebase`);
   };
 
   const deleteRegistrationRecord = (id: string) => {
@@ -1934,15 +2104,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('حذف طلب تسجيل موظف', `تم حذف طلب تسجيل الموظف (${userId}) نهائياً`);
   };
 
-  const registerNewTenant = (
+  const registerNewTenant = async (
     restaurantName: string,
     ownerName: string,
     emailOrPhone: string,
     method: 'email' | 'phone' = 'email',
     password?: string
-  ) => {
+  ): Promise<{ success: boolean; tenantId?: string; error?: string }> => {
+    const pwd = password || '123456';
+    const cleanContact = emailOrPhone.trim();
+
+    // 1. Create Firebase Auth user and initial Firestore record
+    const signUpRes = await firebaseUserSignUp({
+      emailOrPhone: cleanContact,
+      password: pwd,
+      name: ownerName,
+      restaurantName,
+      role: 'Owner'
+    });
+
+    const tenantId = signUpRes.restaurantId || `rest_${Date.now()}`;
+
     const newRest: Restaurant = {
-      id: `rest_${Date.now()}`,
+      id: tenantId,
       name: restaurantName,
       type: 'restaurant',
       currency: 'ل.س',
@@ -1950,22 +2134,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const newMainBranch: Branch = {
-      id: `br_main_${Date.now()}`,
-      restaurantId: newRest.id,
+      id: `br_main_${tenantId}`,
+      restaurantId: tenantId,
       name: 'الفرع الرئيسي',
       address: 'الموقع الرئيسي',
-      phone: emailOrPhone.includes('+') ? emailOrPhone : '',
+      phone: cleanContact.includes('+') ? cleanContact : '',
       isMain: true
     };
 
     const newOwner: User = {
-      id: `usr_owner_${Date.now()}`,
-      restaurantId: newRest.id,
-      branchId: newMainBranch.id,
+      id: signUpRes.user?.uid || `usr_owner_${Date.now()}`,
+      restaurantId: tenantId,
+      branchId: '',
       name: ownerName,
-      email: emailOrPhone.includes('@') ? emailOrPhone : `${emailOrPhone}@restaurant.sy`,
-      phone: emailOrPhone.includes('@') ? undefined : emailOrPhone,
-      password: password || '123456',
+      email: cleanContact.includes('@') ? cleanContact : `${cleanContact}@restaurant.sy`,
+      phone: cleanContact.includes('@') ? undefined : cleanContact,
+      password: pwd,
       pinCode: '1234',
       role: 'Owner',
       isPlatformOwner: false,
@@ -1977,12 +2161,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `reg_${Date.now()}`,
       restaurantName,
       ownerName,
-      emailOrPhone,
+      emailOrPhone: cleanContact,
       method,
       planType: 'professional',
       registeredAt: new Date().toISOString(),
       status: 'active',
-      tenantId: newRest.id,
+      tenantId: tenantId,
       deviceInfo: 'تطبيق MATO POS Web/Mobile App'
     };
 
@@ -1994,11 +2178,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     oneYearExpiry.setFullYear(oneYearExpiry.getFullYear() + 1);
 
     saveRestaurantToFirestore({
-      id: newRest.id,
+      id: tenantId,
       name: restaurantName,
       ownerName,
-      phone: emailOrPhone,
-      email: emailOrPhone.includes('@') ? emailOrPhone : '',
+      phone: cleanContact,
+      email: cleanContact.includes('@') ? cleanContact : '',
       status: 'active',
       activationCode: `MATO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       subscriptionExpiry: oneYearExpiry.toISOString(),
@@ -2006,15 +2190,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       planType: 'professional'
     });
 
-    // Apply clean isolated workspace
-
+    // 2. Completely reset collections for a clean, isolated tenant database
     setRestaurant(newRest);
     setBranches([newMainBranch]);
     setCurrentBranchState(newMainBranch);
     setUsers([newOwner]);
     setCurrentUserState(newOwner);
     
-    // Completely reset collections for a clean, isolated tenant
     setCategories(INITIAL_CATEGORIES);
     setProducts([]);
     setIngredients([]);
@@ -2025,13 +2207,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOrders([]);
     setExpenses([]);
 
+    // Initialize isolated Firestore document at /restaurant_data/{tenantId}
+    await saveRestaurantAppDataToFirestore(tenantId, {
+      restaurantId: tenantId,
+      restaurant: newRest,
+      branches: [newMainBranch],
+      categories: INITIAL_CATEGORIES,
+      rawMaterialCategories: DEFAULT_RAW_MATERIAL_CATEGORIES,
+      products: [],
+      ingredients: [],
+      recipes: [],
+      suppliers: [],
+      purchases: [],
+      stockMovements: [],
+      orders: [],
+      expenses: [],
+      users: [newOwner]
+    });
+
     setIsAuthenticated(true);
     try {
       sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, newOwner.id);
     } catch {
       // ignore
     }
-    logActivity('تسجيل مطعم جديد', `تم إنشاء مطعم جديد حقيقي ومستقل (${restaurantName}) بواسطة (${ownerName})`);
+    logActivity('تسجيل مطعم جديد في Firebase', `تم إنشاء مطعم جديد حقيقي ومستقل مع قاعدة بيانات معزولة (${restaurantName}) بواسطة (${ownerName})`);
+
+    return { success: true, tenantId };
   };
 
   // Category Actions

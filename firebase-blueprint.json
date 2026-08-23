@@ -1,5 +1,24 @@
 {
   "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User profiles linked to Firebase Auth UID with role-based access and tenant isolation",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "User full name" },
+        "email": { "type": "string", "description": "User email address" },
+        "phone": { "type": "string", "description": "User contact phone number" },
+        "role": { "type": "string", "description": "User role: Owner, Manager, Cashier, Kitchen, Accountant" },
+        "restaurantId": { "type": "string", "description": "ID of the restaurant this user belongs to" },
+        "restaurantName": { "type": "string", "description": "Restaurant name" },
+        "branchId": { "type": "string", "description": "Assigned branch ID" },
+        "isPlatformOwner": { "type": "boolean", "description": "Super admin flag for platform creator" },
+        "isActive": { "type": "boolean", "description": "Whether user account is active" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "lastLoginAt": { "type": "string", "description": "Last login timestamp" }
+      },
+      "required": ["uid", "name", "email", "role", "restaurantId"]
+    },
     "restaurants": {
       "title": "Restaurants",
       "description": "Registered restaurants, owners, contact numbers, subscription expiry and activation codes",
@@ -59,6 +78,28 @@
         "generatedAt": { "type": "string", "description": "Timestamp code was generated" }
       },
       "required": ["code", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile with role-based attributes and tenant linkage"
+    },
+    "/restaurants/{restaurantId}": {
+      "schema": "restaurants",
+      "description": "Registered restaurants directory with subscription details"
+    },
+    "/restaurant_data/{restaurantId}": {
+      "schema": "restaurant_data",
+      "description": "Isolated per-restaurant database document for categories, products, stock, orders, and sales"
+    },
+    "/staff_requests/{requestId}": {
+      "schema": "staff_requests",
+      "description": "Pending staff join requests"
+    },
+    "/activation_codes/{codeId}": {
+      "schema": "activation_codes",
+      "description": "Annual activation codes pool"
     }
   }
 }

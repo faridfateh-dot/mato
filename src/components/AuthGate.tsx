@@ -60,6 +60,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
   const [loginEmailOrPhone, setLoginEmailOrPhone] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginStatusNotice, setLoginStatusNotice] = useState<{
     type: 'pending' | 'inactive' | 'error' | 'success';
     message: string;
@@ -113,36 +114,47 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
   };
 
   // Quick Login Submit Handler
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginStatusNotice(null);
     if (!loginEmailOrPhone.trim()) return;
 
-    const result = loginUser(loginEmailOrPhone.trim(), loginPassword.trim());
-    if (result.success) {
-      if (onClose) onClose();
-    } else {
-      if (result.status === 'pending_approval') {
-        setLoginStatusNotice({
-          type: 'pending',
-          message: 'الحساب قيد المراجعة والموافقة: تم استلام طلبك بنجاح وهو بانتظار اعتماد وموافقة مالك المنظومة لتفعيل الصلاحيات.'
-        });
-      } else if (result.status === 'inactive') {
-        setLoginStatusNotice({
-          type: 'inactive',
-          message: 'تم إيقاف هذا الحساب من قبل إدارة المنظومة. يرجى التواصل مع المدير المسؤول.'
-        });
-      } else if (result.status === 'wrong_password') {
-        setLoginStatusNotice({
-          type: 'error',
-          message: result.message || 'كلمة المرور غير صحيحة! يرجى إدخال كلمة المرور الصحيحة للحساب.'
-        });
+    setIsLoggingIn(true);
+    try {
+      const result = await loginUser(loginEmailOrPhone.trim(), loginPassword.trim());
+      if (result.success) {
+        if (onClose) onClose();
       } else {
-        setLoginStatusNotice({
-          type: 'error',
-          message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البريد الإلكتروني أو رقم الهاتف، أو تقديم طلب تسجيل مطعم جديد.'
-        });
+        if (result.status === 'pending_approval') {
+          setLoginStatusNotice({
+            type: 'pending',
+            message: 'الحساب قيد المراجعة والموافقة: تم استلام طلبك بنجاح وهو بانتظار اعتماد وموافقة مالك المنظومة لتفعيل الصلاحيات.'
+          });
+        } else if (result.status === 'inactive') {
+          setLoginStatusNotice({
+            type: 'inactive',
+            message: 'تم إيقاف هذا الحساب من قبل إدارة المنظومة. يرجى التواصل مع المدير المسؤول.'
+          });
+        } else if (result.status === 'wrong_password') {
+          setLoginStatusNotice({
+            type: 'error',
+            message: result.message || 'كلمة المرور غير صحيحة! يرجى إدخال كلمة المرور الصحيحة للحساب.'
+          });
+        } else {
+          setLoginStatusNotice({
+            type: 'error',
+            message: result.message || 'لم يتم العثور على الحساب، يرجى التأكد من البريد الإلكتروني أو رقم الهاتف، أو تقديم طلب تسجيل مطعم جديد.'
+          });
+        }
       }
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoginStatusNotice({
+        type: 'error',
+        message: 'حدث خطأ أثناء محاولة تسجيل الدخول. يرجى التحقق من الاتصال بالإنترنت والمحاولة مجدداً.'
+      });
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -198,8 +210,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
       });
 
       // Auto provision clean workspace for subscriber
-      setTimeout(() => {
-        registerNewTenant(
+      setTimeout(async () => {
+        await registerNewTenant(
           result.restaurant?.name || 'مطعم المشترك المفعّل',
           result.restaurant?.ownerName || 'مدير المطعم (المشترك)',
           result.restaurant?.phone || 'subscriber@mato.sy',
@@ -380,10 +392,20 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
 
             <button
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              disabled={isLoggingIn}
+              className="w-full py-3.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              <ShieldCheck className="w-4 h-4" />
-              <span>تسجيل الدخول بالبريد وكلمة المرور</span>
+              {isLoggingIn ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                  <span>جاري التحقق وتسجيل الدخول...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>تسجيل الدخول بالبريد وكلمة المرور</span>
+                </>
+              )}
             </button>
 
             {/* Quick help button */}

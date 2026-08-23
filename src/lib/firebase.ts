@@ -12,22 +12,251 @@ import {
   where,
   onSnapshot
 } from 'firebase/firestore';
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+  sendPasswordResetEmail,
+  type User as FirebaseUser
+} from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App safely
 let app: any = null;
 let dbInstance: any = null;
+let authInstance: any = null;
 
 try {
   if (firebaseConfig && (firebaseConfig as any).apiKey) {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+    authInstance = getAuth(app);
   }
 } catch (err) {
   console.warn('Firebase initialization skipped or warning:', err);
 }
 
 export const db = dbInstance;
+export const auth = authInstance;
+
+// Helper to format email/phone for Firebase Auth
+export function formatAuthEmail(emailOrPhone: string): string {
+  const clean = emailOrPhone.trim().toLowerCase();
+  if (clean.includes('@')) {
+    return clean;
+  }
+  const digits = clean.replace(/[^0-9]/g, '');
+  return `${digits || 'user'}@mato-pos.sy`;
+}
+
+// User Profile in Firestore
+export interface FirestoreUserProfile {
+  uid: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  restaurantId: string;
+  restaurantName?: string;
+  branchId: string;
+  isPlatformOwner: boolean;
+  isActive: boolean;
+  isPendingApproval?: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
+// Save or Update User Profile in Firestore (/users/{uid})
+export async function saveUserProfileToFirestore(profile: FirestoreUserProfile): Promise<void> {
+  if (!db || !profile.uid) return;
+  try {
+    const userDocRef = doc(db, 'users', profile.uid);
+    await setDoc(userDocRef, profile, { merge: true });
+  } catch (err) {
+    console.warn('saveUserProfileToFirestore error:', err);
+  }
+}
+
+// Fetch User Profile from Firestore (/users/{uid})
+export async function fetchUserProfileFromFirestore(uid: string): Promise<FirestoreUserProfile | null> {
+  if (!db || !uid) return null;
+  try {
+    const userDocRef = doc(db, 'users', uid);
+    const snap = await getDoc(userDocRef);
+    if (snap.exists()) {
+      return snap.data() as FirestoreUserProfile;
+    }
+    return null;
+  } catch (err) {
+    console.warn('fetchUserProfileFromFirestore error:', err);
+    return null;
+  }
+}
+
+// Firebase Auth Sign In
+export async function firebaseUserSignIn(emailOrPhone: string, password: string): Promise<{
+  success: boolean;
+  user?: FirebaseUser;
+  profile?: FirestoreUserProfile | null;
+  error?: string;
+}> {
+  if (!auth) {
+    return { success: false, error: 'خدمة Firebase Auth غير مهيأة.' };
+  }
+
+  const authEmail = formatAuthEmail(emailOrPhone);
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, authEmail, password);
+    const user = userCredential.user;
+
+    // Fetch user profile from Firestore
+    let profile = await fetchUserProfileFromFirestore(user.uid);
+    
+    // Update lastLoginAt
+    if (profile) {
+      profile.lastLoginAt = new Date().toISOString();
+      saveUserProfileToFirestore(profile).catch(console.error);
+    }
+
+    return { success: true, user, profile };
+  } catch (err: any) {
+    console.warn('Firebase Auth signIn error:', err);
+    let errorMsg = 'تعذر تسجيل الدخول، يرجى التأكد من البريد وكلمة المرور.';
+    if (err?.code === 'auth/user-not-found' || err?.code === 'auth/invalid-credential') {
+      errorMsg = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+    } else if (err?.code === 'auth/wrong-password') {
+      errorMsg = 'كلمة المرور غير صحيحة.';
+    } else if (err?.code === 'auth/invalid-email') {
+      errorMsg = 'صيغة البريد الإلكتروني غير صالحة.';
+    } else if (err?.code === 'auth/too-many-requests') {
+      errorMsg = 'تم حظر المحاولات مؤقتاً بسبب كثرة المحاولات الخاطئة. حاول لاحقاً.';
+    }
+    return { success: false, error: errorMsg };
+  }
+}
+
+// Firebase Auth Sign Up (Creates User + Restaurant + Isolated Database)
+export async function firebaseUserSignUp(params: {
+  emailOrPhone: string;
+  password: string;
+  name: string;
+  restaurantName: string;
+  phone?: string;
+  role?: string;
+  city?: string;
+}): Promise<{
+  success: boolean;
+  user?: FirebaseUser;
+  profile?: FirestoreUserProfile;
+  restaurantId?: string;
+  error?: string;
+}> {
+  if (!auth) {
+    return { success: false, error: 'خدمة Firebase Auth غير مهيأة.' };
+  }
+
+  const authEmail = formatAuthEmail(params.emailOrPhone);
+  const role = params.role || 'Owner';
+  const isSuperAdmin = authEmail.toLowerCase() === 'farid.fateh@hotmail.com';
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, authEmail, params.password);
+    const user = userCredential.user;
+
+    // Update display name in Firebase Auth
+    try {
+      await updateProfile(user, { displayName: params.name });
+    } catch {
+      // ignore
+    }
+
+    // Generate unique restaurant ID for this owner
+    const restaurantId = isSuperAdmin ? 'rest_01' : `rest_${user.uid.substring(0, 10)}_${Date.now().toString(36)}`;
+    const branchId = `br_main_${restaurantId}`;
+
+    const profile: FirestoreUserProfile = {
+      uid: user.uid,
+      name: params.name,
+      email: authEmail,
+      phone: params.phone || (params.emailOrPhone.includes('@') ? '' : params.emailOrPhone),
+      role,
+      restaurantId,
+      restaurantName: params.restaurantName,
+      branchId,
+      isPlatformOwner: isSuperAdmin,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+
+    // 1. Save user profile doc to Firestore (/users/{uid})
+    await saveUserProfileToFirestore(profile);
+
+    // 2. Save restaurant record to Firestore (/restaurants/{restaurantId})
+    const oneYearExpiry = new Date();
+    oneYearExpiry.setFullYear(oneYearExpiry.getFullYear() + 1);
+
+    await saveRestaurantToFirestore({
+      id: restaurantId,
+      name: params.restaurantName,
+      ownerName: params.name,
+      phone: params.phone || params.emailOrPhone,
+      email: authEmail,
+      status: 'active',
+      activationCode: `MATO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      subscriptionExpiry: oneYearExpiry.toISOString(),
+      registeredAt: new Date().toISOString(),
+      planType: 'professional'
+    });
+
+    return {
+      success: true,
+      user,
+      profile,
+      restaurantId
+    };
+  } catch (err: any) {
+    console.warn('Firebase Auth signUp error:', err);
+    let errorMsg = 'تعذر إنشاء الحساب في Firebase Auth.';
+    if (err?.code === 'auth/email-already-in-use') {
+      errorMsg = 'هذا البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.';
+    } else if (err?.code === 'auth/weak-password') {
+      errorMsg = 'كلمة المرور ضعيفة. يجب أن تتكون من 6 أحرف/أرقام على الأقل.';
+    } else if (err?.code === 'auth/invalid-email') {
+      errorMsg = 'صيغة البريد الإلكتروني غير صالحة.';
+    }
+    return { success: false, error: errorMsg };
+  }
+}
+
+// Firebase Auth Sign Out
+export async function firebaseUserSignOut(): Promise<void> {
+  if (!auth) return;
+  try {
+    await signOut(auth);
+  } catch (err) {
+    console.warn('Firebase Auth signOut error:', err);
+  }
+}
+
+// Firebase Auth Password Reset Email
+export async function firebaseUserResetPassword(email: string): Promise<{ success: boolean; message: string }> {
+  if (!auth) {
+    return { success: false, message: 'خدمة المصادقة غير متوفرة.' };
+  }
+  const cleanEmail = formatAuthEmail(email);
+  try {
+    await sendPasswordResetEmail(auth, cleanEmail);
+    return { success: true, message: 'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح.' };
+  } catch (err: any) {
+    console.warn('sendPasswordResetEmail error:', err);
+    return { success: false, message: 'تعذر إرسال الرابط. تأكد من صحة البريد الإلكتروني.' };
+  }
+}
 
 export interface FirestoreRestaurantRecord {
   id: string;

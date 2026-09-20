@@ -296,6 +296,7 @@ export interface SystemRegistration {
   restaurantName: string;
   ownerName: string;
   emailOrPhone: string;
+  password?: string;
   method: 'email' | 'phone';
   planType: SaaSPlanType;
   registeredAt: string;
@@ -314,6 +315,7 @@ export interface RestaurantSubscriptionRequest {
   ownerName: string;
   phone: string;
   email?: string;
+  password?: string;
   city?: string;
   branchesCount?: number;
   planType: SaaSPlanType;

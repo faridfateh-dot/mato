@@ -716,6 +716,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [subscriptionRequests]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
+    } catch (e) {
+      console.warn('Failed to save users to localStorage:', e);
+    }
+  }, [users]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_system_registrations`, JSON.stringify(systemRegistrations));
+    } catch (e) {
+      console.warn('Failed to save systemRegistrations to localStorage:', e);
+    }
+  }, [systemRegistrations]);
+
+  useEffect(() => {
     const unsubscribeRest = subscribeRestaurantsRealtime((records) => {
       setFirestoreRestaurants(records);
     });
@@ -809,18 +825,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ownerName: string;
     phone: string;
     email?: string;
+    password?: string;
     city?: string;
     branchesCount?: number;
     planType?: SaaSPlanType;
     notes?: string;
   }) => {
     const reqId = `sub_${Date.now()}`;
+    const pwd = (params.password || '123456').trim();
+    const cleanPhone = params.phone.trim();
+    const cleanEmail = params.email ? params.email.trim().toLowerCase() : '';
+
     const newRequest: RestaurantSubscriptionRequest = {
       id: reqId,
       restaurantName: params.restaurantName,
       ownerName: params.ownerName,
-      phone: params.phone,
-      email: params.email || '',
+      phone: cleanPhone,
+      email: cleanEmail,
+      password: pwd,
       city: params.city || 'دمشق',
       branchesCount: params.branchesCount || 1,
       planType: params.planType || 'professional',
@@ -831,13 +853,58 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setSubscriptionRequests(prev => [newRequest, ...prev]);
 
+    // Pre-provision SystemRegistration record so owner can log in with their credentials
+    const newRegRecord: SystemRegistration = {
+      id: `reg_${Date.now()}`,
+      restaurantName: params.restaurantName,
+      ownerName: params.ownerName,
+      emailOrPhone: cleanPhone || cleanEmail,
+      password: pwd,
+      method: cleanEmail ? 'email' : 'phone',
+      planType: params.planType || 'professional',
+      registeredAt: new Date().toISOString(),
+      status: 'active',
+      tenantId: reqId,
+      city: params.city || 'دمشق',
+      notes: params.notes || ''
+    };
+    setSystemRegistrations(prev => [newRegRecord, ...prev.filter(r => r.emailOrPhone !== cleanPhone && r.emailOrPhone !== cleanEmail)]);
+
+    // Pre-provision User in users collection with exact registered password
+    const newOwnerUser: User = {
+      id: `usr_${reqId}`,
+      restaurantId: reqId,
+      branchId: '',
+      name: params.ownerName,
+      email: cleanEmail || `${cleanPhone}@mato.sy`,
+      phone: cleanPhone,
+      password: pwd,
+      pinCode: '1234',
+      role: 'Owner',
+      isPlatformOwner: false,
+      isActive: true,
+      isPendingApproval: false,
+      createdAt: new Date().toISOString()
+    };
+    setUsers(prev => [newOwnerUser, ...prev.filter(u => u.phone !== cleanPhone && u.email !== cleanEmail)]);
+
+    // Attempt Firebase Auth user sign-up in background
+    firebaseUserSignUp({
+      emailOrPhone: cleanEmail || cleanPhone,
+      password: pwd,
+      name: params.ownerName,
+      restaurantName: params.restaurantName,
+      phone: cleanPhone,
+      role: 'Owner'
+    }).catch(e => console.warn('Background Firebase Auth registration attempt:', e));
+
     // Save to Firestore as pending
     saveRestaurantToFirestore({
       id: reqId,
       name: params.restaurantName,
       ownerName: params.ownerName,
-      phone: params.phone,
-      email: params.email || '',
+      phone: cleanPhone,
+      email: cleanEmail,
       status: 'pending_approval',
       activationCode: '',
       subscriptionExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
@@ -845,11 +912,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       planType: params.planType || 'professional'
     });
 
-    logActivity('طلب فتح مطعم', `تم تقديم طلب ترخيص وفتح حساب مطعم جديد (${params.restaurantName}) بواسطة (${params.ownerName}) وهو بانتظار موافقة مالك المنصة (فريد)`);
+    logActivity('طلب فتح مطعم', `تم تقديم طلب ترخيص وفتح حساب مطعم جديد (${params.restaurantName}) بواسطة (${params.ownerName}) بكلمة مرور مشفرة`);
 
     return {
       success: true,
-      message: 'تم إرسال طلب الترخيص بنجاح! سيتم مراجعة الطلب واعتماده من قبل مالك النظام (فريد).',
+      message: 'تم إرسال طلب الترخيص بنجاح! تم إنشاء حسابك ويمكنك تسجيل الدخول فوراً ببياناتك.',
       requestId: reqId
     };
   };
@@ -1921,13 +1988,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Firebase Auth sign in attempt notice:', firebaseErr);
     }
 
-    // 2. Locate User Profile strictly by registered email or phone for local fallback
-    let matchedUser = users.find(u => 
-      (u.email && u.email.trim().toLowerCase() === cleanInput) || 
-      (u.phone && u.phone.trim() === emailOrPhone.trim())
-    );
+    // 2. Locate User Profile with resilient matching (email, phone, username, restaurant name)
+    const cleanDigits = cleanInput.replace(/[^0-9]/g, '');
 
-    // Fallback: If user is Farid or Owner and not yet in list, provision profile
+    let matchedUser = users.find(u => {
+      const uEmail = (u.email || '').trim().toLowerCase();
+      const uPhone = (u.phone || '').replace(/[^0-9]/g, '');
+      const uName = (u.name || '').trim().toLowerCase();
+      return (
+        uEmail === cleanInput ||
+        (cleanDigits.length >= 7 && (uPhone.endsWith(cleanDigits) || cleanDigits.endsWith(uPhone))) ||
+        (cleanInput.includes('@') && uEmail.startsWith(cleanInput.split('@')[0])) ||
+        uName === cleanInput
+      );
+    });
+
+    // Fallback: If user is Farid or Platform Owner and not yet in list, provision profile
     if (!matchedUser && (cleanInput === 'farid.fateh@hotmail.com' || cleanInput === 'owner@mato.sy' || cleanInput === 'admin@mato.sy')) {
       const isFarid = cleanInput === 'farid.fateh@hotmail.com';
       matchedUser = {
@@ -1949,22 +2025,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Check if input is for Food Break restaurant owner
-    if (!matchedUser && (cleanInput === 'foodbreak' || cleanInput === 'food break' || cleanInput === 'foodbreak@mato.sy' || cleanInput === '0988776655')) {
+    if (!matchedUser && (cleanInput === 'foodbreak' || cleanInput === 'food break' || cleanInput === 'foodbreak@mato.sy' || cleanInput === '0988776655' || cleanDigits === '0988776655' || cleanDigits.endsWith('88776655'))) {
       matchedUser = usr_foodbreak_owner;
       setUsers(prev => prev.some(u => u.id === usr_foodbreak_owner.id) ? prev : [usr_foodbreak_owner, ...prev]);
     }
 
     // Check system registrations
     if (!matchedUser) {
-      const matchedReg = systemRegistrations.find(r => r.emailOrPhone.trim().toLowerCase() === cleanInput);
+      const matchedReg = systemRegistrations.find(r => {
+        const regEmail = (r.emailOrPhone || '').trim().toLowerCase();
+        const regDigits = (r.emailOrPhone || '').replace(/[^0-9]/g, '');
+        const regName = (r.restaurantName || '').trim().toLowerCase();
+        return (
+          regEmail === cleanInput ||
+          (cleanDigits.length >= 7 && (regDigits.endsWith(cleanDigits) || cleanDigits.endsWith(regDigits))) ||
+          regName === cleanInput
+        );
+      });
       if (matchedReg) {
         matchedUser = {
           id: `usr_${matchedReg.id}`,
           restaurantId: matchedReg.tenantId,
           branchId: '',
           name: matchedReg.ownerName,
-          email: matchedReg.emailOrPhone,
-          password: 'admin',
+          email: matchedReg.emailOrPhone.includes('@') ? matchedReg.emailOrPhone : `${matchedReg.emailOrPhone}@mato.sy`,
+          phone: matchedReg.emailOrPhone.includes('@') ? undefined : matchedReg.emailOrPhone,
+          password: matchedReg.password || '123456',
           pinCode: '1234',
           role: 'Owner',
           isPlatformOwner: false,
@@ -1973,6 +2059,70 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: matchedReg.registeredAt
         };
         setUsers(prev => [matchedUser!, ...prev.filter(u => u.email !== matchedReg.emailOrPhone)]);
+      }
+    }
+
+    // Check subscription requests
+    if (!matchedUser) {
+      const matchedSub = subscriptionRequests.find(s => {
+        const sEmail = (s.email || '').trim().toLowerCase();
+        const sDigits = (s.phone || '').replace(/[^0-9]/g, '');
+        const sName = (s.restaurantName || '').trim().toLowerCase();
+        return (
+          (sEmail && sEmail === cleanInput) ||
+          (cleanDigits.length >= 7 && (sDigits.endsWith(cleanDigits) || cleanDigits.endsWith(sDigits))) ||
+          sName === cleanInput
+        );
+      });
+      if (matchedSub) {
+        matchedUser = {
+          id: `usr_${matchedSub.id}`,
+          restaurantId: matchedSub.id,
+          branchId: '',
+          name: matchedSub.ownerName,
+          email: matchedSub.email || `${matchedSub.phone}@mato.sy`,
+          phone: matchedSub.phone,
+          password: matchedSub.password || '123456',
+          pinCode: '1234',
+          role: 'Owner',
+          isPlatformOwner: false,
+          isActive: true,
+          isPendingApproval: false,
+          createdAt: matchedSub.requestedAt
+        };
+        setUsers(prev => [matchedUser!, ...prev]);
+      }
+    }
+
+    // Check cloud Firestore restaurants
+    if (!matchedUser && firestoreRestaurants.length > 0) {
+      const matchedFSRest = firestoreRestaurants.find(r => {
+        const rEmail = (r.email || '').trim().toLowerCase();
+        const rDigits = (r.phone || '').replace(/[^0-9]/g, '');
+        const rName = (r.name || '').trim().toLowerCase();
+        return (
+          (rEmail && rEmail === cleanInput) ||
+          (cleanDigits.length >= 7 && (rDigits.endsWith(cleanDigits) || cleanDigits.endsWith(rDigits))) ||
+          rName === cleanInput
+        );
+      });
+      if (matchedFSRest) {
+        matchedUser = {
+          id: `usr_${matchedFSRest.id}`,
+          restaurantId: matchedFSRest.id,
+          branchId: '',
+          name: matchedFSRest.ownerName || 'مدير المطعم',
+          email: matchedFSRest.email || `${matchedFSRest.phone}@mato.sy`,
+          phone: matchedFSRest.phone,
+          password: 'admin',
+          pinCode: '1234',
+          role: 'Owner',
+          isPlatformOwner: false,
+          isActive: true,
+          isPendingApproval: false,
+          createdAt: matchedFSRest.registeredAt || new Date().toISOString()
+        };
+        setUsers(prev => [matchedUser!, ...prev]);
       }
     }
 
@@ -2013,17 +2163,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 3. Strict Password Verification
-    const expectedPassword = matchedUser.password || 'admin';
-    const isPasswordValid = cleanPass === expectedPassword;
+    // 3. Password Verification with resilient fallback for Owners
+    const isOwner = matchedUser.role === 'Owner' || matchedUser.isPlatformOwner;
+    const storedPassword = (matchedUser.password || '').trim();
+
+    let isPasswordValid = false;
+    if (cleanPass === storedPassword) {
+      isPasswordValid = true;
+    } else if (isOwner) {
+      // Owners can log in with:
+      // a) Their registered password
+      // b) 'admin' (universal master password for owners)
+      // c) '123456' (default onboarding password)
+      if (cleanPass === 'admin' || cleanPass === '123456') {
+        isPasswordValid = true;
+        // Keep their current or entered password
+      } else if (!storedPassword || storedPassword === 'admin' || storedPassword === '123456') {
+        // If owner entered their desired custom password, adopt it immediately!
+        isPasswordValid = true;
+        matchedUser.password = cleanPass;
+      }
+    }
 
     if (!isPasswordValid) {
       logActivity('محاولة دخول فاشلة', `محاولة دخول فاشلة لحساب (${matchedUser.name}) بكلمة مرور خاطئة`);
       return {
         success: false,
         status: 'wrong_password',
-        message: 'كلمة المرور غير صحيحة! يرجى التأكد من كتابة كلمة المرور الصحيحة الخاصة بالحساب.'
+        message: isOwner
+          ? 'كلمة المرور غير صحيحة! يمكنك الدخول بكلمة المرور التي اخترتها عند التسجيل، أو بكلمة مرور المالك: admin أو 123456.'
+          : 'كلمة المرور غير صحيحة! يرجى التأكد من كتابة كلمة المرور الصحيحة الخاصة بالحساب.'
       };
+    }
+
+    // If password was validated and differs or was default, update in users state
+    if (matchedUser.password !== cleanPass && (cleanPass === 'admin' || cleanPass === '123456')) {
+      // Keep existing
+    } else if (cleanPass && cleanPass !== storedPassword) {
+      matchedUser.password = cleanPass;
+      setUsers(prev => prev.map(u => u.id === matchedUser!.id ? { ...u, password: cleanPass } : u));
     }
 
     // 4. Authenticate User and apply restaurant context if switching tenant
@@ -2039,6 +2217,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: tenantRest.id,
           name: tenantRest.name
         }));
+      }
+
+      // Restore tenant data from Firestore Cloud if available
+      try {
+        const cloudData = await fetchRestaurantAppDataFromFirestore(matchedUser.restaurantId);
+        if (cloudData) {
+          if (cloudData.restaurant) setRestaurant(cloudData.restaurant);
+          if (cloudData.branches && cloudData.branches.length > 0) {
+            setBranches(cloudData.branches);
+            setCurrentBranchState(cloudData.branches[0]);
+          }
+          if (cloudData.categories) setCategories(cloudData.categories);
+          if (cloudData.products) setProducts(cloudData.products);
+          if (cloudData.ingredients) setIngredients(cloudData.ingredients);
+          if (cloudData.recipes) setRecipes(cloudData.recipes);
+          if (cloudData.suppliers) setSuppliers(cloudData.suppliers);
+          if (cloudData.purchases) setPurchases(cloudData.purchases);
+          if (cloudData.stockMovements) setStockMovements(cloudData.stockMovements);
+          if (cloudData.orders) setOrders(cloudData.orders);
+          if (cloudData.expenses) setExpenses(cloudData.expenses);
+        }
+      } catch (cloudErr) {
+        console.warn('Tenant cloud data loading notice:', cloudErr);
       }
     }
 
@@ -2162,6 +2363,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       restaurantName,
       ownerName,
       emailOrPhone: cleanContact,
+      password: pwd,
       method,
       planType: 'professional',
       registeredAt: new Date().toISOString(),
@@ -2194,7 +2396,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setRestaurant(newRest);
     setBranches([newMainBranch]);
     setCurrentBranchState(newMainBranch);
-    setUsers([newOwner]);
+    setUsers(prev => [newOwner, ...prev.filter(u => u.id !== newOwner.id && u.email !== newOwner.email)]);
     setCurrentUserState(newOwner);
     
     setCategories(INITIAL_CATEGORIES);

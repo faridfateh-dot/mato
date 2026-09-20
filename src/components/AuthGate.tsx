@@ -81,6 +81,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     restaurantName: string;
     ownerName: string;
     phone: string;
+    password?: string;
   } | null>(null);
 
   // Annual Code Activation State
@@ -158,12 +159,37 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     }
   };
 
+  // Direct Login Helper
+  const handleDirectLogin = async (phoneOrEmail: string, pass: string) => {
+    setIsLoggingIn(true);
+    setLoginStatusNotice(null);
+    try {
+      const result = await loginUser(phoneOrEmail.trim(), pass.trim());
+      if (result.success) {
+        if (onClose) onClose();
+      } else {
+        setActiveTab('login');
+        setLoginEmailOrPhone(phoneOrEmail);
+        setLoginPassword(pass);
+        setLoginStatusNotice({
+          type: 'error',
+          message: result.message || 'تعذر تسجيل الدخول التلقائي، يرجى كتابة البيانات يدوياً'
+        });
+      }
+    } catch (err) {
+      console.error('Direct login error:', err);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   // 1-Step Restaurant Registration Handler
   const handleRegisterRestaurantSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!restName.trim() || !ownerName.trim() || !restPhone.trim()) return;
 
     setIsSubmittingRest(true);
+    const pwd = restPassword.trim() || '123456';
 
     try {
       const res = requestRestaurantSubscription({
@@ -171,17 +197,19 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
         ownerName: ownerName.trim(),
         phone: restPhone.trim(),
         email: restEmail.trim(),
+        password: pwd,
         city: restCity,
         branchesCount: 1,
         planType: restPlanType,
-        notes: restNotes.trim() ? `${restNotes.trim()} | كلمة المرور المقترحة: ${restPassword || '123456'}` : `كلمة المرور المقترحة: ${restPassword || '123456'}`
+        notes: restNotes.trim() ? `${restNotes.trim()} | كلمة المرور: ${pwd}` : `كلمة المرور: ${pwd}`
       });
 
       setRestSubmittedSuccess({
         requestId: res.requestId,
         restaurantName: restName.trim(),
         ownerName: ownerName.trim(),
-        phone: restPhone.trim()
+        phone: restPhone.trim(),
+        password: pwd
       });
     } catch (err) {
       console.error('Restaurant registration error:', err);
@@ -610,8 +638,12 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                     <span className="font-bold text-white">{restSubmittedSuccess.ownerName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">رقم الهاتف:</span>
-                    <span className="font-mono text-amber-300">{restSubmittedSuccess.phone}</span>
+                    <span className="text-slate-400">رقم الدخول (الهاتف):</span>
+                    <span className="font-mono font-bold text-amber-300">{restSubmittedSuccess.phone}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">كلمة المرور المسجلة:</span>
+                    <span className="font-mono font-bold text-emerald-400">{restSubmittedSuccess.password || '123456'}</span>
                   </div>
                   <div className="flex justify-between border-t border-slate-700/60 pt-2 text-[11px]">
                     <span className="text-slate-400">رقم المرجع:</span>
@@ -619,8 +651,27 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   </div>
                 </div>
 
-                {/* Direct WhatsApp Action Button, Modal Preview & Return to Login */}
+                {/* Direct Action Buttons */}
                 <div className="space-y-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDirectLogin(restSubmittedSuccess.phone, restSubmittedSuccess.password || '123456')}
+                    disabled={isLoggingIn}
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 font-black text-xs transition-all shadow-xl shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isLoggingIn ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                        <span>جاري الدخول إلى لوحة التحكم...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-slate-950" />
+                        <span>⚡ الدخول المباشر الآن إلى حساب المطعم</span>
+                      </>
+                    )}
+                  </button>
+
                   <div className="flex gap-2">
                     <a
                       href={getWhatsAppNotifyUrl({
@@ -634,7 +685,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                       className="flex-1 py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      <span>📲 إرسال فوري لفريد عبر واتساب</span>
+                      <span>📲 إرسال إشعار لفريد عبر واتساب</span>
                     </a>
 
                     <button
@@ -652,7 +703,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                     onClick={() => {
                       setActiveTab('login');
                       setLoginEmailOrPhone(restSubmittedSuccess.phone);
-                      setLoginPassword(restPassword || '');
+                      setLoginPassword(restSubmittedSuccess.password || restPassword || '123456');
                     }}
                     className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2"
                   >

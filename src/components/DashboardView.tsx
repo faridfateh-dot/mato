@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
 import {
   TrendingUp,
@@ -16,9 +16,12 @@ import {
   Lightbulb,
   ShieldAlert,
   ArrowDownRight,
-  Wallet
+  Wallet,
+  Receipt,
+  Printer
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
+import { DailySalesReport } from './DailySalesReport';
 
 interface DashboardViewProps {
   onNavigateView: (view: any) => void;
@@ -28,6 +31,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
   const { currentRestaurant, getDashboardStats, orders, currentUser, isPlatformOwner } = useData();
   const stats = getDashboardStats();
   const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
+  const [activeTab, setActiveTab] = useState<'daily_sales' | 'overview'>('daily_sales');
 
   return (
     <div className="space-y-6">
@@ -45,17 +49,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
             مرحباً بك في {currentRestaurant.name} 👋
           </h1>
           <p className="text-xs md:text-sm text-slate-400 mt-1">
-            ملخص الأداء اليومي والمبيعات ومراقبة الهدر والمصاريف بالفروع
+            ملخص الأداء اليومي والمبيعات ومراقبة الهدر والمصاريف وحالة الخزينة
           </p>
         </div>
 
-        <button
-          onClick={() => onNavigateView('ai')}
-          className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm shadow-lg shadow-amber-400/20 transition-all cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4 fill-slate-950" />
-          <span>اسأل MATO AI المساعد الذكي</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setActiveTab('daily_sales')}
+            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md ${
+              activeTab === 'daily_sales'
+                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20'
+                : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>تقرير المبيعات والخزينة (Z-Report)</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateView('ai')}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition-all cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span className="hidden sm:inline">مساعد MATO AI</span>
+          </button>
+        </div>
       </div>
 
       {/* Primary KPI Cards Grid */}
@@ -168,9 +186,151 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
 
       </div>
 
-      {/* Waste & Excessive Expense Alert Banner Hub */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
+      {/* Main View Mode Selector Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('daily_sales')}
+            className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'daily_sales'
+                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>تقرير المبيعات اليومي وحالة الخزينة</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+              activeTab === 'daily_sales' ? 'bg-slate-950 text-amber-300' : 'bg-slate-100 text-slate-600'
+            }`}>
+              Z-Report
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'overview'
+                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'
+            }`}
+          >
+            <PieChart className="w-4 h-4" />
+            <span>الرسوم البيانية وتنبيهات الهدر</span>
+            {stats.expenseAlerts.length > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500 text-white font-bold animate-pulse">
+                {stats.expenseAlerts.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="text-xs text-slate-500 font-bold hidden md:flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-amber-500" />
+          <span>تحديث فوري مباشر لمبيعات الفروع والخزينة</span>
+        </div>
+      </div>
+
+      {/* TAB 1: Detailed Daily Sales Report & Cash Treasury */}
+      {activeTab === 'daily_sales' && (
+        <div className="space-y-6">
+          <DailySalesReport isOwnerOrManager={isOwner || currentUser?.role === 'Manager'} />
+
+          {/* Quick Secondary Analytics (7-Day Sales Trend & Low Stock) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Sales Chart (2 Cols) */}
+            <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">مبيعات الأيام الـ 7 الأخيرة</h2>
+                  <p className="text-xs text-slate-500">حجم المبيعات بالعملة المحلية ({currentRestaurant.currency})</p>
+                </div>
+                <button
+                  onClick={() => onNavigateView('pos')}
+                  className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1"
+                >
+                  <span>فتح الكاشير (POS)</span>
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.salesByDay} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => `${v / 1000}k`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff', fontSize: '12px' }}
+                      formatter={(value: any) => [`${value?.toLocaleString()} ${currentRestaurant.currency}`, 'المبيعات']}
+                      labelFormatter={(label) => `اليوم: ${label}`}
+                    />
+                    <Area type="monotone" dataKey="sales" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Low Stock Alerts (1 Col) */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    <h2 className="text-base font-bold text-slate-900">المواد منخفضة المخزون</h2>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full">
+                    {stats.lowStockIngredients.length} تنبيهات
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mb-4">تنبيهات نقص المواد الأولية للطلب الفوري من الموردين</p>
+
+                <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                  {stats.lowStockIngredients.length === 0 ? (
+                    <div className="p-4 bg-emerald-50 text-emerald-800 rounded-xl text-xs text-center font-medium">
+                      المخزون متوفر وفي حالة ممتازة 👍
+                    </div>
+                  ) : (
+                    stats.lowStockIngredients.map(ing => (
+                      <div key={ing.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">{ing.name}</div>
+                          <div className="text-[11px] text-slate-500">
+                            الحد الأدنى: {ing.minStockThreshold} {ing.unit}
+                          </div>
+                        </div>
+                        <div className="text-left">
+                          <div className="text-xs font-black text-rose-600">{ing.currentStock} {ing.unit}</div>
+                          <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-semibold">منخفض</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => onNavigateView('inventory')}
+                className="w-full mt-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <span>إدارة المخزون والتوريد</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: Overview & Waste Alerts View */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* Waste & Excessive Expense Alert Banner Hub */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
               <ShieldAlert className="w-5 h-5" />
@@ -423,6 +583,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
         )}
 
       </div>
+        </div>
+      )}
 
     </div>
   );

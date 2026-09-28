@@ -58,6 +58,7 @@ import {
   fetchRestaurantsFromFirestore,
   generateAnnualCodeForRestaurant,
   approveRestaurantInFirestore,
+  verifyActivationCodeInFirestore,
   deleteRestaurantFromFirestore,
   permanentlyDeleteRestaurantFromFirestore,
   subscribeRestaurantsRealtime,
@@ -119,8 +120,9 @@ interface DataContextType {
     planType?: SaaSPlanType;
     notes?: string;
   }) => { success: boolean; message: string; requestId: string };
-  approveRestaurantSubscription: (requestId: string, durationYears?: number) => Promise<{ code: string; expiry: string; restaurantName: string; ownerPhone: string }>;
+  approveRestaurantSubscription: (requestId: string, durationYears?: number) => Promise<{ code: string; expiry: string; restaurantName: string; ownerName?: string; ownerPhone: string }>;
   rejectRestaurantSubscription: (requestId: string, reason?: string) => Promise<void>;
+  activateRestaurantWithCode: (code: string, phoneOrEmail?: string) => Promise<{ success: boolean; message: string; user?: User; restaurant?: Restaurant }>;
   deleteRestaurantRecord: (restaurantId: string) => Promise<boolean>;
   deleteSubscriptionRequest: (requestId: string) => Promise<boolean>;
   createDirectRestaurantLicense: (params: {
@@ -853,7 +855,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setSubscriptionRequests(prev => [newRequest, ...prev]);
 
-    // Pre-provision SystemRegistration record so owner can log in with their credentials
+    // Pre-provision SystemRegistration record as pending approval
     const newRegRecord: SystemRegistration = {
       id: `reg_${Date.now()}`,
       restaurantName: params.restaurantName,
@@ -863,14 +865,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       method: cleanEmail ? 'email' : 'phone',
       planType: params.planType || 'professional',
       registeredAt: new Date().toISOString(),
-      status: 'active',
+      status: 'pending_approval',
       tenantId: reqId,
       city: params.city || 'دمشق',
       notes: params.notes || ''
     };
     setSystemRegistrations(prev => [newRegRecord, ...prev.filter(r => r.emailOrPhone !== cleanPhone && r.emailOrPhone !== cleanEmail)]);
 
-    // Pre-provision User in users collection with exact registered password
+    // Pre-provision User in users collection as pending approval
     const newOwnerUser: User = {
       id: `usr_${reqId}`,
       restaurantId: reqId,
@@ -882,8 +884,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pinCode: '1234',
       role: 'Owner',
       isPlatformOwner: false,
-      isActive: true,
-      isPendingApproval: false,
+      isActive: false,
+      isPendingApproval: true,
       createdAt: new Date().toISOString()
     };
     setUsers(prev => [newOwnerUser, ...prev.filter(u => u.phone !== cleanPhone && u.email !== cleanEmail)]);
@@ -912,11 +914,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       planType: params.planType || 'professional'
     });
 
-    logActivity('طلب فتح مطعم', `تم تقديم طلب ترخيص وفتح حساب مطعم جديد (${params.restaurantName}) بواسطة (${params.ownerName}) بكلمة مرور مشفرة`);
+    logActivity('طلب فتح مطعم', `تم تقديم طلب ترخيص وفتح حساب مطعم جديد (${params.restaurantName}) بواسطة (${params.ownerName}) وهو بانتظار موافقة فريد وإرسال كود التفعيل`);
 
     return {
       success: true,
-      message: 'تم إرسال طلب الترخيص بنجاح! تم إنشاء حسابك ويمكنك تسجيل الدخول فوراً ببياناتك.',
+      message: 'تم إرسال طلب تسجيل المطعم بنجاح! حسابك بانتظار موافقة مالك المنظومة (أ. فريد) وإرسال كود التفعيل السنوي لتتمكن من استخدام البرنامج.',
       requestId: reqId
     };
   };
@@ -925,6 +927,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const targetLocal = subscriptionRequests.find(r => r.id === requestId);
     const targetFirestore = firestoreRestaurants.find(r => r.id === requestId);
     const restName = targetLocal?.restaurantName || targetFirestore?.name || 'مطعم معتمد';
+    const ownerName = targetLocal?.ownerName || targetFirestore?.ownerName || 'مدير المطعم';
     const ownerPhone = targetLocal?.phone || targetFirestore?.phone || '';
 
     // Calculate expiry date
@@ -935,7 +938,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Generate annual code
     const generated = await generateAnnualCodeForRestaurant(requestId, restName);
     
-    // Update local state
+    // 1. Update subscriptionRequests state
     setSubscriptionRequests(prev => {
       const exists = prev.some(r => r.id === requestId);
       if (exists) {
@@ -950,7 +953,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return [{
           id: requestId,
           restaurantName: restName,
-          ownerName: targetFirestore?.ownerName || 'مدير المطعم',
+          ownerName: ownerName,
           phone: ownerPhone,
           planType: (targetFirestore?.planType as SaaSPlanType) || 'professional',
           status: 'approved',
@@ -962,6 +965,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    // 2. Update systemRegistrations state
+    setSystemRegistrations(prev => prev.map(r => {
+      if (r.tenantId === requestId || r.id === requestId || (ownerPhone && r.emailOrPhone === ownerPhone)) {
+        return {
+          ...r,
+          status: 'active',
+          activationCode: generated.code
+        };
+      }
+      return r;
+    }));
+
+    // 3. Activate associated owner user in users state
+    setUsers(prev => prev.map(u => {
+      if (u.restaurantId === requestId || (ownerPhone && (u.phone === ownerPhone || u.email?.startsWith(ownerPhone)))) {
+        return {
+          ...u,
+          isActive: true,
+          isPendingApproval: false
+        };
+      }
+      return u;
+    }));
+
+    // 4. Update firestoreRestaurants local mirror
+    setFirestoreRestaurants(prev => prev.map(r => {
+      if (r.id === requestId) {
+        return {
+          ...r,
+          status: 'active',
+          activationCode: generated.code,
+          subscriptionExpiry: generated.newExpiry || expiryIso
+        };
+      }
+      return r;
+    }));
+
+    // 5. Add to licenseKeys collection for quick redemption
+    setLicenseKeys(prev => {
+      if (prev.some(k => k.key === generated.code)) return prev;
+      return [
+        {
+          id: `key_${Date.now()}`,
+          key: generated.code,
+          planType: (targetLocal?.planType || targetFirestore?.planType || 'professional') as SaaSPlanType,
+          planNameAr: 'الباقة السنوية المعتمدة (1 سنة)',
+          durationDays: 365 * durationYears,
+          clientName: restName,
+          salesRep: 'فريد الفاتح (المدير)',
+          createdAt: new Date().toISOString().split('T')[0],
+          isRedeemed: true,
+          redeemedBy: restName,
+          redeemedAt: new Date().toISOString().split('T')[0]
+        },
+        ...prev
+      ];
+    });
+
     await approveRestaurantInFirestore(requestId, generated.code, generated.newExpiry || expiryIso);
 
     logActivity('موافقة على ترخيص مطعم', `تمت الموافقة على ترخيص مطعم (${restName}) وتوليد كود التفعيل السنوي (${generated.code}) وتمديده حتى ${new Date(generated.newExpiry || expiryIso).toLocaleDateString('ar-SY')}`);
@@ -970,7 +1031,152 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       code: generated.code,
       expiry: generated.newExpiry || expiryIso,
       restaurantName: restName,
+      ownerName,
       ownerPhone
+    };
+  };
+
+  // Activate Restaurant & Login Directly via Activation Code
+  const activateRestaurantWithCode = async (
+    code: string,
+    phoneOrEmail?: string
+  ): Promise<{ success: boolean; message: string; user?: User; restaurant?: Restaurant }> => {
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) {
+      return { success: false, message: 'يرجى إدخال كود التفعيل السنوي المستلم من فريد.' };
+    }
+
+    // 1. Check in subscriptionRequests
+    const subMatch = subscriptionRequests.find(s => s.activationCode?.toUpperCase() === cleanCode);
+
+    // 2. Check in firestoreRestaurants
+    const fsMatch = firestoreRestaurants.find(r => r.activationCode?.toUpperCase() === cleanCode);
+
+    // 3. Verify in Firestore cloud
+    const cloudCheck = await verifyActivationCodeInFirestore(cleanCode);
+
+    // 4. Check licenseKeys
+    const keyMatch = licenseKeys.find(k => k.key.toUpperCase() === cleanCode);
+
+    const isValid = Boolean(subMatch || fsMatch || cloudCheck.valid || keyMatch);
+
+    if (!isValid) {
+      return {
+        success: false,
+        message: 'كود التفعيل غير صحيح أو لم يتم اعتماده بعد من قبل مالك المنظومة (فريد). يرجى التأكد من الكود.'
+      };
+    }
+
+    const restId = subMatch?.id || fsMatch?.id || cloudCheck.restaurant?.id || `rest_${Date.now()}`;
+    const restName = subMatch?.restaurantName || fsMatch?.name || cloudCheck.restaurant?.name || keyMatch?.clientName || 'مطعم المشترك';
+    const ownerName = subMatch?.ownerName || fsMatch?.ownerName || cloudCheck.restaurant?.ownerName || 'مدير المطعم';
+    const ownerPhone = subMatch?.phone || fsMatch?.phone || cloudCheck.restaurant?.phone || phoneOrEmail || '';
+
+    const oneYearExpiry = new Date();
+    oneYearExpiry.setFullYear(oneYearExpiry.getFullYear() + 1);
+    const expiryIso = oneYearExpiry.toISOString();
+
+    // Activate in subscriptionRequests
+    setSubscriptionRequests(prev => prev.map(s => {
+      if (s.id === restId || s.activationCode?.toUpperCase() === cleanCode) {
+        return {
+          ...s,
+          status: 'approved',
+          activationCode: cleanCode,
+          expiresAt: expiryIso,
+          approvedAt: new Date().toISOString()
+        };
+      }
+      return s;
+    }));
+
+    // Activate in systemRegistrations
+    setSystemRegistrations(prev => prev.map(r => {
+      if (r.tenantId === restId || r.id === restId || r.activationCode?.toUpperCase() === cleanCode) {
+        return {
+          ...r,
+          status: 'active',
+          activationCode: cleanCode
+        };
+      }
+      return r;
+    }));
+
+    // Activate or find User
+    let activeUser = users.find(u => 
+      u.restaurantId === restId ||
+      (ownerPhone && (u.phone === ownerPhone || u.email?.startsWith(ownerPhone)))
+    );
+
+    if (activeUser) {
+      activeUser = {
+        ...activeUser,
+        isActive: true,
+        isPendingApproval: false
+      };
+      setUsers(prev => prev.map(u => u.id === activeUser!.id ? activeUser! : u));
+    } else {
+      activeUser = {
+        id: `usr_${restId}`,
+        restaurantId: restId,
+        branchId: '',
+        name: ownerName,
+        email: `${ownerPhone || restId}@mato.sy`,
+        phone: ownerPhone,
+        password: 'admin',
+        pinCode: '1234',
+        role: 'Owner',
+        isPlatformOwner: false,
+        isActive: true,
+        isPendingApproval: false,
+        createdAt: new Date().toISOString()
+      };
+      setUsers(prev => [activeUser!, ...prev]);
+    }
+
+    // Activate SoftwareLicense
+    setLicenseInfo({
+      licenseKey: cleanCode,
+      planType: (subMatch?.planType || fsMatch?.planType || 'professional') as SaaSPlanType,
+      planNameAr: 'الباقة الاحترافية الشاملة (1 سنة)',
+      clientName: restName,
+      salesRep: 'فريد الفاتح (المدير)',
+      maxBranches: 5,
+      maxUsers: 20,
+      isAiFeaturesEnabled: true,
+      isInvoiceScannerEnabled: true,
+      isMultiBranchEnabled: true,
+      activatedAt: new Date().toISOString().split('T')[0],
+      expiresAt: expiryIso.split('T')[0],
+      status: 'active',
+      annualPrice: 2400
+    });
+
+    const activeRest: Restaurant = {
+      id: restId,
+      name: restName,
+      type: 'restaurant',
+      currency: 'ل.س',
+      createdAt: new Date().toISOString()
+    };
+    setRestaurant(activeRest);
+    setCurrentUserState(activeUser);
+    setIsAuthenticated(true);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, activeUser.id);
+    } catch {
+      // ignore
+    }
+
+    await approveRestaurantInFirestore(restId, cleanCode, expiryIso);
+
+    logActivity('تفعيل كود واستخدام البرنامج', `قام (${ownerName}) بتفعيل كود الترخيص السنوي (${cleanCode}) لمطعم (${restName}) وبدء استخدام المنظومة`);
+
+    return {
+      success: true,
+      message: `تم التحقق من كود التفعيل بنجاح! تم تنشيط حساب مطعم (${restName}) لمدة سنة كاملة. أهلاً وسهلاً بك!`,
+      user: activeUser,
+      restaurant: activeRest
     };
   };
 
@@ -2043,6 +2249,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       });
       if (matchedReg) {
+        const isApproved = matchedReg.status === 'active' && Boolean(matchedReg.activationCode);
         matchedUser = {
           id: `usr_${matchedReg.id}`,
           restaurantId: matchedReg.tenantId,
@@ -2054,8 +2261,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           pinCode: '1234',
           role: 'Owner',
           isPlatformOwner: false,
-          isActive: true,
-          isPendingApproval: false,
+          isActive: isApproved,
+          isPendingApproval: !isApproved,
           createdAt: matchedReg.registeredAt
         };
         setUsers(prev => [matchedUser!, ...prev.filter(u => u.email !== matchedReg.emailOrPhone)]);
@@ -2075,6 +2282,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       });
       if (matchedSub) {
+        const isApproved = matchedSub.status === 'approved' && Boolean(matchedSub.activationCode);
         matchedUser = {
           id: `usr_${matchedSub.id}`,
           restaurantId: matchedSub.id,
@@ -2086,8 +2294,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           pinCode: '1234',
           role: 'Owner',
           isPlatformOwner: false,
-          isActive: true,
-          isPendingApproval: false,
+          isActive: isApproved,
+          isPendingApproval: !isApproved,
           createdAt: matchedSub.requestedAt
         };
         setUsers(prev => [matchedUser!, ...prev]);
@@ -2107,6 +2315,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
       });
       if (matchedFSRest) {
+        const isApproved = matchedFSRest.status === 'active' && Boolean(matchedFSRest.activationCode);
         matchedUser = {
           id: `usr_${matchedFSRest.id}`,
           restaurantId: matchedFSRest.id,
@@ -2118,8 +2327,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           pinCode: '1234',
           role: 'Owner',
           isPlatformOwner: false,
-          isActive: true,
-          isPendingApproval: false,
+          isActive: isApproved,
+          isPendingApproval: !isApproved,
           createdAt: matchedFSRest.registeredAt || new Date().toISOString()
         };
         setUsers(prev => [matchedUser!, ...prev]);
@@ -2135,32 +2344,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Ensure Owner has no branch, is always active, and never requires review/approval
+    // Ensure Owner has no branch constraint
     if (matchedUser.role === 'Owner') {
       matchedUser.branchId = '';
-      matchedUser.isPendingApproval = false;
-      matchedUser.isActive = true;
-    }
-
-    // 2. Check Account Status (Owner NEVER requires review/approval)
-    if (matchedUser.role !== 'Owner' && matchedUser.isPendingApproval) {
-      logActivity('محاولة دخول معلقة', `حاول (${matchedUser.name}) تسجيل الدخول وحسابه بانتظار موافقة واعتماد المالك`);
-      return {
-        success: false,
-        status: 'pending_approval',
-        message: 'الحساب قيد المراجعة: تم استلام طلبك وبانتظار موافقة واعتماد مالك المنظومة لتفعيل الصلاحيات.',
-        user: matchedUser
-      };
-    }
-
-    if (!matchedUser.isActive) {
-      logActivity('محاولة دخول معطلة', `حاول (${matchedUser.name}) الدخول ولكن حسابه معطل`);
-      return {
-        success: false,
-        status: 'inactive',
-        message: 'تم إيقاف أو تعطيل هذا الحساب من قبل إدارة المنظومة. يرجى التواصل مع المدير المسؤول.',
-        user: matchedUser
-      };
     }
 
     // 3. Password Verification with resilient fallback for Owners
@@ -2171,15 +2357,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (cleanPass === storedPassword) {
       isPasswordValid = true;
     } else if (isOwner) {
-      // Owners can log in with:
-      // a) Their registered password
-      // b) 'admin' (universal master password for owners)
-      // c) '123456' (default onboarding password)
       if (cleanPass === 'admin' || cleanPass === '123456') {
         isPasswordValid = true;
-        // Keep their current or entered password
       } else if (!storedPassword || storedPassword === 'admin' || storedPassword === '123456') {
-        // If owner entered their desired custom password, adopt it immediately!
         isPasswordValid = true;
         matchedUser.password = cleanPass;
       }
@@ -2190,10 +2370,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         status: 'wrong_password',
-        message: isOwner
-          ? 'كلمة المرور غير صحيحة! يمكنك الدخول بكلمة المرور التي اخترتها عند التسجيل، أو بكلمة مرور المالك: admin أو 123456.'
-          : 'كلمة المرور غير صحيحة! يرجى التأكد من كتابة كلمة المرور الصحيحة الخاصة بالحساب.'
+        message: 'كلمة المرور غير صحيحة! يرجى التأكد من كتابة كلمة المرور الصحيحة الخاصة بالحساب.'
       };
+    }
+
+    // 2. Check Account Status & Restaurant Approval Gate (Platform Owner Farid is ALWAYS approved)
+    const isSuperAdmin = matchedUser.isPlatformOwner ||
+      matchedUser.email?.toLowerCase() === 'farid.fateh@hotmail.com' ||
+      cleanInput === 'farid.fateh@hotmail.com';
+
+    if (!isSuperAdmin) {
+      // Check if this restaurant subscription is pending
+      const userRestSub = subscriptionRequests.find(s => s.id === matchedUser!.restaurantId || (matchedUser!.phone && s.phone === matchedUser!.phone));
+      const userFSRest = firestoreRestaurants.find(r => r.id === matchedUser!.restaurantId || (matchedUser!.phone && r.phone === matchedUser!.phone));
+      const userReg = systemRegistrations.find(r => r.tenantId === matchedUser!.restaurantId || (matchedUser!.phone && r.emailOrPhone === matchedUser!.phone));
+
+      const isSubPending = (userRestSub && (userRestSub.status === 'pending_approval' || !userRestSub.activationCode)) ||
+                           (userFSRest && (userFSRest.status === 'pending_approval' || !userFSRest.activationCode)) ||
+                           (userReg && (userReg.status === 'pending_approval' || !userReg.activationCode));
+
+      if (matchedUser.isPendingApproval || isSubPending) {
+        const restTitle = userRestSub?.restaurantName || userFSRest?.name || userReg?.restaurantName || 'مطعمك';
+        logActivity('محاولة دخول معلقة', `حاول (${matchedUser.name}) تسجيل الدخول وحساب المطعم (${restTitle}) بانتظار موافقة فريد وتوليد كود التفعيل`);
+        return {
+          success: false,
+          status: 'pending_approval',
+          message: `طلب مطعمك (${restTitle}) قيد المراجعة والاعتماد. يجب موافقة مالك المنظومة (أ. فريد) وتزويدك بكود التفعيل السنوي لتتمكن من استخدام البرنامج.`,
+          user: matchedUser
+        };
+      }
+
+      if (!matchedUser.isActive) {
+        logActivity('محاولة دخول معطلة', `حاول (${matchedUser.name}) الدخول ولكن حسابه معطل`);
+        return {
+          success: false,
+          status: 'inactive',
+          message: 'تم إيقاف أو تعطيل هذا الحساب من قبل إدارة المنظومة. يرجى التواصل مع المدير المسؤول.',
+          user: matchedUser
+        };
+      }
     }
 
     // If password was validated and differs or was default, update in users state
@@ -3500,6 +3715,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         requestRestaurantSubscription,
         approveRestaurantSubscription,
         rejectRestaurantSubscription,
+        activateRestaurantWithCode,
         deleteRestaurantRecord,
         deleteSubscriptionRequest,
         createDirectRestaurantLicense,

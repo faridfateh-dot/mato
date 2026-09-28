@@ -188,7 +188,8 @@ export async function firebaseUserSignUp(params: {
       restaurantName: params.restaurantName,
       branchId,
       isPlatformOwner: isSuperAdmin,
-      isActive: true,
+      isActive: isSuperAdmin ? true : false,
+      isPendingApproval: isSuperAdmin ? false : true,
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString()
     };
@@ -206,8 +207,8 @@ export async function firebaseUserSignUp(params: {
       ownerName: params.name,
       phone: params.phone || params.emailOrPhone,
       email: authEmail,
-      status: 'active',
-      activationCode: `MATO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      status: isSuperAdmin ? 'active' : 'pending_approval',
+      activationCode: isSuperAdmin ? `MATO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}` : '',
       subscriptionExpiry: oneYearExpiry.toISOString(),
       registeredAt: new Date().toISOString(),
       planType: 'professional'

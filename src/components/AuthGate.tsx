@@ -46,6 +46,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     registerNewTenant,
     requestUserRegistration,
     requestRestaurantSubscription,
+    approveRestaurantSubscription,
+    activateRestaurantWithCode,
     loginUser,
     users,
     branches,
@@ -65,6 +67,12 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     type: 'pending' | 'inactive' | 'error' | 'success';
     message: string;
   } | null>(null);
+
+  // Inline Activation in Login Notice State
+  const [showInlineActivation, setShowInlineActivation] = useState(false);
+  const [inlineActivationCode, setInlineActivationCode] = useState('');
+  const [isActivatingInline, setIsActivatingInline] = useState(false);
+  const [inlineActivationError, setInlineActivationError] = useState<string | null>(null);
 
   // Restaurant Registration Form State (Fast 1-Step)
   const [restName, setRestName] = useState('');
@@ -159,27 +167,31 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     }
   };
 
-  // Direct Login Helper
-  const handleDirectLogin = async (phoneOrEmail: string, pass: string) => {
-    setIsLoggingIn(true);
-    setLoginStatusNotice(null);
+  // Inline Activation Submit Handler (from pending login alert)
+  const handleInlineCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inlineActivationCode.trim()) return;
+
+    setIsActivatingInline(true);
+    setInlineActivationError(null);
     try {
-      const result = await loginUser(phoneOrEmail.trim(), pass.trim());
-      if (result.success) {
-        if (onClose) onClose();
-      } else {
-        setActiveTab('login');
-        setLoginEmailOrPhone(phoneOrEmail);
-        setLoginPassword(pass);
+      const res = await activateRestaurantWithCode(inlineActivationCode.trim(), loginEmailOrPhone.trim());
+      if (res.success) {
         setLoginStatusNotice({
-          type: 'error',
-          message: result.message || 'تعذر تسجيل الدخول التلقائي، يرجى كتابة البيانات يدوياً'
+          type: 'success',
+          message: res.message
         });
+        setTimeout(() => {
+          if (onClose) onClose();
+        }, 1000);
+      } else {
+        setInlineActivationError(res.message);
       }
     } catch (err) {
-      console.error('Direct login error:', err);
+      console.error('Inline activation error:', err);
+      setInlineActivationError('حدث خطأ أثناء محاولة تفعيل الكود.');
     } finally {
-      setIsLoggingIn(false);
+      setIsActivatingInline(false);
     }
   };
 
@@ -226,32 +238,32 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     setCodeVerificationLoading(true);
     setCodeVerificationResult(null);
 
-    const result = await verifyActivationCodeInFirestore(annualCodeInput.trim());
+    try {
+      const result = await activateRestaurantWithCode(annualCodeInput.trim(), loginEmailOrPhone.trim());
 
-    setCodeVerificationLoading(false);
-    if (result.valid) {
-      setCodeVerificationResult({
-        success: true,
-        message: result.message,
-        restaurantName: result.restaurant?.name,
-        expiresAt: result.restaurant?.subscriptionExpiry
-      });
+      setCodeVerificationLoading(false);
+      if (result.success) {
+        setCodeVerificationResult({
+          success: true,
+          message: result.message,
+          restaurantName: result.restaurant?.name
+        });
 
-      // Auto provision clean workspace for subscriber
-      setTimeout(async () => {
-        await registerNewTenant(
-          result.restaurant?.name || 'مطعم المشترك المفعّل',
-          result.restaurant?.ownerName || 'مدير المطعم (المشترك)',
-          result.restaurant?.phone || 'subscriber@mato.sy',
-          'phone',
-          '123456'
-        );
-        if (onClose) onClose();
-      }, 1200);
-    } else {
+        setTimeout(() => {
+          if (onClose) onClose();
+        }, 1200);
+      } else {
+        setCodeVerificationResult({
+          success: false,
+          message: result.message
+        });
+      }
+    } catch (err) {
+      console.error('Activation error:', err);
+      setCodeVerificationLoading(false);
       setCodeVerificationResult({
         success: false,
-        message: result.message
+        message: 'حدث خطأ أثناء تفعيل الكود، يرجى المحاولة مجدداً.'
       });
     }
   };
@@ -331,33 +343,89 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
             
             {loginStatusNotice && (
               <div
-                className={`p-4 rounded-2xl border text-xs font-bold leading-relaxed space-y-1.5 ${
+                className={`p-4 rounded-2xl border text-xs font-bold leading-relaxed space-y-2 ${
                   loginStatusNotice.type === 'pending'
                     ? 'bg-amber-500/10 border-amber-500/40 text-amber-300'
                     : loginStatusNotice.type === 'inactive'
                     ? 'bg-rose-500/10 border-rose-500/40 text-rose-300'
+                    : loginStatusNotice.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
                     : 'bg-rose-500/10 border-rose-500/30 text-rose-300 text-center'
                 }`}
               >
                 <div className="flex items-center gap-2 text-sm font-black">
                   {loginStatusNotice.type === 'pending' && <Clock className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />}
                   {loginStatusNotice.type === 'inactive' && <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />}
-                  <span>{loginStatusNotice.type === 'pending' ? 'الحساب بانتظار موافقة المالك' : 'تنبيه تسجيل الدخول'}</span>
+                  {loginStatusNotice.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
+                  <span>
+                    {loginStatusNotice.type === 'pending'
+                      ? 'الحساب بانتظار موافقة فريد وتوليد كود التفعيل'
+                      : loginStatusNotice.type === 'success'
+                      ? 'تم التفعيل بنجاح!'
+                      : 'تنبيه تسجيل الدخول'}
+                  </span>
                 </div>
                 <p className="text-[11px] font-normal text-slate-300 pr-7">
                   {loginStatusNotice.message}
                 </p>
                 {loginStatusNotice.type === 'pending' && (
-                  <div className="pt-2">
-                    <a
-                      href={`https://wa.me/${(ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('مرحباً أستاذ فريد، قمت بتقديم طلب تسجيل لحسابي وهو بانتظار الاعتماد. يرجى تفعيل الحساب.')}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>تواصل مع فريد عبر واتساب لتسريع الموافقة</span>
-                    </a>
+                  <div className="pt-2 border-t border-amber-500/20 space-y-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={`https://wa.me/${(ownerContact?.whatsappNumber || '963991234567').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`مرحباً أستاذ فريد 👋\nقمت بتقديم طلب تسجيل لمطعمي (${loginEmailOrPhone || 'طلب جديد'}). الحساب بانتظار موافقتك وتزويدي بكود التفعيل السنوي. شكراً لك!`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>تواصل مع فريد عبر واتساب للموافقة</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInlineActivation(!showInlineActivation);
+                          setInlineActivationError(null);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs cursor-pointer shadow-xs"
+                      >
+                        <Key className="w-4 h-4" />
+                        <span>استلمت الكود؟ إدخال كود التفعيل الآن</span>
+                      </button>
+                    </div>
+
+                    {showInlineActivation && (
+                      <div className="p-3 bg-slate-950/80 rounded-xl border border-amber-400/40 space-y-2 text-right">
+                        <label className="block text-[11px] font-bold text-amber-300">
+                          أدخل كود التفعيل السنوي الذي أرسله لك الأستاذ فريد:
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="مثال: MATO-2026-XXXX"
+                            value={inlineActivationCode}
+                            onChange={e => setInlineActivationCode(e.target.value.toUpperCase())}
+                            className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                          <button
+                            type="button"
+                            disabled={isActivatingInline || !inlineActivationCode.trim()}
+                            onClick={handleInlineCodeSubmit}
+                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs rounded-lg cursor-pointer flex items-center gap-1 shrink-0"
+                          >
+                            {isActivatingInline ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5" />
+                            )}
+                            <span>تفعيل ودخول</span>
+                          </button>
+                        </div>
+                        {inlineActivationError && (
+                          <p className="text-[11px] text-rose-400 font-bold">{inlineActivationError}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -651,65 +719,70 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   </div>
                 </div>
 
+                {/* Pending Approval Explanation Banner */}
+                <div className="p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-right space-y-2">
+                  <div className="flex items-center gap-2 font-black text-sm">
+                    <Clock className="w-5 h-5 text-amber-400 animate-pulse shrink-0" />
+                    <span>الحساب قيد المراجعة والاعتماد ⏳</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
+                    تم إرسال طلب اشتراك مطعمك بنجاح! وفقاً لسياسة الأمان والاشتراكات، لا يمكن استخدام البرنامج حتى تتم مراجعة الطلب والموافقة عليه من قبل إدارة المنظومة (أ. فريد) وإرسال كود التفعيل السنوي الخاص بك.
+                  </p>
+                </div>
+
                 {/* Direct Action Buttons */}
                 <div className="space-y-2.5 pt-2">
+                  <a
+                    href={getWhatsAppNotifyUrl({
+                      name: restSubmittedSuccess.restaurantName,
+                      owner: restSubmittedSuccess.ownerName,
+                      phone: restSubmittedSuccess.phone,
+                      reqId: restSubmittedSuccess.requestId
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>📲 إرسال إشعار فوري لفريد عبر واتساب للموافقة واستلام الكود</span>
+                  </a>
+
                   <button
                     type="button"
-                    onClick={() => handleDirectLogin(restSubmittedSuccess.phone, restSubmittedSuccess.password || '123456')}
-                    disabled={isLoggingIn}
-                    className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-slate-950 font-black text-xs transition-all shadow-xl shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
+                    onClick={() => {
+                      setActiveTab('activate_code');
+                      setAnnualCodeInput('');
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-md shadow-amber-400/20 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    {isLoggingIn ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                        <span>جاري الدخول إلى لوحة التحكم...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 text-slate-950" />
-                        <span>⚡ الدخول المباشر الآن إلى حساب المطعم</span>
-                      </>
-                    )}
+                    <Key className="w-4 h-4" />
+                    <span>🔑 استلمت كود التفعيل من فريد؟ فعّل حسابك وادخل الآن</span>
                   </button>
 
                   <div className="flex gap-2">
-                    <a
-                      href={getWhatsAppNotifyUrl({
-                        name: restSubmittedSuccess.restaurantName,
-                        owner: restSubmittedSuccess.ownerName,
-                        phone: restSubmittedSuccess.phone,
-                        reqId: restSubmittedSuccess.requestId
-                      })}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex-1 py-3 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs transition-all shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>📲 إرسال إشعار لفريد عبر واتساب</span>
-                    </a>
-
                     <button
                       type="button"
                       onClick={() => setIsShareModalOpen(true)}
-                      className="py-3 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                       title="معاينة ونسخ نص الرسالة"
                     >
-                      <Copy className="w-4 h-4 text-emerald-400" />
-                      <span>معاينة</span>
+                      <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>معاينة نص الرسالة</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('login');
+                        setLoginEmailOrPhone(restSubmittedSuccess.phone);
+                        setLoginPassword(restSubmittedSuccess.password || restPassword || '123456');
+                      }}
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-1.5"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      <span>العودة لشاشة الدخول</span>
                     </button>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      setActiveTab('login');
-                      setLoginEmailOrPhone(restSubmittedSuccess.phone);
-                      setLoginPassword(restSubmittedSuccess.password || restPassword || '123456');
-                    }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-amber-400" />
-                    <span>العودة لشاشة تسجيل الدخول</span>
-                  </button>
                 </div>
 
               </div>

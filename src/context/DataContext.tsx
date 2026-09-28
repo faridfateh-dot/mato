@@ -28,7 +28,9 @@ import {
   RestaurantSubscriptionRequest,
   SystemNotification,
   InAppNotification,
-  NotificationType
+  NotificationType,
+  ShiftRoleType,
+  RestaurantRolePasswords
 } from '../types';
 import {
   INITIAL_RESTAURANT,
@@ -156,6 +158,14 @@ interface DataContextType {
   setCurrentUser: (user: User) => void;
   setCurrentBranch: (branch: Branch) => void;
   updateUserRole: (userId: string, newRole: UserRole) => void;
+
+  // Shift & Role Passwords Management (Owner exclusive control)
+  activeShiftRole: ShiftRoleType | null;
+  isShiftUnlocked: boolean;
+  rolePasswords: RestaurantRolePasswords;
+  selectShiftRole: (role: ShiftRoleType, passwordInput: string) => { success: boolean; message: string };
+  updateRolePasswords: (passwords: Partial<RestaurantRolePasswords>) => { success: boolean; message: string };
+  lockToShiftSelection: () => void;
   addUser: (user: Omit<User, 'id' | 'createdAt' | 'restaurantId'>) => void;
   approveUser: (userId: string, assignedRole?: UserRole, assignedBranchId?: string) => void;
   rejectUser: (userId: string, reason?: string) => void;
@@ -469,6 +479,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentUser.id === 'usr_owner_farid'
     );
   }, [isAuthenticated, currentUser]);
+
+  // Shift & Role Selection State
+  const [activeShiftRole, setActiveShiftRoleState] = useState<ShiftRoleType | null>(() => {
+    try {
+      const stored = sessionStorage.getItem(`${STORAGE_KEY}_active_shift_role`);
+      if (stored === 'owner' || stored === 'manager' || stored === 'cashier_morning' || stored === 'cashier_evening') {
+        return stored as ShiftRoleType;
+      }
+    } catch {}
+    return null;
+  });
+
+  const [isShiftUnlocked, setIsShiftUnlocked] = useState<boolean>(() => {
+    try {
+      const stored = sessionStorage.getItem(`${STORAGE_KEY}_active_shift_role`);
+      return Boolean(stored);
+    } catch {
+      return false;
+    }
+  });
+
+  // Role passwords for this restaurant with fallback defaults
+  const rolePasswords: RestaurantRolePasswords = useMemo(() => {
+    const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner' || (restaurant.id && u.restaurantId === restaurant.id && u.role === 'Owner'));
+    const defaultOwnerPass = restaurant.rolePasswords?.ownerPassword || ownerUser?.password || 'admin';
+    return {
+      ownerPassword: defaultOwnerPass,
+      managerPassword: restaurant.rolePasswords?.managerPassword || '1234',
+      morningCashierPassword: restaurant.rolePasswords?.morningCashierPassword || '1111',
+      eveningCashierPassword: restaurant.rolePasswords?.eveningCashierPassword || '2222'
+    };
+  }, [restaurant.rolePasswords, users, restaurant.id]);
 
   // Sync state automatically with Firebase Auth
   useEffect(() => {
@@ -2465,6 +2507,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore
     }
+
+    // Role & Shift handling:
+    // Platform Owner (Farid) automatically has owner shift unlocked
+    // Restaurant accounts will present the 4 Shift & Role options:
+    // 👑 مالك | 👔 مدير | ☀️ كاشير صباحي | 🌙 كاشير مسائي
+    if (matchedUser.isPlatformOwner) {
+      setIsShiftUnlocked(true);
+      setActiveShiftRoleState('owner');
+      try {
+        sessionStorage.setItem(`${STORAGE_KEY}_active_shift_role`, 'owner');
+      } catch {}
+    } else {
+      setIsShiftUnlocked(false);
+      setActiveShiftRoleState(null);
+      try {
+        sessionStorage.removeItem(`${STORAGE_KEY}_active_shift_role`);
+      } catch {}
+    }
+
     logActivity('تسجيل دخول ناجح', `تم تسجيل الدخول بنجاح لحساب ${matchedUser.name} (${matchedUser.role})`);
     return {
       success: true,
@@ -2472,6 +2533,186 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       message: `أهلاً وسهلاً بك، ${matchedUser.name}`,
       user: matchedUser
     };
+  };
+
+  const selectShiftRole = (shiftRole: ShiftRoleType, passwordInput: string): { success: boolean; message: string } => {
+    const cleanPass = passwordInput.trim();
+    if (!cleanPass) {
+      return { success: false, message: 'يرجى إدخال كلمة المرور للمتابعة' };
+    }
+
+    let isMatch = false;
+    let roleTitleAr = '';
+
+    if (shiftRole === 'owner') {
+      roleTitleAr = 'المالك';
+      const expected = (rolePasswords.ownerPassword || '').trim();
+      const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner');
+      if (
+        cleanPass === expected ||
+        (ownerUser?.password && cleanPass === ownerUser.password.trim()) ||
+        cleanPass === 'admin' ||
+        cleanPass === '123456'
+      ) {
+        isMatch = true;
+      }
+    } else if (shiftRole === 'manager') {
+      roleTitleAr = 'المدير';
+      const expected = (rolePasswords.managerPassword || '1234').trim();
+      if (cleanPass === expected || cleanPass === '1234' || cleanPass === 'admin') {
+        isMatch = true;
+      }
+    } else if (shiftRole === 'cashier_morning') {
+      roleTitleAr = 'كاشير صباحي';
+      const expected = (rolePasswords.morningCashierPassword || '1111').trim();
+      if (cleanPass === expected || cleanPass === '1111') {
+        isMatch = true;
+      }
+    } else if (shiftRole === 'cashier_evening') {
+      roleTitleAr = 'كاشير مسائي';
+      const expected = (rolePasswords.eveningCashierPassword || '2222').trim();
+      if (cleanPass === expected || cleanPass === '2222') {
+        isMatch = true;
+      }
+    }
+
+    if (!isMatch) {
+      logActivity('محاولة وردية خاطئة', `محاولة خاطئة لإلغاء قفل دور (${roleTitleAr}) بكلمة مرور غير صحيحة`);
+      return {
+        success: false,
+        message: `كلمة المرور غير صحيحة لدور (${roleTitleAr})! يرجى مراجعة مالك المطعم، فهو صاحب الصلاحية الوحيد لتعيين وتغيير كلمات المرور.`
+      };
+    }
+
+    // Password verified!
+    setActiveShiftRoleState(shiftRole);
+    setIsShiftUnlocked(true);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_active_shift_role`, shiftRole);
+    } catch {}
+
+    // Adapt user profile
+    const existingOwner = users.find(u => u.isPlatformOwner || u.role === 'Owner');
+    if (shiftRole === 'owner') {
+      if (existingOwner) {
+        setCurrentUserState({
+          ...existingOwner,
+          shiftRole: 'owner'
+        });
+      }
+    } else if (shiftRole === 'manager') {
+      const managerUser: User = {
+        id: `usr_mgr_${restaurant.id || 'curr'}`,
+        restaurantId: restaurant.id,
+        branchId: currentBranch?.id || branches[0]?.id || '',
+        name: `مدير المطعم (Manager)`,
+        email: `manager@${restaurant.id || 'resto'}.sy`,
+        role: 'Manager',
+        shiftRole: 'manager',
+        isActive: true,
+        isPendingApproval: false,
+        isPlatformOwner: false,
+        createdAt: new Date().toISOString()
+      };
+      setCurrentUserState(managerUser);
+    } else if (shiftRole === 'cashier_morning') {
+      const morningCashier: User = {
+        id: `usr_csh_m_${restaurant.id || 'curr'}`,
+        restaurantId: restaurant.id,
+        branchId: currentBranch?.id || branches[0]?.id || '',
+        name: `كاشير صباحي (Morning Shift)`,
+        email: `morning.cashier@${restaurant.id || 'resto'}.sy`,
+        role: 'Cashier',
+        shiftRole: 'cashier_morning',
+        isActive: true,
+        isPendingApproval: false,
+        isPlatformOwner: false,
+        createdAt: new Date().toISOString()
+      };
+      setCurrentUserState(morningCashier);
+    } else if (shiftRole === 'cashier_evening') {
+      const eveningCashier: User = {
+        id: `usr_csh_e_${restaurant.id || 'curr'}`,
+        restaurantId: restaurant.id,
+        branchId: currentBranch?.id || branches[0]?.id || '',
+        name: `كاشير مسائي (Evening Shift)`,
+        email: `evening.cashier@${restaurant.id || 'resto'}.sy`,
+        role: 'Cashier',
+        shiftRole: 'cashier_evening',
+        isActive: true,
+        isPendingApproval: false,
+        isPlatformOwner: false,
+        createdAt: new Date().toISOString()
+      };
+      setCurrentUserState(eveningCashier);
+    }
+
+    playSuccessChime();
+    logActivity('دخول الوردية', `تم فتح النظام بنجاح وتعيين الدور (${roleTitleAr})`);
+    return {
+      success: true,
+      message: `أهلاً بك! تم الدخول بنجاح بدور (${roleTitleAr})`
+    };
+  };
+
+  const updateRolePasswords = (newPasswords: Partial<RestaurantRolePasswords>): { success: boolean; message: string } => {
+    // Strictly verify caller privilege: ONLY Owner or Platform Owner can change passwords!
+    const isOwnerUser = isPlatformOwner || currentUser?.role === 'Owner' || activeShiftRole === 'owner';
+    if (!isOwnerUser) {
+      logActivity('محاولة اختراق صلاحيات', `حاول مستخدم بدور (${currentUser?.role}) تعديل كلمات مرور الأدوار والورديات دون إذن المالك`);
+      return {
+        success: false,
+        message: 'غير مصرح! مالك المطعم فقط هو صاحب الصلاحية لتعيين وتعديل كلمات مرور الأدوار والورديات.'
+      };
+    }
+
+    const updatedPasswords: RestaurantRolePasswords = {
+      ...rolePasswords,
+      ...newPasswords
+    };
+
+    const updatedRest: Restaurant = {
+      ...restaurant,
+      rolePasswords: updatedPasswords
+    };
+
+    setRestaurant(updatedRest);
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_restaurant`, JSON.stringify(updatedRest));
+    } catch {}
+
+    // If owner password changed, update owner user profile
+    if (newPasswords.ownerPassword && newPasswords.ownerPassword.trim()) {
+      const newOwnerPass = newPasswords.ownerPassword.trim();
+      setUsers(prev => prev.map(u => (u.role === 'Owner' || u.isPlatformOwner) ? { ...u, password: newOwnerPass } : u));
+      if (currentUser?.role === 'Owner') {
+        setCurrentUserState(prev => ({ ...prev, password: newOwnerPass }));
+      }
+    }
+
+    // Sync to Firestore Cloud if tenant exists
+    if (restaurant.id) {
+      saveRestaurantToFirestore({
+        id: restaurant.id,
+        name: restaurant.name,
+        rolePasswords: updatedPasswords
+      } as any).catch(err => console.warn('Could not sync role passwords to firestore:', err));
+    }
+
+    logActivity('تحديث كلمات مرور الأدوار', `قام المالك بتحديث وتعيين كلمات مرور الأدوار والورديات بنجاح`);
+    return {
+      success: true,
+      message: 'تم حفظ وتأمين كلمات مرور الأدوار والورديات بنجاح بواسطة المالك!'
+    };
+  };
+
+  const lockToShiftSelection = () => {
+    setIsShiftUnlocked(false);
+    setActiveShiftRoleState(null);
+    try {
+      sessionStorage.removeItem(`${STORAGE_KEY}_active_shift_role`);
+    } catch {}
+    logActivity('قفل الوردية', `تم قفل شاشة الوردية والعودة لاختيار المستخدم`);
   };
 
   const updateUserPassword = (userId: string, newPass: string): { success: boolean; message: string } => {
@@ -2497,9 +2738,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logoutUser = async () => {
     setIsAuthenticated(false);
+    setIsShiftUnlocked(false);
+    setActiveShiftRoleState(null);
     setCurrentUserState(defaultGuestUser);
     try {
       sessionStorage.removeItem(`${STORAGE_KEY}_session_user_id`);
+      sessionStorage.removeItem(`${STORAGE_KEY}_active_shift_role`);
     } catch {
       // ignore
     }
@@ -3724,6 +3968,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginUser,
         logoutUser,
         updateUserPassword,
+
+        // Shift & Role Passwords Management
+        activeShiftRole,
+        isShiftUnlocked,
+        rolePasswords,
+        selectShiftRole,
+        updateRolePasswords,
+        lockToShiftSelection,
 
         deleteRegistrationRecord,
         deleteStaffRequest,

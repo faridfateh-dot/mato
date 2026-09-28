@@ -27,7 +27,14 @@ import {
   UserCog,
   KeyRound,
   Lock,
-  Key
+  Key,
+  Crown,
+  Sun,
+  Moon,
+  Eye,
+  EyeOff,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { UserRole, User, Branch } from '../types';
 
@@ -51,10 +58,15 @@ export const UsersSettingsView: React.FC = () => {
     updateUserRole,
     updateUserPassword,
     currentUser,
-    isPlatformOwner
+    isPlatformOwner,
+    activeShiftRole,
+    rolePasswords,
+    updateRolePasswords
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'owner_security' | 'branches'>('approved');
+  const isOwner = isPlatformOwner || currentUser?.role === 'Owner' || activeShiftRole === 'owner';
+
+  const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'role_passwords' | 'owner_security' | 'branches'>('approved');
   const [showUserModal, setShowUserModal] = useState(false);
   const [showBranchModal, setShowBranchModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -66,6 +78,21 @@ export const UsersSettingsView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Role Passwords Form state (Owner exclusive privilege)
+  const [rolePasswordsForm, setRolePasswordsForm] = useState(() => ({
+    ownerPassword: rolePasswords.ownerPassword || 'admin',
+    managerPassword: rolePasswords.managerPassword || '1234',
+    morningCashierPassword: rolePasswords.morningCashierPassword || '1111',
+    eveningCashierPassword: rolePasswords.eveningCashierPassword || '2222'
+  }));
+
+  const [visibleRolePasswords, setVisibleRolePasswords] = useState<Record<string, boolean>>({
+    owner: false,
+    manager: true,
+    morning: true,
+    evening: true
+  });
 
   // Owner Self-Password Change form state
   const [ownerNewPass, setOwnerNewPass] = useState('');
@@ -542,6 +569,19 @@ export const UsersSettingsView: React.FC = () => {
           <span>🔒 أمان وكلمة مرور المالك</span>
         </button>
 
+        {/* Role Passwords Tab (Owner Exclusive) */}
+        <button
+          onClick={() => setActiveTab('role_passwords')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'role_passwords'
+              ? 'bg-amber-400 text-slate-950 shadow-sm font-black ring-2 ring-amber-400/40'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <KeyRound className="w-4 h-4 text-amber-600" />
+          <span>🔑 باسووردات الأدوار والورديات (خاص بالمالك)</span>
+        </button>
+
         <button
           onClick={() => setActiveTab('branches')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -944,6 +984,219 @@ export const UsersSettingsView: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= TAB: ROLE PASSWORDS MANAGEMENT (OWNER EXCLUSIVE) ================= */}
+      {activeTab === 'role_passwords' && (
+        <div className="space-y-4">
+          <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-amber-400/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="max-w-3xl space-y-6 relative z-10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-400/20">
+                    <KeyRound className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-black text-white">كلمات مرور الأدوار والورديات</h2>
+                      <span className="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                        صلاحية المالك فقط 🔒
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      المالك هو الوحيد المخول بوضع وتعديل باسووردات المالك، المدير، كاشير الصباح وكاشير المساء
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {!isOwner ? (
+                <div className="p-6 rounded-2xl bg-rose-950/40 border border-rose-800/60 text-center space-y-2">
+                  <ShieldAlert className="w-8 h-8 text-rose-400 mx-auto" />
+                  <h3 className="font-bold text-sm text-white">صلاحية محظورة</h3>
+                  <p className="text-xs text-slate-300">
+                    أنت مسجل حالياً بدور ({currentUser?.role}). وضع وتعديل كلمات المرور متاح حصرياً لمالك المطعم.
+                  </p>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const res = updateRolePasswords(rolePasswordsForm);
+                    if (res.success) {
+                      triggerNotification('🔒 ' + res.message);
+                    } else {
+                      triggerNotification(res.message, 'error');
+                    }
+                  }}
+                  className="space-y-6"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Owner Password */}
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-amber-400/40 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-black text-amber-400">
+                        <div className="flex items-center gap-1.5">
+                          <Crown className="w-4 h-4" />
+                          <span>1. كلمة مرور المالك (Owner)</span>
+                        </div>
+                        <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded font-bold">
+                          إشراف كامل
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={visibleRolePasswords.owner ? 'text' : 'password'}
+                          value={rolePasswordsForm.ownerPassword || ''}
+                          onChange={e => setRolePasswordsForm({ ...rolePasswordsForm, ownerPassword: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 pr-9 font-mono text-sm focus:border-amber-400 outline-none"
+                          required
+                        />
+                        <Lock className="w-4 h-4 text-slate-500 absolute right-3 top-2.5" />
+                        <button
+                          type="button"
+                          onClick={() => setVisibleRolePasswords(prev => ({ ...prev, owner: !prev.owner }))}
+                          className="absolute left-3 top-2.5 text-slate-500 hover:text-white"
+                        >
+                          {visibleRolePasswords.owner ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">تستخدم لدخول حساب صاحب المنشأة.</p>
+                    </div>
+
+                    {/* Manager Password */}
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-sky-400/40 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-black text-sky-400">
+                        <div className="flex items-center gap-1.5">
+                          <UserCog className="w-4 h-4" />
+                          <span>2. كلمة مرور المدير (Manager)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRolePasswordsForm(prev => ({ ...prev, managerPassword: '1234' }));
+                            triggerNotification('تم ضبط كلمة مرور المدير للافتراضية 1234، اضغط حفظ لتطبيقها');
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-sky-300 flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>افتراضي 1234</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={visibleRolePasswords.manager ? 'text' : 'password'}
+                          value={rolePasswordsForm.managerPassword || ''}
+                          onChange={e => setRolePasswordsForm({ ...rolePasswordsForm, managerPassword: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 pr-9 font-mono text-sm focus:border-sky-400 outline-none"
+                          required
+                        />
+                        <Lock className="w-4 h-4 text-slate-500 absolute right-3 top-2.5" />
+                        <button
+                          type="button"
+                          onClick={() => setVisibleRolePasswords(prev => ({ ...prev, manager: !prev.manager }))}
+                          className="absolute left-3 top-2.5 text-slate-500 hover:text-white"
+                        >
+                          {visibleRolePasswords.manager ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">تستخدم لدخول مدير الصالة والعمليات.</p>
+                    </div>
+
+                    {/* Morning Cashier Password */}
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-emerald-400/40 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-black text-emerald-400">
+                        <div className="flex items-center gap-1.5">
+                          <Sun className="w-4 h-4" />
+                          <span>3. كلمة مرور كاشير صباحي</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRolePasswordsForm(prev => ({ ...prev, morningCashierPassword: '1111' }));
+                            triggerNotification('تم ضبط كلمة مرور كاشير صباحي للافتراضية 1111، اضغط حفظ لتطبيقها');
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-emerald-300 flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>افتراضي 1111</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={visibleRolePasswords.morning ? 'text' : 'password'}
+                          value={rolePasswordsForm.morningCashierPassword || ''}
+                          onChange={e => setRolePasswordsForm({ ...rolePasswordsForm, morningCashierPassword: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 pr-9 font-mono text-sm focus:border-emerald-400 outline-none"
+                          required
+                        />
+                        <Lock className="w-4 h-4 text-slate-500 absolute right-3 top-2.5" />
+                        <button
+                          type="button"
+                          onClick={() => setVisibleRolePasswords(prev => ({ ...prev, morning: !prev.morning }))}
+                          className="absolute left-3 top-2.5 text-slate-500 hover:text-white"
+                        >
+                          {visibleRolePasswords.morning ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">تستخدم للوردية الصباحية لدخول الكاشير POS.</p>
+                    </div>
+
+                    {/* Evening Cashier Password */}
+                    <div className="p-4 rounded-2xl bg-slate-950/80 border border-purple-400/40 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-black text-purple-400">
+                        <div className="flex items-center gap-1.5">
+                          <Moon className="w-4 h-4" />
+                          <span>4. كلمة مرور كاشير مسائي</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRolePasswordsForm(prev => ({ ...prev, eveningCashierPassword: '2222' }));
+                            triggerNotification('تم ضبط كلمة مرور كاشير مسائي للافتراضية 2222، اضغط حفظ لتطبيقها');
+                          }}
+                          className="text-[10px] text-slate-400 hover:text-purple-300 flex items-center gap-1"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>افتراضي 2222</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={visibleRolePasswords.evening ? 'text' : 'password'}
+                          value={rolePasswordsForm.eveningCashierPassword || ''}
+                          onChange={e => setRolePasswordsForm({ ...rolePasswordsForm, eveningCashierPassword: e.target.value })}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 pr-9 font-mono text-sm focus:border-purple-400 outline-none"
+                          required
+                        />
+                        <Lock className="w-4 h-4 text-slate-500 absolute right-3 top-2.5" />
+                        <button
+                          type="button"
+                          onClick={() => setVisibleRolePasswords(prev => ({ ...prev, evening: !prev.evening }))}
+                          className="absolute left-3 top-2.5 text-slate-500 hover:text-white"
+                        >
+                          {visibleRolePasswords.evening ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">تستخدم للوردية المسائية لدخول الكاشير POS.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      className="px-6 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition-all shadow-lg shadow-amber-400/20 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>حفظ وتطبيق كلمات مرور الأدوار فوراً</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,14 @@
 export type UserRole = 'Owner' | 'Manager' | 'Cashier' | 'Inventory Manager';
 
+export type ShiftRoleType = 'owner' | 'manager' | 'cashier_morning' | 'cashier_evening';
+
+export interface RestaurantRolePasswords {
+  ownerPassword?: string;
+  managerPassword?: string;
+  morningCashierPassword?: string;
+  eveningCashierPassword?: string;
+}
+
 export interface LoginResult {
   success: boolean;
   status: 'active' | 'pending_approval' | 'inactive' | 'not_found' | 'wrong_password';
@@ -14,6 +23,7 @@ export interface Restaurant {
   currency: string;
   logoUrl?: string;
   requireOwnerApproval?: boolean;
+  rolePasswords?: RestaurantRolePasswords;
   createdAt: string;
 }
 
@@ -33,6 +43,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  shiftRole?: ShiftRoleType;
   phone?: string;
   password?: string;
   pinCode?: string;

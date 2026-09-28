@@ -35,10 +35,16 @@ import {
   Phone,
   Mail,
   Volume2,
-  Sparkle
+  Sparkle,
+  Crown,
+  Sun,
+  Moon,
+  UserCog,
+  KeyRound
 } from 'lucide-react';
-import { UserRole } from '../types';
+import { User, UserRole } from '../types';
 import { playNotificationChime } from '../lib/notificationSound';
+import { RolePasswordsModal } from './RolePasswordsModal';
 
 interface HeaderProps {
   onOpenAuth?: (mode: 'login' | 'register') => void;
@@ -62,6 +68,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
     setCurrentBranch,
     setCurrentUser,
     addBranch,
+    addUser,
     ingredients,
     getDashboardStats,
     isOnline,
@@ -85,10 +92,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
     approveRequestFromNotification,
     rejectRequestFromNotification,
     activeRealtimeAlert,
-    dismissRealtimeAlert
+    dismissRealtimeAlert,
+    activeShiftRole,
+    lockToShiftSelection,
+    rolePasswords
   } = useData();
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
+  const [showRolePasswordsModal, setShowRolePasswordsModal] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'users' | 'subscriptions' | 'stock'>('all');
@@ -321,6 +332,55 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                 <Sparkles className="w-4 h-4 fill-slate-950" />
                 <span className="hidden sm:inline">مساعد MATO AI</span>
               </button>
+            )}
+
+            {/* Active Shift / Role Pill with Switch Shift & Password Management */}
+            {!isPlatformOwner && (
+              <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700/80 rounded-xl px-2.5 py-1 text-xs">
+                {activeShiftRole === 'owner' || currentUser?.role === 'Owner' ? (
+                  <span className="flex items-center gap-1 font-black text-amber-400">
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">المالك</span>
+                  </span>
+                ) : activeShiftRole === 'manager' || currentUser?.role === 'Manager' ? (
+                  <span className="flex items-center gap-1 font-black text-sky-400">
+                    <UserCog className="w-3.5 h-3.5 text-sky-400" />
+                    <span className="hidden sm:inline">المدير</span>
+                  </span>
+                ) : activeShiftRole === 'cashier_morning' ? (
+                  <span className="flex items-center gap-1 font-black text-emerald-400">
+                    <Sun className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="hidden sm:inline">كاشير صباحي</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 font-black text-purple-400">
+                    <Moon className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="hidden sm:inline">كاشير مسائي</span>
+                  </span>
+                )}
+
+                {/* Quick Switch Shift Button */}
+                <button
+                  onClick={() => lockToShiftSelection()}
+                  className="px-2 py-0.5 rounded-lg bg-slate-700 hover:bg-amber-400 hover:text-slate-950 text-slate-200 transition-all font-bold text-[10px] flex items-center gap-1 cursor-pointer"
+                  title="تبديل الوردية أو الدور (قفل الشاشة وإدخال كلمة المرور)"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  <span className="hidden md:inline">تبديل الوردية</span>
+                </button>
+
+                {/* Owner Only: Manage Role Passwords */}
+                {(isOwner || currentUser?.role === 'Owner' || activeShiftRole === 'owner') && (
+                  <button
+                    onClick={() => setShowRolePasswordsModal(true)}
+                    className="px-2 py-0.5 rounded-lg bg-amber-400/20 hover:bg-amber-400 text-amber-300 hover:text-slate-950 transition-all font-bold text-[10px] flex items-center gap-1 cursor-pointer border border-amber-400/30"
+                    title="تعديل وتعيين كلمات مرور الأدوار والورديات (خاص بالمالك)"
+                  >
+                    <KeyRound className="w-2.5 h-2.5 text-amber-400" />
+                    <span className="hidden lg:inline">كلمات المرور</span>
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Owner Quick Button for Registered Restaurants & Subscriptions */}
@@ -758,8 +818,125 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                         <Plus className="w-3.5 h-3.5 text-amber-400" />
                         <span>إنشاء فرع جديد للمطعم</span>
                       </button>
+
+                      {/* Switch Shift / Lock Screen */}
+                      <button
+                        onClick={() => {
+                          setShowRoleMenu(false);
+                          lockToShiftSelection();
+                        }}
+                        className="w-full text-right px-2 py-1.5 text-xs text-amber-300 hover:bg-slate-700/40 rounded flex items-center gap-2 font-bold cursor-pointer bg-slate-900/40"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                        <span>تبديل الوردية / الحساب (باسوورد)</span>
+                      </button>
+
+                      {/* Owner Only: Manage Role Passwords */}
+                      {(isOwner || currentUser?.role === 'Owner' || activeShiftRole === 'owner') && (
+                        <button
+                          onClick={() => {
+                            setShowRoleMenu(false);
+                            setShowRolePasswordsModal(true);
+                          }}
+                          className="w-full text-right px-2 py-1.5 text-xs text-amber-400 hover:bg-slate-700/40 rounded flex items-center gap-2 font-bold cursor-pointer bg-amber-400/10 border border-amber-400/20"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                          <span>إدارة كلمات مرور الأدوار والورديات 🔒</span>
+                        </button>
+                      )}
                     </>
                   )}
+
+                  {/* Quick Switch to Cashier or Manager */}
+                  <div className="border-t border-slate-700/60 pt-1.5 mt-1">
+                    <div className="text-[10px] text-slate-400 font-bold px-2 py-0.5 mb-1 flex items-center justify-between">
+                      <span>التبديل السريع للحسابات:</span>
+                      <span className="text-amber-400 text-[9px]">كاشير / مدير</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {/* List other active staff for this restaurant */}
+                      {users
+                        .filter(u => u.id !== currentUser?.id && u.isActive && (u.restaurantId === currentRestaurant.id || u.isPlatformOwner || u.role === 'Owner'))
+                        .slice(0, 4)
+                        .map(u => (
+                          <button
+                            key={u.id}
+                            onClick={() => {
+                              setCurrentUser(u);
+                              setShowRoleMenu(false);
+                              if (onNavigate) {
+                                if (u.role === 'Cashier') onNavigate('pos');
+                                else if (u.role === 'Manager') onNavigate('dashboard');
+                                else if (u.isPlatformOwner) onNavigate('sales');
+                              }
+                            }}
+                            className="w-full text-right px-2 py-1.5 rounded bg-slate-900/60 hover:bg-slate-700/60 text-slate-200 text-xs flex items-center justify-between transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className={`w-2 h-2 rounded-full ${u.role === 'Cashier' ? 'bg-emerald-400' : u.role === 'Manager' ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                              <span className="font-bold truncate">{u.name}</span>
+                            </div>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                              u.role === 'Cashier' ? 'bg-emerald-500/20 text-emerald-400' :
+                              u.role === 'Manager' ? 'bg-blue-500/20 text-blue-400' :
+                              'bg-amber-500/20 text-amber-400'
+                            }`}>
+                              {u.role === 'Cashier' ? 'كاشير' : u.role === 'Manager' ? 'مدير' : u.role}
+                            </span>
+                          </button>
+                        ))}
+
+                      {/* If current user is cashier or manager, allow easy 1-click switch back to Owner */}
+                      {currentUser?.role !== 'Owner' && !currentUser?.isPlatformOwner && (
+                        <button
+                          onClick={() => {
+                            const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner');
+                            if (ownerUser) {
+                              setCurrentUser(ownerUser);
+                              setShowRoleMenu(false);
+                              if (onNavigate) onNavigate(ownerUser.isPlatformOwner ? 'sales' : 'dashboard');
+                            }
+                          }}
+                          className="w-full text-right px-2 py-1.5 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-xs flex items-center gap-1.5 font-bold cursor-pointer transition-colors"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-amber-400" />
+                          <span>العودة لحساب المالك (صاحب المنشأة)</span>
+                        </button>
+                      )}
+
+                      {/* If restaurant has no cashier yet, quick test button to switch to Cashier mode */}
+                      {(isOwner || currentUser?.role === 'Owner') && !users.some(u => u.role === 'Cashier' && u.restaurantId === currentRestaurant.id) && (
+                        <button
+                          onClick={() => {
+                            const newCashier: User = {
+                              id: `usr_cashier_${currentRestaurant.id}`,
+                              restaurantId: currentRestaurant.id,
+                              branchId: currentBranch.id,
+                              name: 'كاشير المطعم (تجريبي)',
+                              email: `cashier@${currentRestaurant.name.replace(/\s+/g, '').toLowerCase() || 'restaurant'}.sy`,
+                              phone: '0991000000',
+                              password: '123',
+                              pinCode: '1234',
+                              role: 'Cashier',
+                              isPlatformOwner: false,
+                              isActive: true,
+                              isPendingApproval: false,
+                              createdAt: new Date().toISOString()
+                            };
+                            addUser(newCashier);
+                            setCurrentUser(newCashier);
+                            setShowRoleMenu(false);
+                            if (onNavigate) onNavigate('pos');
+                          }}
+                          className="w-full text-right px-2 py-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs flex items-center gap-1.5 font-bold cursor-pointer transition-colors"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>⚡ تجربة الدخول ككاشير (POS)</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
                   <button
                     onClick={() => {
@@ -1117,6 +1294,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
           </div>
         </div>
       )}
+
+      {/* Role & Shift Passwords Management Modal (Owner exclusive privilege) */}
+      <RolePasswordsModal
+        isOpen={showRolePasswordsModal}
+        onClose={() => setShowRolePasswordsModal(false)}
+      />
     </>
   );
 };

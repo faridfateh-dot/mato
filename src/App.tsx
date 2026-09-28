@@ -16,10 +16,11 @@ import { UsersSettingsView } from './components/UsersSettingsView';
 import { SoftwareSalesView } from './components/SoftwareSalesView';
 import { AuthGate } from './components/AuthGate';
 import { AnnualLicenseLock } from './components/AnnualLicenseLock';
+import { RoleSelectionGate } from './components/RoleSelectionGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppMainContent: React.FC = () => {
-  const { isAuthenticated, isLicenseExpired, currentUser, isPlatformOwner } = useData();
+  const { isAuthenticated, isLicenseExpired, currentUser, isPlatformOwner, isShiftUnlocked } = useData();
   const location = useLocation();
   const navigate = useNavigate();
   const [recipeProductTargetId, setRecipeProductTargetId] = useState<string | undefined>(undefined);
@@ -65,6 +66,13 @@ const AppMainContent: React.FC = () => {
   // Lock system if 1-year annual activation subscription has expired (Platform Owner is ALWAYS immune with lifetime access)
   if (!isPlatformOwner && isLicenseExpired) {
     return <AnnualLicenseLock />;
+  }
+
+  // Role & Shift selection gate after restaurant login:
+  // Shows 4 options: 👑 مالك | 👔 مدير | ☀️ كاشير صباحي | 🌙 كاشير مسائي
+  // Each profile has its own password, configured exclusively by the Owner!
+  if (!isPlatformOwner && !isShiftUnlocked) {
+    return <RoleSelectionGate />;
   }
 
   const renderMainView = () => {

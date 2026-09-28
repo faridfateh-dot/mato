@@ -45,6 +45,7 @@ import {
 import { User, UserRole } from '../types';
 import { playNotificationChime } from '../lib/notificationSound';
 import { RolePasswordsModal } from './RolePasswordsModal';
+import { SwitchUserPasswordModal } from './SwitchUserPasswordModal';
 
 interface HeaderProps {
   onOpenAuth?: (mode: 'login' | 'register') => void;
@@ -100,6 +101,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showRolePasswordsModal, setShowRolePasswordsModal] = useState(false);
+  const [userToSwitchWithPassword, setUserToSwitchWithPassword] = useState<User | null>(null);
+  const [showSwitchUserPasswordModal, setShowSwitchUserPasswordModal] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'users' | 'subscriptions' | 'stock'>('all');
@@ -847,92 +850,68 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                     </>
                   )}
 
-                  {/* Quick Switch to Cashier or Manager */}
+                  {/* Switch User / Staff with Password Verification */}
                   <div className="border-t border-slate-700/60 pt-1.5 mt-1">
                     <div className="text-[10px] text-slate-400 font-bold px-2 py-0.5 mb-1 flex items-center justify-between">
-                      <span>التبديل السريع للحسابات:</span>
-                      <span className="text-amber-400 text-[9px]">كاشير / مدير</span>
+                      <span className="flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-amber-400" />
+                        <span>التبديل بين المستخدمين (بكلمة المرور):</span>
+                      </span>
+                      <span className="text-amber-400 text-[9px] font-mono">محمي 🔒</span>
                     </div>
 
                     <div className="space-y-1">
                       {/* List other active staff for this restaurant */}
                       {users
                         .filter(u => u.id !== currentUser?.id && u.isActive && (u.restaurantId === currentRestaurant.id || u.isPlatformOwner || u.role === 'Owner'))
-                        .slice(0, 4)
+                        .slice(0, 5)
                         .map(u => (
                           <button
                             key={u.id}
                             onClick={() => {
-                              setCurrentUser(u);
                               setShowRoleMenu(false);
-                              if (onNavigate) {
-                                if (u.role === 'Cashier') onNavigate('pos');
-                                else if (u.role === 'Manager') onNavigate('dashboard');
-                                else if (u.isPlatformOwner) onNavigate('sales');
-                              }
+                              setUserToSwitchWithPassword(u);
+                              setShowSwitchUserPasswordModal(true);
                             }}
-                            className="w-full text-right px-2 py-1.5 rounded bg-slate-900/60 hover:bg-slate-700/60 text-slate-200 text-xs flex items-center justify-between transition-colors cursor-pointer"
+                            className="w-full text-right px-2 py-1.5 rounded bg-slate-900/60 hover:bg-slate-700/60 text-slate-200 text-xs flex items-center justify-between transition-colors cursor-pointer group"
+                            title="يتطلب إدخال كلمة المرور للتبديل لهذا الحساب"
                           >
                             <div className="flex items-center gap-1.5 truncate">
                               <span className={`w-2 h-2 rounded-full ${u.role === 'Cashier' ? 'bg-emerald-400' : u.role === 'Manager' ? 'bg-blue-400' : 'bg-amber-400'}`} />
                               <span className="font-bold truncate">{u.name}</span>
                             </div>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                              u.role === 'Cashier' ? 'bg-emerald-500/20 text-emerald-400' :
-                              u.role === 'Manager' ? 'bg-blue-500/20 text-blue-400' :
-                              'bg-amber-500/20 text-amber-400'
-                            }`}>
-                              {u.role === 'Cashier' ? 'كاشير' : u.role === 'Manager' ? 'مدير' : u.role}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                u.role === 'Cashier' ? 'bg-emerald-500/20 text-emerald-400' :
+                                u.role === 'Manager' ? 'bg-blue-500/20 text-blue-400' :
+                                'bg-amber-500/20 text-amber-400'
+                              }`}>
+                                {u.role === 'Cashier' ? 'كاشير' : u.role === 'Manager' ? 'مدير' : u.role}
+                              </span>
+                              <Lock className="w-3 h-3 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                            </div>
                           </button>
                         ))}
 
-                      {/* If current user is cashier or manager, allow easy 1-click switch back to Owner */}
+                      {/* If current user is cashier or manager, allow switching back to Owner WITH PASSWORD */}
                       {currentUser?.role !== 'Owner' && !currentUser?.isPlatformOwner && (
                         <button
                           onClick={() => {
                             const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner');
                             if (ownerUser) {
-                              setCurrentUser(ownerUser);
                               setShowRoleMenu(false);
-                              if (onNavigate) onNavigate(ownerUser.isPlatformOwner ? 'sales' : 'dashboard');
+                              setUserToSwitchWithPassword(ownerUser);
+                              setShowSwitchUserPasswordModal(true);
                             }
                           }}
-                          className="w-full text-right px-2 py-1.5 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-xs flex items-center gap-1.5 font-bold cursor-pointer transition-colors"
+                          className="w-full text-right px-2 py-1.5 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-xs flex items-center justify-between font-bold cursor-pointer transition-colors"
+                          title="يتطلب إدخال كلمة مرور المالك للتحقق"
                         >
-                          <Shield className="w-3.5 h-3.5 text-amber-400" />
-                          <span>العودة لحساب المالك (صاحب المنشأة)</span>
-                        </button>
-                      )}
-
-                      {/* If restaurant has no cashier yet, quick test button to switch to Cashier mode */}
-                      {(isOwner || currentUser?.role === 'Owner') && !users.some(u => u.role === 'Cashier' && u.restaurantId === currentRestaurant.id) && (
-                        <button
-                          onClick={() => {
-                            const newCashier: User = {
-                              id: `usr_cashier_${currentRestaurant.id}`,
-                              restaurantId: currentRestaurant.id,
-                              branchId: currentBranch.id,
-                              name: 'كاشير المطعم (تجريبي)',
-                              email: `cashier@${currentRestaurant.name.replace(/\s+/g, '').toLowerCase() || 'restaurant'}.sy`,
-                              phone: '0991000000',
-                              password: '123',
-                              pinCode: '1234',
-                              role: 'Cashier',
-                              isPlatformOwner: false,
-                              isActive: true,
-                              isPendingApproval: false,
-                              createdAt: new Date().toISOString()
-                            };
-                            addUser(newCashier);
-                            setCurrentUser(newCashier);
-                            setShowRoleMenu(false);
-                            if (onNavigate) onNavigate('pos');
-                          }}
-                          className="w-full text-right px-2 py-1.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs flex items-center gap-1.5 font-bold cursor-pointer transition-colors"
-                        >
-                          <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>⚡ تجربة الدخول ككاشير (POS)</span>
+                          <div className="flex items-center gap-1.5">
+                            <Shield className="w-3.5 h-3.5 text-amber-400" />
+                            <span>العودة لحساب المالك (صاحب المنشأة)</span>
+                          </div>
+                          <Lock className="w-3 h-3 text-amber-400" />
                         </button>
                       )}
                     </div>
@@ -1226,28 +1205,44 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                 </button>
               </div>
 
-              {/* Quick Switch Accounts List */}
+              {/* Quick Switch Accounts List (Password Protected) */}
               <div className="space-y-2">
                 <div className="font-bold text-slate-300 flex items-center justify-between">
-                  <span>اختر حساباً آخر للتبديل السريع إليه:</span>
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>التبديل لحساب آخر (يتطلب كلمة المرور 🔒):</span>
+                  </span>
                   <span className="text-[10px] text-slate-400">{users.length} حسابات مسجلة</span>
                 </div>
+
+                {/* Shift Lock Button */}
+                <button
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    lockToShiftSelection();
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  title="قفل الشاشة وإلغاء القفل باسوورد الدور (مالك / مدير / كاشير)"
+                >
+                  <RefreshCw className="w-4 h-4 text-amber-400" />
+                  <span>قفل النظام واختيار الوردية (باسوورد الأدوار)</span>
+                </button>
 
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                   {users.map(u => (
                     <button
                       key={u.id}
                       onClick={() => {
-                        setCurrentUser(u);
                         setShowAuthModal(false);
-                        setHeaderSuccessMsg(`تم تسجيل الدخول بحساب: ${u.name} (${u.role})`);
-                        setTimeout(() => setHeaderSuccessMsg(null), 4000);
+                        setUserToSwitchWithPassword(u);
+                        setShowSwitchUserPasswordModal(true);
                       }}
-                      className={`w-full p-3 rounded-xl border text-right flex items-center justify-between transition-all cursor-pointer ${
+                      className={`w-full p-3 rounded-xl border text-right flex items-center justify-between transition-all cursor-pointer group ${
                         u.id === currentUser.id
                           ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 font-bold'
                           : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700/70 text-slate-200'
                       }`}
+                      title="انقر لإدخال كلمة المرور والتبديل لهذا الحساب"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-full bg-slate-700 text-slate-200 font-bold flex items-center justify-center text-xs">
@@ -1258,8 +1253,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                           <div className="text-[10px] text-slate-400">{u.email}</div>
                         </div>
                       </div>
-                      <div className="text-[11px] font-semibold text-slate-300 bg-slate-900/50 px-2 py-1 rounded border border-slate-700">
-                        {u.role}
+                      <div className="flex items-center gap-2">
+                        <div className="text-[11px] font-semibold text-slate-300 bg-slate-900/50 px-2 py-1 rounded border border-slate-700">
+                          {u.role}
+                        </div>
+                        <Lock className="w-3.5 h-3.5 text-amber-400" />
                       </div>
                     </button>
                   ))}
@@ -1299,6 +1297,25 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
       <RolePasswordsModal
         isOpen={showRolePasswordsModal}
         onClose={() => setShowRolePasswordsModal(false)}
+      />
+
+      {/* Switch User Password Confirmation Modal */}
+      <SwitchUserPasswordModal
+        isOpen={showSwitchUserPasswordModal}
+        targetUser={userToSwitchWithPassword}
+        onClose={() => {
+          setShowSwitchUserPasswordModal(false);
+          setUserToSwitchWithPassword(null);
+        }}
+        onSuccess={(switchedUser) => {
+          setHeaderSuccessMsg(`تم تسجيل الدخول بنجاح بحساب: ${switchedUser.name} (${switchedUser.role})`);
+          setTimeout(() => setHeaderSuccessMsg(null), 4000);
+          if (onNavigate) {
+            if (switchedUser.role === 'Cashier') onNavigate('pos');
+            else if (switchedUser.role === 'Manager') onNavigate('dashboard');
+            else if (switchedUser.isPlatformOwner) onNavigate('sales');
+          }
+        }}
       />
     </>
   );

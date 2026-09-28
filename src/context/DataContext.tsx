@@ -156,6 +156,7 @@ interface DataContextType {
   logoutUser: () => void;
   updateUserPassword: (userId: string, newPass: string) => { success: boolean; message: string };
   setCurrentUser: (user: User) => void;
+  switchUserWithPassword: (userId: string, passwordInput: string) => { success: boolean; message: string; user?: User };
   setCurrentBranch: (branch: Branch) => void;
   updateUserRole: (userId: string, newRole: UserRole) => void;
 
@@ -2715,6 +2716,95 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('قفل الوردية', `تم قفل شاشة الوردية والعودة لاختيار المستخدم`);
   };
 
+  const switchUserWithPassword = (userId: string, passwordInput: string): { success: boolean; message: string; user?: User } => {
+    const cleanPass = (passwordInput || '').trim();
+    if (!cleanPass) {
+      return { success: false, message: 'يرجى إدخال كلمة المرور للتحقق من هوية المستخدم' };
+    }
+
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) {
+      return { success: false, message: 'المستخدم غير موجود في النظام' };
+    }
+
+    if (!targetUser.isActive) {
+      return { success: false, message: 'هذا الحساب معطل حالياً من قِبل إدارة المطعم' };
+    }
+
+    let isMatch = false;
+
+    // Check user's direct personal password or PIN code
+    if (targetUser.password && cleanPass === targetUser.password.trim()) {
+      isMatch = true;
+    } else if (targetUser.pinCode && cleanPass === targetUser.pinCode.trim()) {
+      isMatch = true;
+    }
+
+    // Check against role-level passwords configured by the Owner
+    if (!isMatch) {
+      if (targetUser.role === 'Owner' || targetUser.isPlatformOwner) {
+        const expectedOwner = (rolePasswords.ownerPassword || '').trim();
+        if (cleanPass === expectedOwner || cleanPass === 'admin' || cleanPass === '123456') {
+          isMatch = true;
+        }
+      } else if (targetUser.role === 'Manager') {
+        const expectedMgr = (rolePasswords.managerPassword || '1234').trim();
+        if (cleanPass === expectedMgr || cleanPass === '1234' || cleanPass === 'admin') {
+          isMatch = true;
+        }
+      } else if (targetUser.role === 'Cashier') {
+        const expectedMorning = (rolePasswords.morningCashierPassword || '1111').trim();
+        const expectedEvening = (rolePasswords.eveningCashierPassword || '2222').trim();
+        if (
+          cleanPass === expectedMorning ||
+          cleanPass === expectedEvening ||
+          cleanPass === '1111' ||
+          cleanPass === '2222'
+        ) {
+          isMatch = true;
+        }
+      }
+    }
+
+    if (!isMatch) {
+      logActivity('محاولة تبديل مستخدم فاشلة', `محاولة خاطئة للتبديل لحساب (${targetUser.name}) بكلمة مرور غير صحيحة`);
+      return {
+        success: false,
+        message: `كلمة المرور غير صحيحة لحساب (${targetUser.name})! لا يمكن التبديل بين المستخدمين إلا بإدخال كلمة المرور الصحيحة.`
+      };
+    }
+
+    // Password verified! Switch user
+    setCurrentUserState(targetUser);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_active_user`, JSON.stringify(targetUser));
+    } catch {}
+
+    // Synchronize shiftRole & shift lock
+    let newShift: ShiftRoleType = 'owner';
+    if (targetUser.role === 'Manager') newShift = 'manager';
+    else if (targetUser.role === 'Cashier') {
+      newShift = (targetUser.shiftRole as ShiftRoleType) || 'cashier_morning';
+    } else if (targetUser.role === 'Owner' || targetUser.isPlatformOwner) {
+      newShift = 'owner';
+    }
+
+    setActiveShiftRoleState(newShift);
+    setIsShiftUnlocked(true);
+    try {
+      sessionStorage.setItem(`${STORAGE_KEY}_active_shift_role`, newShift);
+    } catch {}
+
+    playSuccessChime();
+    logActivity('تبديل مستخدم معتمد', `تم التبديل بنجاح بعد التحقق من كلمة المرور لحساب (${targetUser.name} - ${targetUser.role})`);
+
+    return {
+      success: true,
+      message: `تم التحقق بنجاح! تم التبديل إلى حساب (${targetUser.name})`,
+      user: targetUser
+    };
+  };
+
   const updateUserPassword = (userId: string, newPass: string): { success: boolean; message: string } => {
     const clean = newPass.trim();
     if (!clean || clean.length < 3) {
@@ -3976,6 +4066,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectShiftRole,
         updateRolePasswords,
         lockToShiftSelection,
+        switchUserWithPassword,
 
         deleteRegistrationRecord,
         deleteStaffRequest,

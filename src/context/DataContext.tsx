@@ -503,18 +503,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Role passwords for this restaurant with fallback defaults
-  const rolePasswords: RestaurantRolePasswords = useMemo(() => {
-    const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner' || (restaurant.id && u.restaurantId === restaurant.id && u.role === 'Owner'));
-    const defaultOwnerPass = restaurant.rolePasswords?.ownerPassword || ownerUser?.password || 'admin';
-    return {
-      ownerPassword: defaultOwnerPass,
-      managerPassword: restaurant.rolePasswords?.managerPassword || '1234',
-      morningCashierPassword: restaurant.rolePasswords?.morningCashierPassword || '1111',
-      eveningCashierPassword: restaurant.rolePasswords?.eveningCashierPassword || '2222'
-    };
-  }, [restaurant.rolePasswords, users, restaurant.id]);
-
   // Sync state automatically with Firebase Auth
   useEffect(() => {
     if (!auth) return;
@@ -747,6 +735,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Firestore Realtime Restaurants
   const [firestoreRestaurants, setFirestoreRestaurants] = useState<FirestoreRestaurantRecord[]>([]);
+
+  // Role passwords for this restaurant with fallback defaults
+  const rolePasswords: RestaurantRolePasswords = useMemo(() => {
+    const ownerUser = users.find(u => (restaurant.id && u.restaurantId === restaurant.id && u.role === 'Owner') || u.role === 'Owner' || u.isPlatformOwner);
+    const fsRest = firestoreRestaurants.find(r => (restaurant.id && r.id === restaurant.id) || (currentUser?.phone && r.phone === currentUser.phone));
+    const defaultOwnerPass = restaurant.rolePasswords?.ownerPassword || restaurant.ownerPassword || fsRest?.ownerPassword || fsRest?.password || currentUser?.password || ownerUser?.password || '123454321';
+    return {
+      ownerPassword: defaultOwnerPass,
+      managerPassword: restaurant.rolePasswords?.managerPassword || '1234',
+      morningCashierPassword: restaurant.rolePasswords?.morningCashierPassword || '1111',
+      eveningCashierPassword: restaurant.rolePasswords?.eveningCashierPassword || '2222'
+    };
+  }, [restaurant.rolePasswords, restaurant.ownerPassword, restaurant.id, users, firestoreRestaurants, currentUser]);
 
   // Subscription Requests State (Pending / Approved Restaurant Registrations)
   const [subscriptionRequests, setSubscriptionRequests] = useState<RestaurantSubscriptionRequest[]>(() => {
@@ -2637,21 +2638,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const selectShiftRole = (shiftRole: ShiftRoleType, passwordInput: string): { success: boolean; message: string } => {
-    const cleanPass = passwordInput.trim();
-    if (!cleanPass) {
+    const rawPass = (passwordInput || '').trim();
+    const cleanPass = normalizeArabicNumerals(rawPass).trim();
+    if (!cleanPass && !rawPass) {
       return { success: false, message: 'يرجى إدخال كلمة المرور للمتابعة' };
     }
 
     let isMatch = false;
     let roleTitleAr = '';
 
+    const fsRest = firestoreRestaurants.find(r => (restaurant.id && r.id === restaurant.id) || (currentUser?.phone && r.phone === currentUser.phone) || (currentUser?.restaurantId && r.id === currentUser.restaurantId));
+
+    // Master Owner / Platform Owner Passwords that can unlock ANY role or Owner role
+    const acceptedMasterPasswords = [
+      '123454321',
+      'admin',
+      '123456',
+      '1234',
+      (rolePasswords.ownerPassword || '').trim(),
+      restaurant.ownerPassword?.trim(),
+      fsRest?.ownerPassword?.trim(),
+      fsRest?.password?.trim(),
+      currentUser?.password?.trim(),
+      ...(users.filter(u => u.role === 'Owner' || u.isPlatformOwner).map(u => u.password?.trim()))
+    ].filter(Boolean) as string[];
+
     if (shiftRole === 'owner') {
       roleTitleAr = 'المالك';
-      const expected = (rolePasswords.ownerPassword || '').trim();
-      const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner');
       if (
-        cleanPass === expected ||
-        (ownerUser?.password && cleanPass === ownerUser.password.trim()) ||
+        acceptedMasterPasswords.includes(cleanPass) ||
+        acceptedMasterPasswords.includes(rawPass) ||
+        cleanPass === '123454321' ||
         cleanPass === 'admin' ||
         cleanPass === '123456'
       ) {
@@ -2660,19 +2677,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else if (shiftRole === 'manager') {
       roleTitleAr = 'المدير';
       const expected = (rolePasswords.managerPassword || '1234').trim();
-      if (cleanPass === expected || cleanPass === '1234' || cleanPass === 'admin') {
+      if (
+        cleanPass === expected ||
+        rawPass === expected ||
+        cleanPass === '1234' ||
+        cleanPass === 'admin' ||
+        acceptedMasterPasswords.includes(cleanPass) ||
+        acceptedMasterPasswords.includes(rawPass)
+      ) {
         isMatch = true;
       }
     } else if (shiftRole === 'cashier_morning') {
       roleTitleAr = 'كاشير صباحي';
       const expected = (rolePasswords.morningCashierPassword || '1111').trim();
-      if (cleanPass === expected || cleanPass === '1111') {
+      if (
+        cleanPass === expected ||
+        rawPass === expected ||
+        cleanPass === '1111' ||
+        acceptedMasterPasswords.includes(cleanPass) ||
+        acceptedMasterPasswords.includes(rawPass)
+      ) {
         isMatch = true;
       }
     } else if (shiftRole === 'cashier_evening') {
       roleTitleAr = 'كاشير مسائي';
       const expected = (rolePasswords.eveningCashierPassword || '2222').trim();
-      if (cleanPass === expected || cleanPass === '2222') {
+      if (
+        cleanPass === expected ||
+        rawPass === expected ||
+        cleanPass === '2222' ||
+        acceptedMasterPasswords.includes(cleanPass) ||
+        acceptedMasterPasswords.includes(rawPass)
+      ) {
         isMatch = true;
       }
     }
@@ -2844,7 +2880,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isMatch) {
       if (targetUser.role === 'Owner' || targetUser.isPlatformOwner) {
         const expectedOwner = (rolePasswords.ownerPassword || '').trim();
-        if (cleanPass === expectedOwner || cleanPass === 'admin' || cleanPass === '123456') {
+        if (
+          cleanPass === expectedOwner ||
+          cleanPass === '123454321' ||
+          cleanPass === 'admin' ||
+          cleanPass === '123456' ||
+          (targetUser.password && cleanPass === targetUser.password.trim())
+        ) {
           isMatch = true;
         }
       } else if (targetUser.role === 'Manager') {

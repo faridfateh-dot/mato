@@ -2502,16 +2502,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cleanInput === 'farid.fateh@hotmail.com';
 
     if (!isSuperAdmin) {
+      // Check Firestore FIRST! Firestore is the authoritative cloud truth across all devices
+      const userFSRest = fsRestaurants.find(r => r.id === matchedUser!.restaurantId || (matchedUser!.phone && r.phone === matchedUser!.phone))
+        || firestoreRestaurants.find(r => r.id === matchedUser!.restaurantId || (matchedUser!.phone && r.phone === matchedUser!.phone));
+
+      // If Firestore confirms the restaurant is active with an activation code, it is APPROVED everywhere!
+      if (userFSRest && userFSRest.status === 'active' && userFSRest.activationCode) {
+        matchedUser.isActive = true;
+        matchedUser.isPendingApproval = false;
+        // Auto-sync stale local state on this device
+        setSystemRegistrations(prev => prev.map(r => 
+          (r.tenantId === userFSRest.id || (userFSRest.phone && r.emailOrPhone === userFSRest.phone))
+            ? { ...r, status: 'active', activationCode: userFSRest.activationCode }
+            : r
+        ));
+        setSubscriptionRequests(prev => prev.map(s =>
+          (s.id === userFSRest.id || (userFSRest.phone && s.phone === userFSRest.phone))
+            ? { ...s, status: 'approved', activationCode: userFSRest.activationCode }
+            : s
+        ));
+      }
+
       // Check if this restaurant subscription is pending
       const userRestSub = subscriptionRequests.find(s => s.id === matchedUser!.restaurantId || (matchedUser!.phone && s.phone === matchedUser!.phone));
-      const userFSRest = firestoreRestaurants.find(r => r.id === matchedUser!.restaurantId || (matchedUser!.phone && r.phone === matchedUser!.phone));
       const userReg = systemRegistrations.find(r => r.tenantId === matchedUser!.restaurantId || (matchedUser!.phone && r.emailOrPhone === matchedUser!.phone));
 
-      const isSubPending = (userRestSub && (userRestSub.status === 'pending_approval' || !userRestSub.activationCode)) ||
-                           (userFSRest && (userFSRest.status === 'pending_approval' || !userFSRest.activationCode)) ||
-                           (userReg && (userReg.status === 'pending_approval' || !userReg.activationCode));
+      const isSubPending = userFSRest 
+        ? (userFSRest.status === 'pending_approval' || !userFSRest.activationCode)
+        : ((userRestSub && (userRestSub.status === 'pending_approval' || !userRestSub.activationCode)) ||
+           (userReg && (userReg.status === 'pending_approval' || !userReg.activationCode)));
 
-      if (matchedUser.isPendingApproval || isSubPending) {
+      if ((matchedUser.isPendingApproval || isSubPending) && !(userFSRest && userFSRest.status === 'active' && userFSRest.activationCode)) {
         const restTitle = userRestSub?.restaurantName || userFSRest?.name || userReg?.restaurantName || 'مطعمك';
         logActivity('محاولة دخول معلقة', `حاول (${matchedUser.name}) تسجيل الدخول وحساب المطعم (${restTitle}) بانتظار موافقة فريد وتوليد كود التفعيل`);
         return {

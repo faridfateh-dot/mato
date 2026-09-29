@@ -17,7 +17,8 @@ import {
   Folder,
   Pencil,
   AlertCircle,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 import { Product, Category } from '../types';
 
@@ -50,7 +51,20 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
   const [categoryFormName, setCategoryFormName] = useState<string>('');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
+  const [inlineEditingName, setInlineEditingName] = useState<string>('');
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const handleSaveInlineCategory = (id: string) => {
+    if (!inlineEditingName.trim()) {
+      triggerNotification('يرجى كتابة اسم التصنيف أولاً', 'error');
+      return;
+    }
+    updateCategory(id, inlineEditingName.trim());
+    triggerNotification(`تم تحديث اسم التصنيف إلى "${inlineEditingName.trim()}" بنجاح!`);
+    setInlineEditingId(null);
+    setInlineEditingName('');
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -244,23 +258,40 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
           </button>
           {categories.map(c => {
             const count = products.filter(p => p.categoryId === c.id || p.categoryName === c.name).length;
+            const isSelected = selectedCategory === c.id;
             return (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                  selectedCategory === c.id
-                    ? 'bg-slate-900 text-amber-400 shadow-md'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                }`}
-              >
-                <span>{c.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
-                  selectedCategory === c.id ? 'bg-amber-400/20 text-amber-300' : 'bg-slate-100 text-slate-500'
-                }`}>
-                  {count}
-                </span>
-              </button>
+              <div key={c.id} className="inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory(c.id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-slate-900 text-amber-400 shadow-md ring-1 ring-amber-400/40'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span>{c.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                    isSelected ? 'bg-amber-400/20 text-amber-300' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {count}
+                  </span>
+                  {isSelected && (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingCategory(c);
+                        setCategoryFormName(c.name);
+                        setShowCategoryModal(true);
+                      }}
+                      className="p-1 hover:bg-slate-800 rounded-md text-amber-400 hover:text-amber-300 cursor-pointer"
+                      title="تعديل اسم التصنيف"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </span>
+                  )}
+                </button>
+              </div>
             );
           })}
 
@@ -594,7 +625,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
 
       {/* Add / Edit Category Modal */}
       {showCategoryModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
               <h2 className="font-extrabold text-sm flex items-center gap-2">
@@ -606,7 +637,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
                   setShowCategoryModal(false);
                   setEditingCategory(null);
                 }}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -614,7 +645,9 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
 
             <form onSubmit={handleCategorySubmit} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">اسم التصنيف الجديد *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  {editingCategory ? 'اسم التصنيف بعد التعديل *' : 'اسم التصنيف الجديد *'}
+                </label>
                 <input
                   type="text"
                   required
@@ -622,7 +655,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
                   placeholder="مثال: مشروبات باردة، وجبات رئيسية، مشويات..."
                   value={categoryFormName}
                   onChange={e => setCategoryFormName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full px-3 py-2.5 bg-slate-50 border-2 border-amber-400 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
               </div>
 
@@ -661,7 +694,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
                   className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold shadow-md cursor-pointer flex items-center gap-1.5"
                 >
                   <Check className="w-4 h-4" />
-                  <span>{editingCategory ? 'حفظ الاسم' : 'إضافة التصنيف'}</span>
+                  <span>{editingCategory ? 'حفظ الاسم الجديد' : 'إضافة التصنيف'}</span>
                 </button>
               </div>
             </form>
@@ -680,7 +713,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
               </h2>
               <button
                 onClick={() => setShowManageCategoriesModal(false)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -688,7 +721,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
 
             <div className="p-5 space-y-4 text-xs max-h-[60vh] overflow-y-auto">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <p className="text-slate-500 text-[11px]">قائمة بالاقسام والتصنيفات في مطعمك ويمكنك تعديل أسمائها أو حذفها.</p>
+                <p className="text-slate-500 text-[11px]">يمكنك تعديل أي اسم مباشرة بكتابة الاسم الجديد أو حذفه.</p>
                 <button
                   onClick={() => {
                     setEditingCategory(null);
@@ -698,48 +731,93 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
                   className="px-3 py-1.5 bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] hover:bg-amber-300 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>جديد</span>
+                  <span>تصنيف جديد</span>
                 </button>
               </div>
 
               <div className="space-y-2">
                 {categories.map(cat => {
                   const count = products.filter(p => p.categoryId === cat.id || p.categoryName === cat.name).length;
+                  const isEditingThis = inlineEditingId === cat.id;
+
                   return (
                     <div
                       key={cat.id}
-                      className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl hover:bg-slate-100/80 transition-all"
+                      className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl hover:bg-slate-100/80 transition-all gap-2"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs">
-                          <Folder className="w-4 h-4" />
+                      {isEditingThis ? (
+                        <div className="flex-1 flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={inlineEditingName}
+                            onChange={e => setInlineEditingName(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSaveInlineCategory(cat.id);
+                              }
+                              if (e.key === 'Escape') {
+                                setInlineEditingId(null);
+                              }
+                            }}
+                            className="flex-1 px-3 py-1.5 bg-white border-2 border-amber-400 rounded-lg text-slate-900 font-bold text-xs focus:outline-none"
+                            placeholder="اكتب الاسم الجديد..."
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveInlineCategory(cat.id)}
+                            className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-sm shrink-0"
+                            title="حفظ التعديل"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>حفظ</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInlineEditingId(null)}
+                            className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold cursor-pointer transition-colors shrink-0"
+                            title="إلغاء"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <div>
-                          <span className="font-extrabold text-slate-900 text-xs block">{cat.name}</span>
-                          <span className="text-[10px] text-slate-500">{count} أصناف مرتبطة</span>
-                        </div>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs shrink-0">
+                              <Folder className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-extrabold text-slate-900 text-xs block truncate">{cat.name}</span>
+                              <span className="text-[10px] text-slate-500">{count} أصناف مرتبطة</span>
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingCategory(cat);
-                            setCategoryFormName(cat.name);
-                            setShowCategoryModal(true);
-                          }}
-                          className="p-1.5 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                          title="تعديل اسم التصنيف"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setCategoryToDelete(cat)}
-                          className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
-                          title="حذف التصنيف"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInlineEditingId(cat.id);
+                                setInlineEditingName(cat.name);
+                              }}
+                              className="px-2.5 py-1.5 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer flex items-center gap-1 font-bold text-[11px]"
+                              title="تعديل اسم التصنيف مباشرة"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>تعديل</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCategoryToDelete(cat)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                              title="حذف التصنيف"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -760,7 +838,7 @@ export const ProductsView: React.FC<ProductsViewProps> = ({ onNavigateRecipeForP
 
       {/* Delete Category Confirmation Dialog */}
       {categoryToDelete && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 p-5 text-center text-xs">
             <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
               <AlertCircle className="w-6 h-6" />

@@ -477,9 +477,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isPlatformOwner = useMemo(() => {
     if (!isAuthenticated || !currentUser) return false;
     return (
-      currentUser.isPlatformOwner === true ||
-      currentUser.email?.toLowerCase() === 'farid.fateh@hotmail.com' ||
-      currentUser.id === 'usr_owner_farid'
+      (currentUser.isPlatformOwner === true || currentUser.id === 'usr_owner_farid') &&
+      currentUser.email?.toLowerCase() === 'farid.fateh@hotmail.com'
     );
   }, [isAuthenticated, currentUser]);
 
@@ -2729,13 +2728,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
 
     // Adapt user profile
-    const existingOwner = users.find(u => u.isPlatformOwner || u.role === 'Owner');
     if (shiftRole === 'owner') {
-      if (existingOwner) {
-        setCurrentUserState({
-          ...existingOwner,
-          shiftRole: 'owner'
-        });
+      const isSuperAdminPlatformCreator = currentUser?.email?.toLowerCase() === 'farid.fateh@hotmail.com';
+      if (isSuperAdminPlatformCreator) {
+        setCurrentUserState(prev => prev ? { ...prev, shiftRole: 'owner' } : null);
+      } else {
+        // Find THIS specific restaurant's owner (NEVER pick platform owner usr_owner_farid!)
+        const thisRestOwner = users.find(u => 
+          !u.isPlatformOwner && 
+          u.email?.toLowerCase() !== 'farid.fateh@hotmail.com' &&
+          u.id !== 'usr_owner_farid' &&
+          (u.id === currentUser?.id || (restaurant.id && u.restaurantId === restaurant.id && u.role === 'Owner'))
+        );
+
+        if (thisRestOwner) {
+          setCurrentUserState({
+            ...thisRestOwner,
+            isPlatformOwner: false,
+            role: 'Owner',
+            shiftRole: 'owner'
+          });
+        } else if (currentUser && currentUser.email?.toLowerCase() !== 'farid.fateh@hotmail.com' && currentUser.id !== 'usr_owner_farid') {
+          setCurrentUserState({
+            ...currentUser,
+            role: 'Owner',
+            isPlatformOwner: false,
+            shiftRole: 'owner'
+          });
+        } else {
+          const defaultRestOwner: User = {
+            id: `usr_owner_${restaurant.id || 'curr'}`,
+            restaurantId: restaurant.id,
+            branchId: '',
+            name: restaurant.ownerName || 'مالك المطعم',
+            email: restaurant.email || `${restaurant.phone || 'owner'}@mato.sy`,
+            phone: restaurant.phone,
+            role: 'Owner',
+            shiftRole: 'owner',
+            isActive: true,
+            isPendingApproval: false,
+            isPlatformOwner: false,
+            createdAt: new Date().toISOString()
+          };
+          setCurrentUserState(defaultRestOwner);
+        }
       }
     } else if (shiftRole === 'manager') {
       const managerUser: User = {

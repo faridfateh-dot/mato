@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { verifyActivationCodeInFirestore, PLATFORM_OWNER_CONTACT } from '../lib/firebase';
+import { verifyActivationCodeInFirestore, PLATFORM_OWNER_CONTACT, normalizeArabicNumerals } from '../lib/firebase';
 import { UserRole, SaaSPlanType } from '../types';
 import {
   readFromClipboard,
@@ -126,11 +126,13 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginStatusNotice(null);
-    if (!loginEmailOrPhone.trim()) return;
+    const cleanUser = normalizeArabicNumerals(loginEmailOrPhone).trim();
+    const cleanPass = normalizeArabicNumerals(loginPassword).trim();
+    if (!cleanUser) return;
 
     setIsLoggingIn(true);
     try {
-      const result = await loginUser(loginEmailOrPhone.trim(), loginPassword.trim());
+      const result = await loginUser(cleanUser, cleanPass || loginPassword.trim());
       if (result.success) {
         if (onClose) onClose();
       } else {
@@ -439,19 +441,25 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                 <input
                   type="text"
                   required
-                  placeholder="مثال: owner@mato.sy أو 0991234567"
+                  placeholder="مثال: 0980073917 أو owner@mato.sy"
                   value={loginEmailOrPhone}
                   onChange={e => setLoginEmailOrPhone(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                  className="w-full px-4 py-3 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 font-mono text-right"
+                  dir="ltr"
                 />
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                كلمة المرور
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-300">
+                  كلمة المرور
+                </label>
+                <span className="text-[10px] text-amber-400 font-mono">
+                  (الافتراضية: admin أو 123456)
+                </span>
+              </div>
               <div className="relative">
                 <input
                   type={showLoginPassword ? 'text' : 'password'}
@@ -469,6 +477,9 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                إذا قمت بإنشاء المطعم برقم 0980073917 يمكنك الدخول بكلمة المرور: <span className="text-amber-300 font-bold font-mono">admin</span> أو <span className="text-amber-300 font-bold font-mono">123456</span> أو كود التفعيل أو أي باسوورد اخترته.
+              </p>
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">

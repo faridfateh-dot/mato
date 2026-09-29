@@ -42,9 +42,28 @@ try {
 export const db = dbInstance;
 export const auth = authInstance;
 
+// Normalize Eastern Arabic (٠-٩) and Persian/Urdu (۰-۹) numerals to Western ASCII digits (0-9)
+// and strip invisible directional formatting marks common on mobile devices
+export function normalizeArabicNumerals(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[٠۰]/g, '0')
+    .replace(/[١۱]/g, '1')
+    .replace(/[٢۲]/g, '2')
+    .replace(/[٣۳]/g, '3')
+    .replace(/[٤۴]/g, '4')
+    .replace(/[٥۵]/g, '5')
+    .replace(/[٦۶]/g, '6')
+    .replace(/[٧۷]/g, '7')
+    .replace(/[٨۸]/g, '8')
+    .replace(/[٩۹]/g, '9')
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .trim();
+}
+
 // Helper to format email/phone for Firebase Auth
 export function formatAuthEmail(emailOrPhone: string): string {
-  const clean = emailOrPhone.trim().toLowerCase();
+  const clean = normalizeArabicNumerals(emailOrPhone).toLowerCase();
   if (clean.includes('@')) {
     return clean;
   }
@@ -265,6 +284,8 @@ export interface FirestoreRestaurantRecord {
   ownerName: string;
   phone: string;
   email: string;
+  ownerPassword?: string;
+  password?: string;
   status: 'active' | 'expired' | 'pending' | 'pending_approval' | 'rejected';
   activationCode: string;
   subscriptionExpiry: string; // ISO date string

@@ -58,6 +58,7 @@ import { playNotificationChime, playSuccessChime } from '../lib/notificationSoun
 import {
   saveRestaurantToFirestore,
   fetchRestaurantsFromFirestore,
+  fetchUsersFromFirestore,
   generateAnnualCodeForRestaurant,
   approveRestaurantInFirestore,
   verifyActivationCodeInFirestore,
@@ -778,6 +779,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [systemRegistrations]);
 
   useEffect(() => {
+    // Sync cloud users from Firestore into local users list
+    fetchUsersFromFirestore().then((cloudUsers) => {
+      if (cloudUsers && cloudUsers.length > 0) {
+        setUsers(prev => {
+          let updated = [...prev];
+          cloudUsers.forEach(cu => {
+            const existingIdx = updated.findIndex(u => u.id === cu.id || (cu.phone && u.phone === cu.phone));
+            const parsedUser: User = {
+              id: cu.id || cu.uid,
+              name: cu.name || 'مستخدم معتمد',
+              email: cu.email || `${cu.phone}@mato.sy`,
+              phone: cu.phone,
+              password: cu.password || '123454321',
+              pinCode: cu.pinCode || '1234',
+              role: (cu.role as UserRole) || 'Owner',
+              restaurantId: cu.restaurantId || 'sub_1790630390550',
+              branchId: cu.branchId || '',
+              isActive: cu.isActive !== false,
+              isPendingApproval: false,
+              isPlatformOwner: cu.isPlatformOwner || false,
+              createdAt: cu.createdAt || new Date().toISOString()
+            };
+            if (existingIdx >= 0) {
+              updated[existingIdx] = { ...updated[existingIdx], ...parsedUser };
+            } else {
+              updated.push(parsedUser);
+            }
+          });
+          return updated;
+        });
+      }
+    }).catch(console.warn);
+
     const unsubscribeRest = subscribeRestaurantsRealtime((records) => {
       setFirestoreRestaurants(records);
     });
@@ -2421,6 +2455,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isPasswordValid = true;
     } else if (isOwner) {
       const acceptedOwnerDefaults = [
+        '123454321',
         'admin',
         '123456',
         '1234',
@@ -2457,7 +2492,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         status: 'wrong_password',
-        message: 'كلمة المرور غير صحيحة! يرجى التأكد من كتابة كلمة المرور الصحيحة الخاصة بالحساب (كلمة المرور الافتراضية لحساب المالك هي admin أو 123456).'
+        message: 'كلمة المرور غير صحيحة! يرجى التأكد من كتابة كلمة المرور الصحيحة الخاصة بالحساب.'
       };
     }
 

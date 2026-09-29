@@ -115,6 +115,23 @@ export async function fetchUserProfileFromFirestore(uid: string): Promise<Firest
   }
 }
 
+// Fetch All Users from Firestore (/users)
+export async function fetchUsersFromFirestore(): Promise<any[]> {
+  if (!db) return [];
+  try {
+    const colRef = collection(db, 'users');
+    const snap = await getDocs(colRef);
+    const records: any[] = [];
+    snap.forEach((d) => {
+      records.push({ id: d.id, ...d.data() });
+    });
+    return records;
+  } catch (err) {
+    console.warn('fetchUsersFromFirestore error:', err);
+    return [];
+  }
+}
+
 // Firebase Auth Sign In
 export async function firebaseUserSignIn(emailOrPhone: string, password: string): Promise<{
   success: boolean;

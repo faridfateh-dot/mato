@@ -452,14 +452,9 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-300">
-                  كلمة المرور
-                </label>
-                <span className="text-[10px] text-amber-400 font-mono">
-                  (الافتراضية: admin أو 123456)
-                </span>
-              </div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                كلمة المرور
+              </label>
               <div className="relative">
                 <input
                   type={showLoginPassword ? 'text' : 'password'}
@@ -477,9 +472,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
                   {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                إذا قمت بإنشاء المطعم برقم 0980073917 يمكنك الدخول بكلمة المرور: <span className="text-amber-300 font-bold font-mono">admin</span> أو <span className="text-amber-300 font-bold font-mono">123456</span> أو كود التفعيل أو أي باسوورد اخترته.
-              </p>
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">

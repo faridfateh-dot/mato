@@ -82,6 +82,7 @@ import {
   saveRestaurantAppDataToFirestore,
   fetchRestaurantAppDataFromFirestore,
   subscribeRestaurantAppDataRealtime,
+  isQuotaExhausted,
   auth,
   firebaseUserSignIn,
   firebaseUserSignUp,
@@ -1708,10 +1709,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setTimeout(() => {
           isRemoteSyncRef.current = false;
-        }, 350);
+        }, 2000);
       } else if (!cloudData) {
         // Document does not exist in Firestore yet for this restaurant
-        // Seed initial data to Firestore
+        // Seed initial data to Firestore if quota allows
         if (!hasInitializedRestRef.current[currentRestId]) {
           hasInitializedRestRef.current[currentRestId] = true;
           const initialProducts = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_PRODUCTS : (products.length > 0 ? products : INITIAL_PRODUCTS);
@@ -1726,25 +1727,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setRestaurant(FOOD_BREAK_RESTAURANT);
           }
 
-          saveRestaurantAppDataToFirestore(currentRestId, {
-            restaurantId: currentRestId,
-            restaurant: initialRest,
-            branches: initialBranchesList,
-            categories: initialCats,
-            rawMaterialCategories,
-            products: initialProducts,
-            ingredients,
-            recipes,
-            suppliers,
-            purchases,
-            stockMovements,
-            orders,
-            expenses,
-            users
-          }).then(() => {
-            setIsCloudSynced(true);
-            setLastCloudSyncTime(new Date().toISOString());
-          }).catch(console.warn);
+          if (!isQuotaExhausted()) {
+            saveRestaurantAppDataToFirestore(currentRestId, {
+              restaurantId: currentRestId,
+              restaurant: initialRest,
+              branches: initialBranchesList,
+              categories: initialCats,
+              rawMaterialCategories,
+              products: initialProducts,
+              ingredients,
+              recipes,
+              suppliers,
+              purchases,
+              stockMovements,
+              orders,
+              expenses,
+              users
+            }).then(() => {
+              setIsCloudSynced(true);
+              setLastCloudSyncTime(new Date().toISOString());
+            }).catch(console.warn);
+          }
         }
       }
     });
@@ -1754,17 +1757,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [restaurant?.id]);
 
-  // Debounced Auto-Sync from local changes up to Firestore Cloud
+  // Debounced Auto-Sync from local changes up to Firestore Cloud (Quota-Safe)
   useEffect(() => {
     if (isRemoteSyncRef.current) return;
     if (!restaurant?.id) return;
+    if (isQuotaExhausted()) return;
     if (!hasInitializedRestRef.current[restaurant.id]) {
       // Avoid uploading local default data before initial cloud load is established
       return;
     }
 
     const timer = setTimeout(() => {
-      if (isRemoteSyncRef.current) return;
+      if (isRemoteSyncRef.current || isQuotaExhausted()) return;
       saveRestaurantAppDataToFirestore(restaurant.id, {
         restaurantId: restaurant.id,
         restaurant,
@@ -1786,7 +1790,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(err => {
         console.warn('Auto cloud sync warning:', err);
       });
-    }, 120);
+    }, 25000);
 
     return () => clearTimeout(timer);
   }, [
@@ -1807,6 +1811,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncCloudNow = async () => {
     if (!restaurant?.id) return;
+    if (isQuotaExhausted()) {
+      setIsCloudSynced(true);
+      return;
+    }
     setIsCloudSynced(false);
     await saveRestaurantAppDataToFirestore(restaurant.id, {
       restaurantId: restaurant.id,

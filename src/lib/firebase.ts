@@ -42,6 +42,39 @@ try {
 export const db = dbInstance;
 export const auth = authInstance;
 
+// Quota & Rate-Limit Circuit Breaker
+let isFirestoreQuotaExhausted = false;
+let quotaExhaustedTimestamp = 0;
+
+export function isQuotaExhausted(): boolean {
+  if (!isFirestoreQuotaExhausted) return false;
+  // Automatically test retry after 10 minutes
+  if (Date.now() - quotaExhaustedTimestamp > 10 * 60 * 1000) {
+    isFirestoreQuotaExhausted = false;
+    return false;
+  }
+  return true;
+}
+
+export function handleFirestoreError(actionName: string, err: any): void {
+  const errCode = err?.code || '';
+  const errMsg = err?.message || String(err);
+  if (
+    errCode === 'resource-exhausted' ||
+    errMsg.includes('resource-exhausted') ||
+    errMsg.includes('Quota limit exceeded') ||
+    errMsg.includes('Free daily write units')
+  ) {
+    if (!isFirestoreQuotaExhausted) {
+      isFirestoreQuotaExhausted = true;
+      quotaExhaustedTimestamp = Date.now();
+      console.warn(`[Firestore Offline-First Mode] تم تفعيل الحماية والوضع المحلي (Local-First) لاستهلاك حصة الكتابة المجانية اليومية. التطبيق يعمل بكفاءة وسرعة عبر التخزين المحلي.`);
+    }
+    return;
+  }
+  console.warn(`[Firestore] ${actionName} warning:`, err);
+}
+
 // Normalize Eastern Arabic (٠-٩) and Persian/Urdu (۰-۹) numerals to Western ASCII digits (0-9)
 // and strip invisible directional formatting marks common on mobile devices
 export function normalizeArabicNumerals(str: string): string {
@@ -90,12 +123,12 @@ export interface FirestoreUserProfile {
 
 // Save or Update User Profile in Firestore (/users/{uid})
 export async function saveUserProfileToFirestore(profile: FirestoreUserProfile): Promise<void> {
-  if (!db || !profile.uid) return;
+  if (!db || !profile.uid || isQuotaExhausted()) return;
   try {
     const userDocRef = doc(db, 'users', profile.uid);
     await setDoc(userDocRef, profile, { merge: true });
-  } catch (err) {
-    console.warn('saveUserProfileToFirestore error:', err);
+  } catch (err: any) {
+    handleFirestoreError('saveUserProfileToFirestore', err);
   }
 }
 
@@ -332,12 +365,12 @@ export function generateAnnualCodeString(): string {
 
 // Save or Update Restaurant in Firestore
 export async function saveRestaurantToFirestore(record: FirestoreRestaurantRecord): Promise<void> {
-  if (!db) return;
+  if (!db || isQuotaExhausted()) return;
   try {
     const docRef = doc(db, 'restaurants', record.id);
     await setDoc(docRef, record, { merge: true });
-  } catch (err) {
-    console.warn('Firestore saveRestaurant error:', err);
+  } catch (err: any) {
+    handleFirestoreError('saveRestaurantToFirestore', err);
   }
 }
 
@@ -513,12 +546,12 @@ export async function savePlatformOwnerContactToFirestore(contact: PlatformOwner
   PLATFORM_OWNER_CONTACT = toSave;
   try {
     localStorage.setItem('mato_platform_owner_contact', JSON.stringify(toSave));
-    if (db) {
+    if (db && !isQuotaExhausted()) {
       const docRef = doc(db, 'system_settings', 'owner_contact');
       await setDoc(docRef, toSave, { merge: true });
     }
-  } catch (err) {
-    console.warn('savePlatformOwnerContactToFirestore error:', err);
+  } catch (err: any) {
+    handleFirestoreError('savePlatformOwnerContactToFirestore', err);
   }
 }
 
@@ -765,7 +798,7 @@ export async function saveRestaurantAppDataToFirestore(
   restaurantId: string,
   data: Partial<RestaurantCloudData>
 ): Promise<void> {
-  if (!db || !restaurantId) return;
+  if (!db || !restaurantId || isQuotaExhausted()) return;
   try {
     const docRef = doc(db, 'restaurant_data', restaurantId);
     const sanitizedData = sanitizeForFirestore({
@@ -774,8 +807,8 @@ export async function saveRestaurantAppDataToFirestore(
       updatedAt: new Date().toISOString()
     });
     await setDoc(docRef, sanitizedData, { merge: true });
-  } catch (err) {
-    console.warn('Firestore saveRestaurantAppData error:', err);
+  } catch (err: any) {
+    handleFirestoreError('saveRestaurantAppData', err);
   }
 }
 
@@ -791,8 +824,8 @@ export async function fetchRestaurantAppDataFromFirestore(
       return snap.data() as RestaurantCloudData;
     }
     return null;
-  } catch (err) {
-    console.warn('Firestore fetchRestaurantAppData error:', err);
+  } catch (err: any) {
+    handleFirestoreError('fetchRestaurantAppData', err);
     return null;
   }
 }
@@ -817,12 +850,12 @@ export function subscribeRestaurantAppDataRealtime(
           callback(null);
         }
       },
-      (err) => {
-        console.warn('Realtime restaurant_data subscription error:', err);
+      (err: any) => {
+        handleFirestoreError('subscribeRestaurantAppDataRealtime', err);
       }
     );
-  } catch (err) {
-    console.warn('subscribeRestaurantAppDataRealtime error:', err);
+  } catch (err: any) {
+    handleFirestoreError('subscribeRestaurantAppDataRealtime', err);
     return () => {};
   }
 }

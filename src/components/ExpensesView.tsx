@@ -577,10 +577,28 @@ export const ExpensesView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-900 text-base">
-                    {editingExpense ? 'تعديل المصروف' : 'إضافة مصروف / أجر عامل'}
+                    {editingExpense
+                      ? 'تعديل المصروف'
+                      : form.category === 'supplies'
+                      ? 'إضافة مصروف محارم ومنظفات ومستلزمات 🧻'
+                      : form.category === 'wages'
+                      ? 'تسجيل أجر أو راتب عامل 👷'
+                      : form.category === 'utilities'
+                      ? 'تسجيل فاتورة غاز أو كهرباء أو خدمات ⚡'
+                      : form.category === 'staff_meals'
+                      ? 'تسجيل وجبات وأكل عمال 🍲'
+                      : form.category === 'rent'
+                      ? 'تسجيل إيجار المحل أو العقار 🏢'
+                      : form.category === 'maintenance'
+                      ? 'تسجيل تكاليف صيانة وتصليح 🛠️'
+                      : 'إضافة مصروف تشغيلي جديد 💳'}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    {editingExpense ? 'قم بتعديل وتحديث بيانات المصروف' : 'سجل التكاليف التشغيلية لتنظيم الأرباح بدقة'}
+                    {editingExpense
+                      ? 'قم بتعديل وتحديث بيانات المصروف'
+                      : form.category === 'supplies'
+                      ? 'سجل مصاريف المناديل والورقيات والمنظفات لخصمها من الكاش والأرباح'
+                      : 'سجل التكاليف التشغيلية لتنظيم الأرباح بدقة'}
                   </p>
                 </div>
               </div>
@@ -602,9 +620,9 @@ export const ExpensesView: React.FC = () => {
                   onChange={e => setForm({ ...form, category: e.target.value as ExpenseCategory })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 font-bold text-slate-900"
                 >
-                  <option value="wages">👷 أجور ورواتب عمال (صالة / مطبخ / توصيل)</option>
-                  <option value="utilities">⚡ غاز المطبخ، كهرباء واشتراك مولد، ماء</option>
                   <option value="supplies">🧻 محارم وورقيات، منظفات ومستلزمات صالة</option>
+                  <option value="utilities">⚡ غاز المطبخ، كهرباء واشتراك مولد، ماء</option>
+                  <option value="wages">👷 أجور ورواتب عمال (صالة / مطبخ / توصيل)</option>
                   <option value="rent">🏢 إيجار العقار والمكان</option>
                   <option value="maintenance">🛠️ صيانة وإصلاح أدوات ومعدات</option>
                   <option value="staff_meals">🍲 وجبات وأكل العمال (طعام موظفين من وجبات المحل)</option>
@@ -612,17 +630,69 @@ export const ExpensesView: React.FC = () => {
                 </select>
               </div>
 
+              {/* Dynamic Guidance for Supplies */}
+              {form.category === 'supplies' && (
+                <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl text-[11px] text-amber-900 leading-relaxed flex items-start gap-2.5">
+                  <span className="text-base shrink-0">🧻</span>
+                  <div>
+                    <span className="font-extrabold block mb-0.5">كيفية إضافة المحارم والمنظفات:</span>
+                    <span>
+                      اختر بياناً من الاقتراحات السريعة بالأسفل (أو اكتب اسم المادة بنفسك)، ثم ضع المبلغ الإجمالي المدفوع، وسيتم خصمها مباشرة من صندوق الكاش وحسابات الأرباح.
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Title */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">عنوان أو بيان المصروف *</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  {form.category === 'supplies'
+                    ? 'بيان المشتريات (المحارم أو المنظفات) *'
+                    : form.category === 'wages'
+                    ? 'بيان الأجر أو الراتب *'
+                    : 'عنوان أو بيان المصروف *'}
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: أجر العامل أحمد، عبوة غاز، علب محارم رول..."
+                  placeholder={
+                    form.category === 'supplies'
+                      ? 'مثال: علب محارم رول، سوائل جلي وكلور، أكياس قمامة...'
+                      : form.category === 'wages'
+                      ? 'مثال: يومية عامل صالة، سلفة على الراتب، مكافأة...'
+                      : form.category === 'utilities'
+                      ? 'مثال: عبوة غاز كبيرة، فاتورة اشتراك مولدة، تعبئة ماء...'
+                      : 'مثال: أجر العامل أحمد، عبوة غاز، علب محارم رول...'
+                  }
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 font-bold"
                 />
+
+                {/* Quick Presets for Supplies */}
+                {form.category === 'supplies' && (
+                  <div className="pt-2">
+                    <span className="text-[10px] text-slate-400 font-bold block mb-1">اقتراحات سريعة بنقرة واحدة:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'محارم رول ومحارم سفرة',
+                        'منظفات وكلور ومطهر أرضيات',
+                        'سائل جلي وصابون للأيدي',
+                        'أكياس قمامة ورول نايلون وقصدير',
+                        'إسفنج جلي وسيف ومماسح'
+                      ].map(preset => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, title: preset }))}
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 border border-slate-200 hover:border-amber-300 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                        >
+                          + {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Amount & Recipient */}
@@ -641,10 +711,26 @@ export const ExpensesView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">اسم العامل / المستلم (اختياري)</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    {form.category === 'supplies'
+                      ? 'اسم المحل / المورّد أو المشتري (اختياري)'
+                      : form.category === 'wages'
+                      ? 'اسم العامل / الموظف المستلم *'
+                      : form.category === 'utilities'
+                      ? 'الجهة المستلمة / شركة الغاز (اختياري)'
+                      : 'اسم المستلم أو الجهة (اختياري)'}
+                  </label>
                   <input
                     type="text"
-                    placeholder="مثال: أحمد عامل الصالة، شركة الغاز"
+                    placeholder={
+                      form.category === 'supplies'
+                        ? 'مثال: سوبرماركت الخير، جملة المنظفات...'
+                        : form.category === 'wages'
+                        ? 'مثال: أحمد عامل الصالة، الشيف سامر...'
+                        : form.category === 'utilities'
+                        ? 'مثال: معتمد الغاز، محطة الكهرباء...'
+                        : 'مثال: أحمد عامل الصالة، شركة الغاز'
+                    }
                     value={form.recipientOrWorker}
                     onChange={e => setForm({ ...form, recipientOrWorker: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 font-bold"

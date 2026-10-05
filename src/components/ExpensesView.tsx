@@ -29,7 +29,7 @@ import {
 import { InvoiceScannerModal } from './InvoiceScannerModal';
 
 export const ExpensesView: React.FC = () => {
-  const { currentRestaurant, expenses, addExpense, updateExpense, deleteExpense, clearAllExpenses, currentUser } = useData();
+  const { currentRestaurant, expenses, addExpense, updateExpense, deleteExpense, clearAllExpenses, currentUser, products, recipes, createOrder } = useData();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -38,6 +38,8 @@ export const ExpensesView: React.FC = () => {
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<Expense | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [selectedStaffMealProductId, setSelectedStaffMealProductId] = useState<string>('');
+  const [staffMealQty, setStaffMealQty] = useState<number>(1);
 
   // Form State
   const [form, setForm] = useState({
@@ -639,6 +641,69 @@ export const ExpensesView: React.FC = () => {
                     <span>
                       اختر بياناً من الاقتراحات السريعة بالأسفل (أو اكتب اسم المادة بنفسك)، ثم ضع المبلغ الإجمالي المدفوع، وسيتم خصمها مباشرة من صندوق الكاش وحسابات الأرباح.
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Direct Menu Selector for Staff Meals (أكل العمال من منيو المحل) */}
+              {!editingExpense && form.category === 'staff_meals' && (
+                <div className="p-3.5 bg-orange-50/90 border border-orange-200 rounded-2xl space-y-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base shrink-0">🍲</span>
+                    <div className="text-[11px] text-orange-950 leading-relaxed">
+                      <span className="font-extrabold block">وجبة عمال من منيو المحل (خصم البضاعة فقط وحساب التكلفة تلقائياً):</span>
+                      <span className="text-orange-900/80">
+                        اختر الوجبة من المنيو والعدد ليقوم النظام فوراً <b>بخصم المواد الأولية المستخدمة بالوجبة من المخزون</b> وتسجيل <b>تكلفتها فقط كمصروف</b> دون احتسابها كمبيعات:
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-orange-900 mb-1">اختر الوجبة من المنيو:</label>
+                      <select
+                        value={selectedStaffMealProductId || (products[0]?.id || '')}
+                        onChange={e => setSelectedStaffMealProductId(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-orange-300 rounded-xl font-bold text-slate-900 text-xs"
+                      >
+                        {products.map(p => {
+                          const rec = recipes.find(r => r.productId === p.id);
+                          const unitCost = rec ? rec.calculatedCost : Math.round(p.price * 0.5);
+                          return (
+                            <option key={p.id} value={p.id}>
+                              {p.name} (تكلفة المواد: {unitCost.toLocaleString()} {currentRestaurant.currency})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+
+                    <div className="w-full sm:w-20">
+                      <label className="block text-[10px] font-bold text-orange-900 mb-1">العدد:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={staffMealQty}
+                        onChange={e => setStaffMealQty(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-full px-2.5 py-2 bg-white border border-orange-300 rounded-xl font-extrabold text-center text-slate-900 text-xs"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetProdId = selectedStaffMealProductId || products[0]?.id;
+                        const prod = products.find(p => p.id === targetProdId);
+                        if (!prod) return;
+                        const qty = Math.max(1, Number(staffMealQty) || 1);
+                        const ord = createOrder([{ product: prod, quantity: qty }], 'staff_meal');
+                        setShowModal(false);
+                        triggerNotify(`تم خصم بضاعة (${prod.name} × ${qty}) من المخزون وتسجيل تكلفتها (${ord.costAmount.toLocaleString()} ${currentRestaurant.currency}) في المصاريف فقط!`);
+                      }}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-extrabold rounded-xl text-xs shadow-sm transition-all cursor-pointer shrink-0"
+                    >
+                      خصم البضاعة وتسجيل المصروف 🍲
+                    </button>
                   </div>
                 </div>
               )}

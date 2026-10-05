@@ -361,6 +361,51 @@ function safeStorageArrayParse<T>(key: string, fallback: T[]): T[] {
   }
 }
 
+function getTenantDeletedIds(restId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY}_deleted_${restId}`);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? new Set(arr) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function addTenantDeletedId(restId: string, itemId: string) {
+  if (!restId || !itemId) return;
+  try {
+    const set = getTenantDeletedIds(restId);
+    set.add(itemId);
+    localStorage.setItem(`${STORAGE_KEY}_deleted_${restId}`, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore
+  }
+}
+
+function mergeTenantArray<T extends { id: string }>(
+  localArr: T[],
+  cloudArr: T[],
+  deletedSet: Set<string>
+): T[] {
+  const map = new Map<string, T>();
+  if (Array.isArray(cloudArr)) {
+    cloudArr.forEach(item => {
+      if (item && item.id && !deletedSet.has(item.id)) {
+        map.set(item.id, item);
+      }
+    });
+  }
+  if (Array.isArray(localArr)) {
+    localArr.forEach(item => {
+      if (item && item.id && !deletedSet.has(item.id)) {
+        map.set(item.id, item);
+      }
+    });
+  }
+  return Array.from(map.values());
+}
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Session & Authentication State (Session-only, defaults to false on fresh visits/shared links)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -546,20 +591,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return [activeUser, ...filtered];
           });
 
-          if (profile.restaurantId) {
-            setRestaurant(prev => ({
-              ...prev,
-              id: profile!.restaurantId,
-              name: profile!.restaurantName || prev.name
-            }));
-          }
+          // Do NOT hijack an existing active session (e.g. Food Break or another tenant) on reload
+          const existingSessionUserId = sessionStorage.getItem(`${STORAGE_KEY}_session_user_id`);
+          const savedRest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
+          const hasDifferentActiveSession =
+            (existingSessionUserId && existingSessionUserId !== activeUser.id) ||
+            (savedRest?.id && savedRest.id !== profile.restaurantId);
 
-          setCurrentUserState(activeUser);
-          setIsAuthenticated(true);
-          try {
-            sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, activeUser.id);
-          } catch {
-            // ignore
+          if (!hasDifferentActiveSession) {
+            if (profile.restaurantId) {
+              setRestaurant(prev => ({
+                ...prev,
+                id: profile!.restaurantId,
+                name: profile!.restaurantName || prev.name
+              }));
+            }
+
+            setCurrentUserState(activeUser);
+            setIsAuthenticated(true);
+            try {
+              sessionStorage.setItem(`${STORAGE_KEY}_session_user_id`, activeUser.id);
+            } catch {
+              // ignore
+            }
           }
         } catch (e) {
           console.warn('Error loading user profile on auth state change:', e);
@@ -1639,50 +1693,91 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!restaurant?.id) return;
     const currentRestId = restaurant.id;
 
+    // Immediately hydrate from tenant-specific local cache if available when switching/reloading
+    const localTenantIngredients = safeStorageArrayParse<Ingredient>(`${STORAGE_KEY}_${currentRestId}_ingredients`, []);
+    if (localTenantIngredients.length > 0) {
+      setIngredients(prev => {
+        const deletedSet = getTenantDeletedIds(currentRestId);
+        const sameTenantPrev = prev.filter(i => i.restaurantId === currentRestId);
+        return mergeTenantArray(localTenantIngredients, sameTenantPrev, deletedSet);
+      });
+    }
+
     const unsubscribe = subscribeRestaurantAppDataRealtime(currentRestId, (cloudData) => {
       if (cloudData && cloudData.restaurantId === currentRestId) {
         isRemoteSyncRef.current = true;
         hasInitializedRestRef.current[currentRestId] = true;
+        const deletedSet = getTenantDeletedIds(currentRestId);
 
         if (Array.isArray(cloudData.products)) {
-          setProducts(cloudData.products);
-          localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(cloudData.products));
+          const localProds = safeStorageArrayParse<Product>(`${STORAGE_KEY}_${currentRestId}_products`, []);
+          const merged = mergeTenantArray(localProds, cloudData.products, deletedSet);
+          setProducts(merged);
+          localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_products`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.categories)) {
-          setCategories(cloudData.categories);
-          localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(cloudData.categories));
+          const localCats = safeStorageArrayParse<Category>(`${STORAGE_KEY}_${currentRestId}_categories`, []);
+          const merged = mergeTenantArray(localCats, cloudData.categories, deletedSet);
+          setCategories(merged);
+          localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_categories`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.rawMaterialCategories) && cloudData.rawMaterialCategories.length > 0) {
-          setRawMaterialCategories(cloudData.rawMaterialCategories);
-          localStorage.setItem(`${STORAGE_KEY}_rawMaterialCategories`, JSON.stringify(cloudData.rawMaterialCategories));
+          const localRawCats = safeStorageArrayParse<RawMaterialCategoryInfo>(`${STORAGE_KEY}_${currentRestId}_rawMaterialCategories`, []);
+          const merged = mergeTenantArray(localRawCats, cloudData.rawMaterialCategories, deletedSet);
+          setRawMaterialCategories(merged);
+          localStorage.setItem(`${STORAGE_KEY}_rawMaterialCategories`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_rawMaterialCategories`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.ingredients)) {
-          setIngredients(cloudData.ingredients);
-          localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(cloudData.ingredients));
+          const localIngs = safeStorageArrayParse<Ingredient>(`${STORAGE_KEY}_${currentRestId}_ingredients`, []);
+          const merged = mergeTenantArray(localIngs, cloudData.ingredients, deletedSet);
+          setIngredients(merged);
+          localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_ingredients`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.recipes)) {
-          setRecipes(cloudData.recipes);
-          localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(cloudData.recipes));
+          const localRecs = safeStorageArrayParse<Recipe>(`${STORAGE_KEY}_${currentRestId}_recipes`, []);
+          const merged = mergeTenantArray(localRecs, cloudData.recipes, deletedSet);
+          setRecipes(merged);
+          localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_recipes`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.suppliers)) {
-          setSuppliers(cloudData.suppliers);
-          localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(cloudData.suppliers));
+          const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${currentRestId}_suppliers`, []);
+          const merged = mergeTenantArray(localSups, cloudData.suppliers, deletedSet);
+          setSuppliers(merged);
+          localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_suppliers`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.purchases)) {
-          setPurchases(cloudData.purchases);
-          localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(cloudData.purchases));
+          const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${currentRestId}_purchases`, []);
+          const merged = mergeTenantArray(localPurs, cloudData.purchases, deletedSet);
+          setPurchases(merged);
+          localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_purchases`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.stockMovements)) {
-          setStockMovements(cloudData.stockMovements);
-          localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(cloudData.stockMovements));
+          const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${currentRestId}_stockMovements`, []);
+          const merged = mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet);
+          setStockMovements(merged);
+          localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_stockMovements`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.orders)) {
-          setOrders(cloudData.orders);
-          localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(cloudData.orders));
+          const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${currentRestId}_orders`, []);
+          const merged = mergeTenantArray(localOrds, cloudData.orders, deletedSet);
+          setOrders(merged);
+          localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_orders`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.expenses)) {
-          setExpenses(cloudData.expenses);
-          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(cloudData.expenses));
+          const localExps = safeStorageArrayParse<Expense>(`${STORAGE_KEY}_${currentRestId}_expenses`, []);
+          const merged = mergeTenantArray(localExps, cloudData.expenses, deletedSet);
+          setExpenses(merged);
+          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(merged));
+          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_expenses`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.branches) && cloudData.branches.length > 0) {
           setBranches(cloudData.branches);
@@ -1790,7 +1885,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(err => {
         console.warn('Auto cloud sync warning:', err);
       });
-    }, 25000);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, [
@@ -1837,7 +1932,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('مزامنة سحابية يدوية', 'تمت المزامنة الفورية لكافة المنتجات والبيانات مع السحابة بنجاح');
   };
 
-  // Persist data locally on change
+  // Persist data locally on change (both global and tenant-scoped keys)
   useEffect(() => {
     localStorage.removeItem(`${STORAGE_KEY}_is_authenticated`); // Clean up legacy persistent auth key
     localStorage.setItem(`${STORAGE_KEY}_system_registrations`, JSON.stringify(systemRegistrations));
@@ -1857,6 +1952,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(`${STORAGE_KEY}_activityLogs`, JSON.stringify(activityLogs));
     localStorage.setItem(`${STORAGE_KEY}_licenseInfo`, JSON.stringify(licenseInfo));
     localStorage.setItem(`${STORAGE_KEY}_licenseKeys`, JSON.stringify(licenseKeys));
+
+    if (restaurant?.id) {
+      const rId = restaurant.id;
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_categories`, JSON.stringify(categories));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_rawMaterialCategories`, JSON.stringify(rawMaterialCategories));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_products`, JSON.stringify(products));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_ingredients`, JSON.stringify(ingredients));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_recipes`, JSON.stringify(recipes));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_suppliers`, JSON.stringify(suppliers));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_purchases`, JSON.stringify(purchases));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_stockMovements`, JSON.stringify(stockMovements));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_orders`, JSON.stringify(orders));
+      localStorage.setItem(`${STORAGE_KEY}_${rId}_expenses`, JSON.stringify(expenses));
+    }
   }, [systemRegistrations, restaurant, branches, users, categories, rawMaterialCategories, products, ingredients, recipes, suppliers, purchases, stockMovements, orders, expenses, activityLogs, licenseInfo, licenseKeys]);
 
   // Helper logging
@@ -2575,8 +2684,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRestaurant(FOOD_BREAK_RESTAURANT);
       setBranches(FOOD_BREAK_BRANCHES);
       setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
+      const localFbIngs = safeStorageArrayParse<Ingredient>(`${STORAGE_KEY}_rest_foodbreak_ingredients`, []);
+      if (localFbIngs.length > 0) {
+        setIngredients(localFbIngs);
+      }
     } else if (matchedUser.restaurantId && matchedUser.restaurantId !== restaurant.id && matchedUser.restaurantId !== 'rest_01') {
-      const tenantRest = fsRestaurants.find(r => r.id === matchedUser.restaurantId) || firestoreRestaurants.find(r => r.id === matchedUser.restaurantId);
+      const targetRestId = matchedUser.restaurantId;
+      const tenantRest = fsRestaurants.find(r => r.id === targetRestId) || firestoreRestaurants.find(r => r.id === targetRestId);
       if (tenantRest) {
         setRestaurant(prev => ({
           ...prev,
@@ -2585,24 +2699,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }));
       }
 
-      // Restore tenant data from Firestore Cloud if available
+      // Restore tenant data from local tenant cache merged with Firestore Cloud if available
+      const deletedSet = getTenantDeletedIds(targetRestId);
+      const localIngs = safeStorageArrayParse<Ingredient>(`${STORAGE_KEY}_${targetRestId}_ingredients`, []);
+      if (localIngs.length > 0) setIngredients(localIngs);
+
       try {
-        const cloudData = await fetchRestaurantAppDataFromFirestore(matchedUser.restaurantId);
+        const cloudData = await fetchRestaurantAppDataFromFirestore(targetRestId);
         if (cloudData) {
           if (cloudData.restaurant) setRestaurant(cloudData.restaurant);
           if (cloudData.branches && cloudData.branches.length > 0) {
             setBranches(cloudData.branches);
             setCurrentBranchState(cloudData.branches[0]);
           }
-          if (cloudData.categories) setCategories(cloudData.categories);
-          if (cloudData.products) setProducts(cloudData.products);
-          if (cloudData.ingredients) setIngredients(cloudData.ingredients);
-          if (cloudData.recipes) setRecipes(cloudData.recipes);
-          if (cloudData.suppliers) setSuppliers(cloudData.suppliers);
-          if (cloudData.purchases) setPurchases(cloudData.purchases);
-          if (cloudData.stockMovements) setStockMovements(cloudData.stockMovements);
-          if (cloudData.orders) setOrders(cloudData.orders);
-          if (cloudData.expenses) setExpenses(cloudData.expenses);
+          if (cloudData.categories) {
+            const localCats = safeStorageArrayParse<Category>(`${STORAGE_KEY}_${targetRestId}_categories`, []);
+            setCategories(mergeTenantArray(localCats, cloudData.categories, deletedSet));
+          }
+          if (cloudData.products) {
+            const localProds = safeStorageArrayParse<Product>(`${STORAGE_KEY}_${targetRestId}_products`, []);
+            setProducts(mergeTenantArray(localProds, cloudData.products, deletedSet));
+          }
+          if (cloudData.ingredients) {
+            setIngredients(mergeTenantArray(localIngs, cloudData.ingredients, deletedSet));
+          }
+          if (cloudData.recipes) {
+            const localRecs = safeStorageArrayParse<Recipe>(`${STORAGE_KEY}_${targetRestId}_recipes`, []);
+            setRecipes(mergeTenantArray(localRecs, cloudData.recipes, deletedSet));
+          }
+          if (cloudData.suppliers) {
+            const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${targetRestId}_suppliers`, []);
+            setSuppliers(mergeTenantArray(localSups, cloudData.suppliers, deletedSet));
+          }
+          if (cloudData.purchases) {
+            const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${targetRestId}_purchases`, []);
+            setPurchases(mergeTenantArray(localPurs, cloudData.purchases, deletedSet));
+          }
+          if (cloudData.stockMovements) {
+            const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${targetRestId}_stockMovements`, []);
+            setStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
+          }
+          if (cloudData.orders) {
+            const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${targetRestId}_orders`, []);
+            setOrders(mergeTenantArray(localOrds, cloudData.orders, deletedSet));
+          }
+          if (cloudData.expenses) {
+            const localExps = safeStorageArrayParse<Expense>(`${STORAGE_KEY}_${targetRestId}_expenses`, []);
+            setExpenses(mergeTenantArray(localExps, cloudData.expenses, deletedSet));
+          }
         }
       } catch (cloudErr) {
         console.warn('Tenant cloud data loading notice:', cloudErr);
@@ -3199,7 +3343,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const target = categories.find(c => c.id === id);
     if (!target) return false;
 
-    setCategories(prev => prev.filter(c => c.id !== id));
+    addTenantDeletedId(restaurant.id, id);
+    setCategories(prev => {
+      const next = prev.filter(c => c.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_categories`, JSON.stringify(next));
+      return next;
+    });
     logActivity('حذف تصنيف', `حذف التصنيف: ${target.name}`);
     return true;
   };
@@ -3212,19 +3362,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       restaurantId: restaurant.id,
       branchId: currentBranch.id,
     };
-    setProducts(prev => [newProduct, ...prev]);
+    setProducts(prev => {
+      const next = [newProduct, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_products`, JSON.stringify(next));
+      return next;
+    });
     logActivity('إضافة منتج', `إضافة المنتج ${newProduct.name} بسعر ${newProduct.price} ${restaurant.currency}`);
     return newProduct;
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    setProducts(prev => {
+      const next = prev.map(p => p.id === id ? { ...p, ...updates } : p);
+      localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_products`, JSON.stringify(next));
+      return next;
+    });
     logActivity('تعديل منتج', `تحديث بيانات المنتج id:${id}`);
   };
 
   const deleteProduct = (id: string) => {
     const target = products.find(p => p.id === id);
-    setProducts(prev => prev.filter(p => p.id !== id));
+    addTenantDeletedId(restaurant.id, id);
+    setProducts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_products`, JSON.stringify(next));
+      return next;
+    });
     logActivity('حذف منتج', `حذف المنتج ${target?.name || id}`);
   };
 
@@ -3254,27 +3420,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `ing_${Date.now()}`,
       restaurantId: restaurant.id,
     };
-    setIngredients(prev => [...prev, newIng]);
+    setIngredients(prev => {
+      const next = [...prev, newIng];
+      localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(next));
+      if (!isQuotaExhausted() && restaurant?.id) {
+        saveRestaurantAppDataToFirestore(restaurant.id, {
+          restaurantId: restaurant.id,
+          ingredients: next
+        }).catch(() => {});
+      }
+      return next;
+    });
     logActivity('إضافة مادة أولية', `إضافة المادة ${newIng.name} وحدتها ${newIng.unit}`);
     return newIng;
   };
 
   const updateIngredient = (id: string, updates: Partial<Ingredient>) => {
-    setIngredients(prev => prev.map(ing => {
-      if (ing.id === id) {
-        const updated = { ...ing, ...updates };
-        logActivity('تعديل مادة أولية', `تحديث المادة ${updated.name} وحدتها ${updated.unit}`);
-        return updated;
+    setIngredients(prev => {
+      const next = prev.map(ing => {
+        if (ing.id === id) {
+          const updated = { ...ing, ...updates };
+          logActivity('تعديل مادة أولية', `تحديث المادة ${updated.name} وحدتها ${updated.unit}`);
+          return updated;
+        }
+        return ing;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(next));
+      if (!isQuotaExhausted() && restaurant?.id) {
+        saveRestaurantAppDataToFirestore(restaurant.id, {
+          restaurantId: restaurant.id,
+          ingredients: next
+        }).catch(() => {});
       }
-      return ing;
-    }));
+      return next;
+    });
   };
 
   const deleteIngredient = (id: string): boolean => {
     const target = ingredients.find(i => i.id === id);
     if (!target) return false;
 
-    setIngredients(prev => prev.filter(i => i.id !== id));
+    addTenantDeletedId(restaurant.id, id);
+    setIngredients(prev => {
+      const next = prev.filter(i => i.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(next));
+      if (!isQuotaExhausted() && restaurant?.id) {
+        saveRestaurantAppDataToFirestore(restaurant.id, {
+          restaurantId: restaurant.id,
+          ingredients: next
+        }).catch(() => {});
+      }
+      return next;
+    });
     logActivity('حذف مادة أولية', `تم مسح المادة ${target.name} من المخزون`);
     return true;
   };
@@ -3600,7 +3800,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
 
-    const profitAmount = totalAmount - costAmount;
+    const isStaffMeal = paymentMethod === 'staff_meal';
+    const finalTotalAmount = isStaffMeal ? 0 : totalAmount;
+    const profitAmount = isStaffMeal ? 0 : (totalAmount - costAmount);
 
     const newOrder: Order = {
       id: `ord_${Date.now()}`,
@@ -3608,7 +3810,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       branchId: currentBranch.id,
       orderNumber: `ORD-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
       items: orderItems,
-      totalAmount,
+      totalAmount: finalTotalAmount,
       costAmount: Math.round(costAmount),
       profitAmount: Math.round(profitAmount),
       status: 'completed',
@@ -3620,26 +3822,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setOrders(prev => [newOrder, ...prev]);
 
-    // If order is recorded as a Staff Meal (أكل عمال من المحل), automatically record expense!
-    if (paymentMethod === 'staff_meal') {
+    // If order is recorded as a Staff Meal (أكل عمال من المحل), automatically record expense by ingredient cost only!
+    if (isStaffMeal) {
       const mealItemsStr = orderItems.map(i => `${i.productName} (x${i.quantity})`).join('، ');
-      const expenseAmount = Math.round(costAmount > 0 ? costAmount : totalAmount);
+      const expenseAmount = Math.round(costAmount > 0 ? costAmount : totalAmount * 0.5);
       const newExpense: Expense = {
         id: `exp_staff_${Date.now()}`,
         restaurantId: restaurant.id,
         branchId: currentBranch.id,
-        title: `وجبة عمال - طلب ${newOrder.orderNumber}`,
+        title: `وجبة عمال من منيو المحل (${mealItemsStr})`,
         category: 'staff_meals',
         amount: expenseAmount,
         date: new Date().toISOString(),
-        notes: `وجبة طعام للعمال من المحل (${mealItemsStr}) - تم خصم المواد من المخزون وتسجيل التكلفة بمبلغ ${expenseAmount} ${restaurant.currency}`,
+        notes: `وجبة طعام للعمال من منيو المحل (${mealItemsStr}) - تم خصم البضاعة المستخدمة من المخزون فقط وتسجيل تكلفتها الفعلية (${expenseAmount} ${restaurant.currency}) كمصروف دون احتسابها كمبيعات`,
         recipientOrWorker: 'طاقم العمل والعمال',
         paymentMethod: 'cash',
         createdByUserId: currentUser.id,
         createdByName: currentUser.name
       };
       setExpenses(prevExp => [newExpense, ...prevExp]);
-      logActivity('تسجيل وجبة عمال كـ مصروف', `تسجيل وجبة طاقم العمال ${newOrder.orderNumber} بقيمة تكلفة ${expenseAmount} ${restaurant.currency} في المصاريف`);
+      logActivity('تسجيل وجبة عمال من المنيو', `خصم مواد وجبة العمال (${mealItemsStr}) من المخزون وتسجيل تكلفتها فقط (${expenseAmount} ${restaurant.currency}) في المصاريف`);
     } else {
       logActivity('تسجيل طلب POS', `إتمام الطلب ${newOrder.orderNumber} بقيمة ${totalAmount} ${restaurant.currency}`);
     }
@@ -3650,7 +3852,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Analytics Calculation Helper
   const getDashboardStats = (): DashboardStats => {
     const today = new Date().toISOString().split('T')[0];
-    const todayOrders = orders.filter(o => o.createdAt.startsWith(today) && o.status === 'completed');
+    const todayOrders = orders.filter(
+      o => o.createdAt.startsWith(today) && o.status === 'completed' && o.paymentMethod !== 'staff_meal'
+    );
 
     const todaySales = todayOrders.reduce((acc, o) => acc + o.totalAmount, 0);
     const orderCount = todayOrders.length;
@@ -3665,7 +3869,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const dateStr = d.toISOString().split('T')[0];
       const dayName = d.toLocaleDateString('ar-SY', { weekday: 'short' });
 
-      const dayOrders = orders.filter(o => o.createdAt.startsWith(dateStr) && o.status === 'completed');
+      const dayOrders = orders.filter(
+        o => o.createdAt.startsWith(dateStr) && o.status === 'completed' && o.paymentMethod !== 'staff_meal'
+      );
       const sales = dayOrders.reduce((acc, o) => acc + o.totalAmount, 0);
 
       daysArr.push({
@@ -3678,7 +3884,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Top selling products
     const productSalesMap: Record<string, { quantity: number; revenue: number }> = {};
     orders.forEach(o => {
-      if (o.status === 'completed') {
+      if (o.status === 'completed' && o.paymentMethod !== 'staff_meal') {
         o.items.forEach(it => {
           if (!productSalesMap[it.productName]) {
             productSalesMap[it.productName] = { quantity: 0, revenue: 0 };

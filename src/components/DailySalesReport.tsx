@@ -105,20 +105,24 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return expenses.filter(e => e.date.startsWith(selectedDate));
   }, [expenses, selectedDate]);
 
-  // Financial Metrics
-  const totalSales = useMemo(() => {
-    return dayOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  // Financial Metrics (Exclude internal staff meals from customer sales & gross profit)
+  const customerDayOrders = useMemo(() => {
+    return dayOrders.filter(o => o.paymentMethod !== 'staff_meal');
   }, [dayOrders]);
+
+  const totalSales = useMemo(() => {
+    return customerDayOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  }, [customerDayOrders]);
 
   const totalCost = useMemo(() => {
-    return dayOrders.reduce((acc, o) => acc + (o.costAmount || 0), 0);
-  }, [dayOrders]);
+    return customerDayOrders.reduce((acc, o) => acc + (o.costAmount || 0), 0);
+  }, [customerDayOrders]);
 
   const totalGrossProfit = useMemo(() => {
-    return dayOrders.reduce((acc, o) => acc + (o.profitAmount || (o.totalAmount - (o.costAmount || 0))), 0);
-  }, [dayOrders]);
+    return customerDayOrders.reduce((acc, o) => acc + (o.profitAmount || (o.totalAmount - (o.costAmount || 0))), 0);
+  }, [customerDayOrders]);
 
-  const orderCount = dayOrders.length;
+  const orderCount = customerDayOrders.length;
   const avgOrderValue = orderCount > 0 ? Math.round(totalSales / orderCount) : 0;
   const profitMarginPercent = totalSales > 0 ? Math.round((totalGrossProfit / totalSales) * 100) : 0;
 
@@ -139,7 +143,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
         cardTotal += o.totalAmount;
         cardCount++;
       } else if (o.paymentMethod === 'staff_meal') {
-        staffTotal += o.totalAmount;
+        staffTotal += (o.costAmount || 0);
         staffCount++;
       } else {
         // Default to cash if unspecified
@@ -151,7 +155,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return {
       cash: { total: cashTotal, count: cashCount, percent: totalSales > 0 ? Math.round((cashTotal / totalSales) * 100) : 0 },
       card: { total: cardTotal, count: cardCount, percent: totalSales > 0 ? Math.round((cardTotal / totalSales) * 100) : 0 },
-      staff: { total: staffTotal, count: staffCount, percent: totalSales > 0 ? Math.round((staffTotal / totalSales) * 100) : 0 }
+      staff: { total: staffTotal, count: staffCount, percent: 0 }
     };
   }, [dayOrders, totalSales]);
 
@@ -160,12 +164,19 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return dayExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
   }, [dayExpenses]);
 
+  // Cash Expenses paid out of physical cash drawer (excluding internal kitchen staff meals which consume inventory, not cash)
+  const cashDrawerExpensesAmount = useMemo(() => {
+    return dayExpenses
+      .filter(e => !e.id.startsWith('exp_staff_') && e.paymentMethod === 'cash')
+      .reduce((acc, e) => acc + (e.amount || 0), 0);
+  }, [dayExpenses]);
+
   // Cash Treasury Calculations
   // Cash In: Opening float + Cash sales
-  // Cash Out: Expenses paid from cash drawer
+  // Cash Out: Cash expenses paid from cash drawer
   const expectedCashInDrawer = useMemo(() => {
-    return Math.max(0, openingCash + paymentBreakdown.cash.total - totalExpensesAmount);
-  }, [openingCash, paymentBreakdown.cash.total, totalExpensesAmount]);
+    return Math.max(0, openingCash + paymentBreakdown.cash.total - cashDrawerExpensesAmount);
+  }, [openingCash, paymentBreakdown.cash.total, cashDrawerExpensesAmount]);
 
   const cashDiscrepancy = useMemo(() => {
     if (!actualCashCounted || isNaN(Number(actualCashCounted))) return null;
@@ -180,7 +191,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     let eveningSales = 0;
     let eveningOrders = 0;
 
-    dayOrders.forEach(o => {
+    customerDayOrders.forEach(o => {
       const hour = new Date(o.createdAt).getHours();
       if (hour >= 6 && hour < 16) {
         morningSales += o.totalAmount;
@@ -195,7 +206,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       morning: { sales: morningSales, orders: morningOrders },
       evening: { sales: eveningSales, orders: eveningOrders }
     };
-  }, [dayOrders]);
+  }, [customerDayOrders]);
 
   // Top Selling Products for this Day
   const topProducts = useMemo(() => {

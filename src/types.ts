@@ -99,6 +99,10 @@ export interface Ingredient {
   pieceWeight?: number; // e.g., 500
   pieceWeightUnit?: string; // e.g., 'غرام (غ)' or 'كيلوغرام (كغ)'
   pieceUnitName?: string; // e.g., 'رأس', 'حبة', 'قطعة'
+  // Manufactured / Sub-Recipe Item (المواد المصنّعة داخلياً مثل الجرانولا، الصوصات، التتبيلات)
+  isManufactured?: boolean;
+  batchYieldQuantity?: number; // الكمية الناتجة من الطبخة الواحدة (مثلاً 5 كغ)
+  subRecipeItems?: RecipeIngredientItem[]; // المكونات الأولية الداخلة في الطبخة
 }
 
 export interface RecipeIngredientItem {

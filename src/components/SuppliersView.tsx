@@ -12,9 +12,13 @@ import {
   Boxes,
   Trash2,
   Scan,
-  Sparkles
+  Sparkles,
+  Sun,
+  Moon,
+  Store,
+  Layers
 } from 'lucide-react';
-import { Supplier } from '../types';
+import { Supplier, ShiftRoleType } from '../types';
 import { getCompatibleUnits, convertQuantity, convertCostPerUnit, convertQuantityAdvanced, convertCostPerUnitAdvanced } from '../lib/unitUtils';
 import { InvoiceScannerModal } from './InvoiceScannerModal';
 
@@ -24,6 +28,7 @@ export const SuppliersView: React.FC = () => {
     purchases,
     ingredients,
     currentRestaurant,
+    activeShiftRole,
     addSupplier,
     deleteSupplier,
     recordPurchase
@@ -33,6 +38,28 @@ export const SuppliersView: React.FC = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showInvoiceScanner, setShowInvoiceScanner] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [selectedShiftFilter, setSelectedShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>('all');
+
+  // Helper to determine shift of a purchase record
+  const getPurchaseShift = (pur: { shiftRole?: string; date?: string }): 'cashier_morning' | 'cashier_evening' => {
+    if (pur.shiftRole === 'cashier_morning') return 'cashier_morning';
+    if (pur.shiftRole === 'cashier_evening') return 'cashier_evening';
+    const hour = pur.date ? new Date(pur.date).getHours() : 12;
+    return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
+  };
+
+  const filteredPurchases = purchases.filter(pur => {
+    if (selectedShiftFilter === 'all') return true;
+    return getPurchaseShift(pur) === selectedShiftFilter;
+  });
+
+  const morningPurchasesTotal = purchases
+    .filter(p => getPurchaseShift(p) === 'cashier_morning')
+    .reduce((acc, p) => acc + p.totalAmount, 0);
+
+  const eveningPurchasesTotal = purchases
+    .filter(p => getPurchaseShift(p) === 'cashier_evening')
+    .reduce((acc, p) => acc + p.totalAmount, 0);
 
   // Supplier Form
   const [supplierForm, setSupplierForm] = useState({
@@ -48,7 +75,9 @@ export const SuppliersView: React.FC = () => {
     ingredientId: '',
     quantity: '',
     unit: '',
-    costPerUnit: ''
+    costPerUnit: '',
+    shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType,
+    payFromCashDrawer: true
   });
 
   const handleSupplierSubmit = (e: React.FormEvent) => {
@@ -87,11 +116,20 @@ export const SuppliersView: React.FC = () => {
           unit: purchaseForm.unit || ing.unit,
           costPerUnit: Number(purchaseForm.costPerUnit)
         }
-      ]
+      ],
+      purchaseForm.shiftRole
     );
 
     setShowPurchaseModal(false);
-    setPurchaseForm({ supplierId: '', ingredientId: '', quantity: '', unit: '', costPerUnit: '' });
+    setPurchaseForm({
+      supplierId: '',
+      ingredientId: '',
+      quantity: '',
+      unit: '',
+      costPerUnit: '',
+      shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType,
+      payFromCashDrawer: true
+    });
   };
 
   return (
@@ -191,12 +229,53 @@ export const SuppliersView: React.FC = () => {
 
       {/* Purchases History */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="p-4 bg-slate-900 text-white font-bold text-sm flex items-center justify-between">
+        <div className="p-4 bg-slate-900 text-white font-bold text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-amber-400" />
-            <span>سجل فواتير التوريد المباشرة</span>
+            <span>سجل فواتير التوريد والشراء حسب الوردية</span>
           </div>
-          <span className="text-xs text-slate-400">تحدث المخزون أوتوماتيكياً</span>
+
+          {/* Shift Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-800 p-1 rounded-xl text-xs">
+            <button
+              type="button"
+              onClick={() => setSelectedShiftFilter('all')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                selectedShiftFilter === 'all'
+                  ? 'bg-emerald-500 text-slate-950 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>الكل ({purchases.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedShiftFilter('cashier_morning')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                selectedShiftFilter === 'cashier_morning'
+                  ? 'bg-amber-400 text-slate-950 shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5" />
+              <span>☀️ مشتريات الصباح ({morningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedShiftFilter('cashier_evening')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                selectedShiftFilter === 'cashier_evening'
+                  ? 'bg-indigo-500 text-white shadow'
+                  : 'text-slate-300 hover:text-white'
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5" />
+              <span>🌙 مشتريات المساء ({eveningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -204,34 +283,57 @@ export const SuppliersView: React.FC = () => {
             <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
               <tr>
                 <th className="p-3.5">رقم الفاتورة</th>
-                <th className="p-3.5">المورد</th>
+                <th className="p-3.5">الوردية / الكاشير</th>
+                <th className="p-3.5">المورد / الجهة</th>
                 <th className="p-3.5">المادة المشتراة والكمية</th>
                 <th className="p-3.5">تاريخ الفاتورة</th>
-                <th className="p-3.5">بواسطة</th>
                 <th className="p-3.5 text-left">المبلغ الإجمالي</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
-              {purchases.map(pur => (
-                <tr key={pur.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-3.5 font-bold text-slate-900 font-mono">{pur.id}</td>
-                  <td className="p-3.5 font-bold text-slate-800">{pur.supplierName}</td>
-                  <td className="p-3.5">
-                    {pur.items.map((it, idx) => (
-                      <div key={idx} className="text-xs font-semibold text-slate-900">
-                        • {it.ingredientName}: {it.quantity} {it.unit} بسعر {it.costPerUnit.toLocaleString()} {currentRestaurant.currency} / الوحدة
-                      </div>
-                    ))}
-                  </td>
-                  <td className="p-3.5 text-slate-500">
-                    {new Date(pur.date).toLocaleDateString('ar-SY')} {new Date(pur.date).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                  <td className="p-3.5 text-slate-600">{pur.createdByName}</td>
-                  <td className="p-3.5 text-left font-black text-amber-600 text-sm">
-                    {pur.totalAmount.toLocaleString()} {currentRestaurant.currency}
+              {filteredPurchases.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-400 font-bold">
+                    لا توجد فواتير شراء مسجلة في هذه الوردية بعد
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredPurchases.map(pur => {
+                  const purShift = getPurchaseShift(pur);
+                  return (
+                    <tr key={pur.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3.5 font-bold text-slate-900 font-mono">{pur.id}</td>
+                      <td className="p-3.5">
+                        {purShift === 'cashier_morning' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                            <Sun className="w-3 h-3 text-amber-600" />
+                            <span>☀️ وردية الصباح ({pur.createdByName})</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                            <Moon className="w-3 h-3 text-indigo-600" />
+                            <span>🌙 وردية المساء ({pur.createdByName})</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3.5 font-bold text-slate-800">{pur.supplierName}</td>
+                      <td className="p-3.5">
+                        {pur.items.map((it, idx) => (
+                          <div key={idx} className="text-xs font-semibold text-slate-900">
+                            • {it.ingredientName}: {it.quantity} {it.unit} بسعر {it.costPerUnit.toLocaleString()} {currentRestaurant.currency} / الوحدة
+                          </div>
+                        ))}
+                      </td>
+                      <td className="p-3.5 text-slate-500">
+                        {new Date(pur.date).toLocaleDateString('ar-SY')} {new Date(pur.date).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="p-3.5 text-left font-black text-amber-600 text-sm">
+                        {pur.totalAmount.toLocaleString()} {currentRestaurant.currency}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -328,6 +430,40 @@ export const SuppliersView: React.FC = () => {
             </div>
 
             <form onSubmit={handlePurchaseSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 pb-20">
+              {/* Shift Selector for Purchase */}
+              <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2">
+                <label className="block font-extrabold text-amber-400 text-xs flex items-center gap-1.5">
+                  <Layers className="w-4 h-4" />
+                  <span>الوردية التي قامت بالشراء (تحديد تلقائي حسب الكاشير أو اختيار يدوي):</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseForm({ ...purchaseForm, shiftRole: 'cashier_morning' })}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      purchaseForm.shiftRole === 'cashier_morning'
+                        ? 'bg-amber-400 text-slate-950 shadow-md'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Sun className="w-4 h-4" />
+                    <span>☀️ وردية الصباح</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseForm({ ...purchaseForm, shiftRole: 'cashier_evening' })}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      purchaseForm.shiftRole === 'cashier_evening'
+                        ? 'bg-indigo-500 text-white shadow-md'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Moon className="w-4 h-4" />
+                    <span>🌙 وردية المساء</span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1">المورد / جهة الشراء (اختياري - غير إجباري)</label>
                 <select

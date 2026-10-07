@@ -54,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onSelectView }) =
     if (role === 'Manager') {
       return ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'ai'].includes(view);
     }
-    if (role === 'Cashier') return ['pos', 'products', 'ai', 'dashboard'].includes(view);
+    if (role === 'Cashier') return ['pos', 'products', 'suppliers', 'expenses', 'ai', 'dashboard'].includes(view);
     if (role === 'Inventory Manager') return ['inventory', 'suppliers', 'recipes', 'ai', 'dashboard'].includes(view);
     return false;
   };

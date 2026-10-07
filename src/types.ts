@@ -149,6 +149,7 @@ export interface Purchase {
   items: PurchaseItem[];
   totalAmount: number;
   date: string;
+  shiftRole?: ShiftRoleType;
   createdByUserId: string;
   createdByName: string;
 }

@@ -205,11 +205,11 @@ interface DataContextType {
   addSupplier: (supplier: Omit<Supplier, 'id' | 'restaurantId'>) => Supplier;
   deleteSupplier: (id: string) => boolean;
   
-  recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]) => Purchase;
+  recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[], shiftRoleOverride?: ShiftRoleType) => Purchase;
   
   recordWaste: (ingredientId: string, quantity: number, unit: string, reason?: string) => StockMovement;
   
-  addExpense: (title: string, category: ExpenseCategory, amount: number, notes?: string, recipientOrWorker?: string, paymentMethod?: 'cash' | 'card' | 'bank', date?: string) => Expense;
+  addExpense: (title: string, category: ExpenseCategory, amount: number, notes?: string, recipientOrWorker?: string, paymentMethod?: 'cash' | 'card' | 'bank', date?: string, shiftRoleOverride?: ShiftRoleType) => Expense;
   updateExpense: (id: string, updates: Partial<Omit<Expense, 'id' | 'restaurantId' | 'branchId'>>) => void;
   deleteExpense: (id: string) => void;
   clearAllExpenses: () => void;
@@ -3564,7 +3564,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const recordPurchase = (
     supplierId: string,
     supplierName: string,
-    items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]
+    items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[],
+    shiftRoleOverride?: ShiftRoleType
   ) => {
     let totalAmount = 0;
     const purchaseItems = items.map(item => {
@@ -3576,6 +3577,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
 
+    const currentShift: ShiftRoleType = shiftRoleOverride || activeShiftRole || currentUser.shiftRole || 'owner';
+    const shiftLabelName =
+      currentShift === 'cashier_morning'
+        ? '☀️ كاشير صباحي'
+        : currentShift === 'cashier_evening'
+        ? '🌙 كاشير مسائي'
+        : currentShift === 'manager'
+        ? '👔 مدير المطعم'
+        : currentUser.name;
+
     const newPurchase: Purchase = {
       id: `pur_${Date.now()}`,
       restaurantId: restaurant.id,
@@ -3585,8 +3596,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       items: purchaseItems,
       totalAmount,
       date: new Date().toISOString(),
+      shiftRole: currentShift,
       createdByUserId: currentUser.id,
-      createdByName: currentUser.name
+      createdByName: shiftLabelName
     };
 
     setPurchases(prev => [newPurchase, ...prev]);
@@ -3675,9 +3687,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     notes?: string,
     recipientOrWorker?: string,
     paymentMethod: 'cash' | 'card' | 'bank' = 'cash',
-    date?: string
+    date?: string,
+    shiftRoleOverride?: ShiftRoleType
   ): Expense => {
-    const currentShift: ShiftRoleType = activeShiftRole || currentUser.shiftRole || 'owner';
+    const currentShift: ShiftRoleType = shiftRoleOverride || activeShiftRole || currentUser.shiftRole || 'owner';
+    const shiftLabelName =
+      currentShift === 'cashier_morning'
+        ? '☀️ كاشير صباحي'
+        : currentShift === 'cashier_evening'
+        ? '🌙 كاشير مسائي'
+        : currentShift === 'manager'
+        ? '👔 مدير المطعم'
+        : currentUser.name;
+
     const newExpense: Expense = {
       id: `exp_${Date.now()}`,
       restaurantId: restaurant.id,
@@ -3691,7 +3713,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       paymentMethod,
       shiftRole: currentShift,
       createdByUserId: currentUser.id,
-      createdByName: currentUser.name
+      createdByName: shiftLabelName
     };
 
     setExpenses(prev => [newExpense, ...prev]);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { ExpenseCategory, Expense } from '../types';
+import { ExpenseCategory, Expense, ShiftRoleType } from '../types';
 import {
   Wallet,
   Plus,
@@ -24,15 +24,19 @@ import {
   Clock,
   Utensils,
   Pencil,
-  Scan
+  Scan,
+  Sun,
+  Moon,
+  Store
 } from 'lucide-react';
 import { InvoiceScannerModal } from './InvoiceScannerModal';
 
 export const ExpensesView: React.FC = () => {
-  const { currentRestaurant, expenses, addExpense, updateExpense, deleteExpense, clearAllExpenses, currentUser, products, recipes, createOrder } = useData();
+  const { currentRestaurant, expenses, addExpense, updateExpense, deleteExpense, clearAllExpenses, currentUser, activeShiftRole, products, recipes, createOrder } = useData();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedShiftFilter, setSelectedShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>('all');
   const [showModal, setShowModal] = useState(false);
   const [showInvoiceScanner, setShowInvoiceScanner] = useState(false);
   const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
@@ -40,6 +44,13 @@ export const ExpensesView: React.FC = () => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedStaffMealProductId, setSelectedStaffMealProductId] = useState<string>('');
   const [staffMealQty, setStaffMealQty] = useState<number>(1);
+
+  const getExpenseShift = (exp: { shiftRole?: string; date?: string }): 'cashier_morning' | 'cashier_evening' => {
+    if (exp.shiftRole === 'cashier_morning') return 'cashier_morning';
+    if (exp.shiftRole === 'cashier_evening') return 'cashier_evening';
+    const hour = exp.date ? new Date(exp.date).getHours() : 12;
+    return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
+  };
 
   // Form State
   const [form, setForm] = useState({
@@ -49,7 +60,8 @@ export const ExpensesView: React.FC = () => {
     recipientOrWorker: '',
     paymentMethod: 'cash' as 'cash' | 'card' | 'bank',
     notes: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
   });
 
   const [notification, setNotification] = useState<string | null>(null);
@@ -68,7 +80,8 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: '',
       paymentMethod: 'cash',
       notes: '',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
     });
     setShowModal(true);
   };
@@ -82,7 +95,8 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: exp.recipientOrWorker || '',
       paymentMethod: exp.paymentMethod || 'cash',
       notes: exp.notes || '',
-      date: exp.date ? exp.date.split('T')[0] : new Date().toISOString().split('T')[0]
+      date: exp.date ? exp.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      shiftRole: exp.shiftRole || getExpenseShift(exp)
     });
     setShowModal(true);
   };
@@ -97,7 +111,8 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: recipient || '',
       paymentMethod: 'cash',
       notes: 'تسجيل سريع من الأزرار الجاهزة',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
     });
     setShowModal(true);
   };
@@ -114,7 +129,8 @@ export const ExpensesView: React.FC = () => {
         notes: form.notes,
         recipientOrWorker: form.recipientOrWorker,
         paymentMethod: form.paymentMethod,
-        date: form.date ? new Date(form.date).toISOString() : editingExpense.date
+        date: form.date ? new Date(form.date).toISOString() : editingExpense.date,
+        shiftRole: form.shiftRole
       });
       triggerNotify(`تم تعديل المصروف "${form.title}" بنجاح!`);
     } else {
@@ -125,7 +141,8 @@ export const ExpensesView: React.FC = () => {
         form.notes,
         form.recipientOrWorker,
         form.paymentMethod,
-        form.date ? new Date(form.date).toISOString() : undefined
+        form.date ? new Date(form.date).toISOString() : undefined,
+        form.shiftRole
       );
       triggerNotify(`تم تسجيل المصروف "${form.title}" بقيمة ${Number(form.amount).toLocaleString()} ${currentRestaurant.currency} بنجاح!`);
     }
@@ -139,7 +156,8 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: '',
       paymentMethod: 'cash',
       notes: '',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
     });
   };
 
@@ -157,12 +175,21 @@ export const ExpensesView: React.FC = () => {
   // Filtered Expenses List
   const filteredExpenses = expenses.filter(e => {
     const matchesCategory = selectedCategory === 'all' || e.category === selectedCategory;
+    const matchesShift = selectedShiftFilter === 'all' || getExpenseShift(e) === selectedShiftFilter;
     const matchesSearch =
       e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (e.recipientOrWorker && e.recipientOrWorker.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (e.notes && e.notes.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesShift && matchesSearch;
   });
+
+  const morningExpensesTotal = expenses
+    .filter(e => getExpenseShift(e) === 'cashier_morning')
+    .reduce((acc, e) => acc + e.amount, 0);
+
+  const eveningExpensesTotal = expenses
+    .filter(e => getExpenseShift(e) === 'cashier_evening')
+    .reduce((acc, e) => acc + e.amount, 0);
 
   const getCategoryBadge = (category: ExpenseCategory) => {
     switch (category) {
@@ -390,6 +417,55 @@ export const ExpensesView: React.FC = () => {
 
       </div>
 
+      {/* Shift Filter Bar for Expenses & Purchases */}
+      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-2 text-xs">
+          <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="font-extrabold text-amber-400">فرز المصاريف والمشتريات النقدية حسب الوردية:</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-800 p-1 rounded-xl text-xs">
+          <button
+            type="button"
+            onClick={() => setSelectedShiftFilter('all')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+              selectedShiftFilter === 'all'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5" />
+            <span>الكل ({expenses.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedShiftFilter('cashier_morning')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+              selectedShiftFilter === 'cashier_morning'
+                ? 'bg-amber-400 text-slate-950 shadow'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5" />
+            <span>☀️ مصاريف الصباح ({morningExpensesTotal.toLocaleString()} {currentRestaurant.currency})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedShiftFilter('cashier_evening')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+              selectedShiftFilter === 'cashier_evening'
+                ? 'bg-indigo-500 text-white shadow'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Moon className="w-3.5 h-3.5" />
+            <span>🌙 مصاريف المساء ({eveningExpensesTotal.toLocaleString()} {currentRestaurant.currency})</span>
+          </button>
+        </div>
+      </div>
+
       {/* Category Tabs & Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         
@@ -535,7 +611,17 @@ export const ExpensesView: React.FC = () => {
                       </td>
 
                       <td className="p-3.5 text-slate-500 text-[11px] whitespace-nowrap">
-                        {item.createdByName}
+                        {getExpenseShift(item) === 'cashier_morning' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                            <Sun className="w-3 h-3 text-amber-600" />
+                            <span>☀️ وردية الصباح ({item.createdByName})</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                            <Moon className="w-3 h-3 text-indigo-600" />
+                            <span>🌙 وردية المساء ({item.createdByName})</span>
+                          </span>
+                        )}
                       </td>
 
                       <td className="p-3.5 text-center whitespace-nowrap">
@@ -613,6 +699,39 @@ export const ExpensesView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1 pb-20">
+              {/* Shift Selector for Expense */}
+              <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2">
+                <label className="block font-extrabold text-amber-400 text-xs flex items-center gap-1.5">
+                  <Layers className="w-4 h-4" />
+                  <span>الوردية التي دفعت هذا المصروف / المشتريات:</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, shiftRole: 'cashier_morning' })}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      form.shiftRole === 'cashier_morning'
+                        ? 'bg-amber-400 text-slate-950 shadow-md'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Sun className="w-4 h-4" />
+                    <span>☀️ وردية الصباح</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, shiftRole: 'cashier_evening' })}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                      form.shiftRole === 'cashier_evening'
+                        ? 'bg-indigo-500 text-white shadow-md'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <Moon className="w-4 h-4" />
+                    <span>🌙 وردية المساء</span>
+                  </button>
+                </div>
+              </div>
               
               {/* Category */}
               <div>

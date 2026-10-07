@@ -33,11 +33,15 @@ import {
 
 interface DailySalesReportProps {
   initialDate?: string;
+  selectedDate?: string;
+  onDateChange?: (date: string) => void;
   isOwnerOrManager?: boolean;
 }
 
 export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   initialDate,
+  selectedDate: controlledDate,
+  onDateChange,
   isOwnerOrManager = true
 }) => {
   const {
@@ -45,15 +49,40 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     currentBranch,
     orders,
     expenses,
+    purchases,
     products,
     currentUser,
     isPlatformOwner,
     activeShiftRole
   } = useData();
 
-  // Selected date: defaults to today YYYY-MM-DD
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const [selectedDate, setSelectedDate] = useState<string>(initialDate || todayStr);
+  const toLocalDateKey = (isoOrDateStr: string): string => {
+    if (!isoOrDateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDateStr)) return isoOrDateStr;
+    const d = new Date(isoOrDateStr);
+    if (isNaN(d.getTime())) return isoOrDateStr.split('T')[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  // Selected date: defaults to local today YYYY-MM-DD
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const yesterdayStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const [internalDate, setInternalDate] = useState<string>(controlledDate || initialDate || todayStr);
+  const selectedDate = controlledDate !== undefined ? controlledDate : internalDate;
+
+  const updateSelectedDate = (newDate: string) => {
+    setInternalDate(newDate);
+    if (onDateChange) onDateChange(newDate);
+  };
 
   // Shift Drawer Filter: 'all' | 'cashier_morning' | 'cashier_evening'
   const [selectedShiftFilter, setSelectedShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>(() => {
@@ -112,12 +141,18 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   // Quick Date Changers
   const setQuickDate = (type: 'today' | 'yesterday') => {
     if (type === 'today') {
-      setSelectedDate(todayStr);
+      updateSelectedDate(todayStr);
     } else {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      setSelectedDate(y.toISOString().split('T')[0]);
+      updateSelectedDate(yesterdayStr);
     }
+  };
+
+  const stepDate = (daysDelta: number) => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + daysDelta);
+    const nextStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    updateSelectedDate(nextStr);
   };
 
   const handleSaveOpeningCash = () => {
@@ -129,9 +164,9 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     setIsEditingOpeningCash(false);
   };
 
-  // 1. Filter orders for selected date AND selected shift drawer
+  // 1. Filter orders for selected date AND selected shift drawer (using local date)
   const allDayOrders = useMemo(() => {
-    return orders.filter(o => o.createdAt.startsWith(selectedDate) && o.status === 'completed');
+    return orders.filter(o => toLocalDateKey(o.createdAt) === selectedDate && o.status === 'completed');
   }, [orders, selectedDate]);
 
   const dayOrders = useMemo(() => {
@@ -139,15 +174,25 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return allDayOrders.filter(o => getRecordShift(o) === selectedShiftFilter);
   }, [allDayOrders, selectedShiftFilter]);
 
-  // 2. Filter expenses for selected date AND selected shift drawer
+  // 2. Filter expenses for selected date AND selected shift drawer (using local date)
   const allDayExpenses = useMemo(() => {
-    return expenses.filter(e => e.date.startsWith(selectedDate));
+    return expenses.filter(e => toLocalDateKey(e.date) === selectedDate);
   }, [expenses, selectedDate]);
 
   const dayExpenses = useMemo(() => {
     if (selectedShiftFilter === 'all') return allDayExpenses;
     return allDayExpenses.filter(e => getRecordShift(e) === selectedShiftFilter);
   }, [allDayExpenses, selectedShiftFilter]);
+
+  // 3. Filter purchases (فواتير مشتريات المواد الأولية) for selected date AND selected shift drawer
+  const allDayPurchases = useMemo(() => {
+    return purchases.filter(p => toLocalDateKey(p.date) === selectedDate);
+  }, [purchases, selectedDate]);
+
+  const dayPurchases = useMemo(() => {
+    if (selectedShiftFilter === 'all') return allDayPurchases;
+    return allDayPurchases.filter(p => getRecordShift(p) === selectedShiftFilter);
+  }, [allDayPurchases, selectedShiftFilter]);
 
   // Financial Metrics (Exclude internal staff meals from customer sales & gross profit)
   const customerDayOrders = useMemo(() => {
@@ -208,6 +253,17 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return dayExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
   }, [dayExpenses]);
 
+  // Purchases Breakdown (فواتير شراء البضاعة والمواد الأولية)
+  const totalPurchasesAmount = useMemo(() => {
+    return dayPurchases.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+  }, [dayPurchases]);
+
+  const cashDrawerPurchasesAmount = useMemo(() => {
+    return dayPurchases
+      .filter(p => p.payFromCashDrawer !== false)
+      .reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+  }, [dayPurchases]);
+
   // Cash Expenses paid out of physical cash drawer (excluding internal kitchen staff meals which consume inventory, not cash)
   const cashDrawerExpensesAmount = useMemo(() => {
     return dayExpenses
@@ -215,12 +271,17 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       .reduce((acc, e) => acc + (e.amount || 0), 0);
   }, [dayExpenses]);
 
+  // Total Cash Outflow from Drawer (Expenses + Cash Purchases)
+  const totalCashDrawerOutflow = useMemo(() => {
+    return cashDrawerExpensesAmount + cashDrawerPurchasesAmount;
+  }, [cashDrawerExpensesAmount, cashDrawerPurchasesAmount]);
+
   // Cash Treasury Calculations
   // Cash In: Opening float + Cash sales
-  // Cash Out: Cash expenses paid from cash drawer
+  // Cash Out: Cash expenses + Cash purchases paid from cash drawer
   const expectedCashInDrawer = useMemo(() => {
-    return Math.max(0, openingCash + paymentBreakdown.cash.total - cashDrawerExpensesAmount);
-  }, [openingCash, paymentBreakdown.cash.total, cashDrawerExpensesAmount]);
+    return openingCash + paymentBreakdown.cash.total - totalCashDrawerOutflow;
+  }, [openingCash, paymentBreakdown.cash.total, totalCashDrawerOutflow]);
 
   const cashDiscrepancy = useMemo(() => {
     if (!actualCashCounted || isNaN(Number(actualCashCounted))) return null;
@@ -343,14 +404,30 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
             </button>
           </div>
 
-          {/* Date Picker Input */}
-          <div className="relative">
+          {/* Date Picker Input with Prev/Next Day Arrows */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => stepDate(-1)}
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-50 text-slate-700 font-black text-xs border border-slate-200 cursor-pointer"
+              title="اليوم السابق"
+            >
+              ◀ اليوم السابق
+            </button>
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-white border border-slate-300 hover:border-amber-400 text-slate-800 rounded-xl px-3 py-1.5 text-xs font-bold outline-none cursor-pointer shadow-xs focus:ring-2 focus:ring-amber-400"
+              onChange={(e) => updateSelectedDate(e.target.value)}
+              className="bg-white border border-slate-300 hover:border-amber-400 text-slate-900 rounded-lg px-2.5 py-1 text-xs font-black outline-none cursor-pointer focus:ring-2 focus:ring-amber-400"
             />
+            <button
+              type="button"
+              onClick={() => stepDate(1)}
+              className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-50 text-slate-700 font-black text-xs border border-slate-200 cursor-pointer"
+              title="اليوم التالي"
+            >
+              اليوم التالي ▶
+            </button>
           </div>
 
           {/* Print Z-Report Modal Button */}
@@ -452,20 +529,20 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           </div>
         </div>
 
-        {/* Today's Expenses */}
+        {/* Today's Expenses & Purchases */}
         <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border border-rose-300/80 shadow-xs">
           <div className="flex items-center justify-between text-slate-600 mb-2">
-            <span className="text-xs font-bold text-rose-900">مصاريف ومسحوبات اليوم</span>
+            <span className="text-xs font-bold text-rose-900">إجمالي المصاريف والمشتريات</span>
             <div className="w-8 h-8 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold">
               <TrendingDown className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-rose-700 tracking-tight">
-            {totalExpensesAmount.toLocaleString()} <span className="text-xs font-normal text-slate-500">{currency}</span>
+            {(totalExpensesAmount + totalPurchasesAmount).toLocaleString()} <span className="text-xs font-normal text-slate-500">{currency}</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-rose-700 pt-2 border-t border-rose-200/60 font-medium">
-            <span>عدد المصاريف: <strong>{dayExpenses.length}</strong></span>
-            <span>صافي الدخل: <strong className="font-bold">{Math.max(0, totalGrossProfit - totalExpensesAmount).toLocaleString()} {currency}</strong></span>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-rose-800 pt-2 border-t border-rose-200/60 font-semibold">
+            <span>مصاريف: <strong>{totalExpensesAmount.toLocaleString()}</strong> ({dayExpenses.length})</span>
+            <span>مشتريات بضاعة: <strong>{totalPurchasesAmount.toLocaleString()}</strong> ({dayPurchases.length})</span>
           </div>
         </div>
 
@@ -477,12 +554,12 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
               <Wallet className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-white tracking-tight">
+          <div className={`text-2xl font-black tracking-tight ${expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-white'}`}>
             {expectedCashInDrawer.toLocaleString()} <span className="text-xs font-normal text-amber-300">{currency}</span>
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] text-slate-300 pt-2 border-t border-slate-700/80 font-medium">
-            <span>نقد المبيعات: <strong className="text-emerald-400 font-bold">+{paymentBreakdown.cash.total.toLocaleString()}</strong></span>
-            <span>المصاريف: <strong className="text-rose-400 font-bold">-{totalExpensesAmount.toLocaleString()}</strong></span>
+            <span>مبيعات نقد: <strong className="text-emerald-400 font-bold">+{paymentBreakdown.cash.total.toLocaleString()}</strong></span>
+            <span>مصاريف ومشتريات: <strong className="text-rose-400 font-bold">-{totalCashDrawerOutflow.toLocaleString()}</strong></span>
           </div>
         </div>
 
@@ -519,12 +596,12 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
         </div>
 
         {/* Detailed Drawer Cash Flow Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
           
           {/* Opening Float */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="font-bold text-slate-700">1. عهدة الصندوق (رصيد الافتتاح)</span>
+              <span className="font-bold text-slate-700">1. عهدة الصندوق (الافتتاح)</span>
               {isEditingOpeningCash ? (
                 <button
                   onClick={handleSaveOpeningCash}
@@ -564,7 +641,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           {/* Cash Sales Inflow */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="font-bold text-emerald-800">2. مقبوضات المبيعات النقدية (+)</span>
+              <span className="font-bold text-emerald-800">2. المبيعات النقدية (+)</span>
               <Coins className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="text-base font-black text-emerald-700 mt-1">
@@ -576,25 +653,37 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           {/* Cash Expenses Outflow */}
           <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="font-bold text-rose-800">3. المصاريف والمسحوبات (-)</span>
+              <span className="font-bold text-rose-800">3. المصاريف التشغيلية (-)</span>
               <ArrowDownRight className="w-4 h-4 text-rose-600" />
             </div>
             <div className="text-base font-black text-rose-600 mt-1">
-              -{totalExpensesAmount.toLocaleString()} <span className="text-[10px] text-slate-500">{currency}</span>
+              -{cashDrawerExpensesAmount.toLocaleString()} <span className="text-[10px] text-slate-500">{currency}</span>
             </div>
-            <div className="text-[10px] text-slate-500 mt-1">{dayExpenses.length} بنود مصاريف مدفوعة</div>
+            <div className="text-[10px] text-slate-500 mt-1">{dayExpenses.length} بنود مصاريف وأجور</div>
+          </div>
+
+          {/* Cash Purchases Outflow */}
+          <div className="bg-white p-3.5 rounded-xl border border-orange-200 bg-orange-50/30 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
+              <span className="font-bold text-orange-900">4. مشتريات المواد من الكاش (-)</span>
+              <ShoppingBag className="w-4 h-4 text-orange-600" />
+            </div>
+            <div className="text-base font-black text-orange-700 mt-1">
+              -{cashDrawerPurchasesAmount.toLocaleString()} <span className="text-[10px] text-slate-500">{currency}</span>
+            </div>
+            <div className="text-[10px] text-slate-600 mt-1">{dayPurchases.filter(p => p.payFromCashDrawer !== false).length} فواتير شراء مدفوعة من الصندوق</div>
           </div>
 
           {/* Expected Final Drawer Balance */}
           <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between text-amber-300 mb-1">
-              <span className="font-bold">4. الرصيد الدفتري المطلوب (=)</span>
+              <span className="font-bold">5. الرصيد الصافي بالكاش (=)</span>
               <ShieldCheck className="w-4 h-4 text-amber-400" />
             </div>
-            <div className="text-base font-black text-amber-400 mt-1">
+            <div className={`text-base font-black mt-1 ${expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-amber-400'}`}>
               {expectedCashInDrawer.toLocaleString()} <span className="text-[10px] text-slate-300">{currency}</span>
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">المبلغ المفترض تواجده فعلياً بالخزينة</div>
+            <div className="text-[10px] text-slate-400 mt-1">بعد خصم المصاريف والمشتريات</div>
           </div>
 
         </div>
@@ -1013,8 +1102,12 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                   <span className="font-mono">+{paymentBreakdown.cash.total.toLocaleString()} {currency}</span>
                 </div>
                 <div className="flex justify-between text-rose-700 font-bold">
-                  <span>(-) المصاريف والمسحوبات:</span>
-                  <span className="font-mono">-{totalExpensesAmount.toLocaleString()} {currency}</span>
+                  <span>(-) المصاريف والأجور النقدية:</span>
+                  <span className="font-mono">-{cashDrawerExpensesAmount.toLocaleString()} {currency}</span>
+                </div>
+                <div className="flex justify-between text-orange-700 font-bold">
+                  <span>(-) فواتير مشتريات المواد من الصندوق:</span>
+                  <span className="font-mono">-{cashDrawerPurchasesAmount.toLocaleString()} {currency}</span>
                 </div>
                 <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-slate-200">
                   <span>(=) الرصيد المتوقع بالخزينة:</span>

@@ -67,6 +67,14 @@ export const ExpensesView: React.FC = () => {
     return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
   };
 
+  const toLocalDateKey = (isoOrDateStr: string): string => {
+    if (!isoOrDateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDateStr)) return isoOrDateStr;
+    const d = new Date(isoOrDateStr);
+    if (isNaN(d.getTime())) return isoOrDateStr.split('T')[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   // Form State
   const [form, setForm] = useState({
     title: '',
@@ -75,7 +83,7 @@ export const ExpensesView: React.FC = () => {
     recipientOrWorker: '',
     paymentMethod: 'cash' as 'cash' | 'card' | 'bank',
     notes: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalTodayStr(),
     shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
   });
 
@@ -95,7 +103,7 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: '',
       paymentMethod: 'cash',
       notes: '',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalTodayStr(),
       shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
     });
     setShowModal(true);
@@ -110,7 +118,7 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: exp.recipientOrWorker || '',
       paymentMethod: exp.paymentMethod || 'cash',
       notes: exp.notes || '',
-      date: exp.date ? exp.date.split('T')[0] : new Date().toISOString().split('T')[0],
+      date: exp.date ? toLocalDateKey(exp.date) : getLocalTodayStr(),
       shiftRole: exp.shiftRole || getExpenseShift(exp)
     });
     setShowModal(true);
@@ -126,7 +134,7 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: recipient || '',
       paymentMethod: 'cash',
       notes: 'تسجيل سريع من الأزرار الجاهزة',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalTodayStr(),
       shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
     });
     setShowModal(true);
@@ -136,6 +144,15 @@ export const ExpensesView: React.FC = () => {
     e.preventDefault();
     if (!form.title || !form.amount || Number(form.amount) <= 0) return;
 
+    const toLocalMiddayIso = (dateStr: string) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const now = new Date();
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+      }
+      return new Date(dateStr).toISOString();
+    };
+
     if (editingExpense) {
       updateExpense(editingExpense.id, {
         title: form.title,
@@ -144,7 +161,7 @@ export const ExpensesView: React.FC = () => {
         notes: form.notes,
         recipientOrWorker: form.recipientOrWorker,
         paymentMethod: form.paymentMethod,
-        date: form.date ? new Date(form.date).toISOString() : editingExpense.date,
+        date: form.date ? toLocalMiddayIso(form.date) : editingExpense.date,
         shiftRole: form.shiftRole
       });
       triggerNotify(`تم تعديل المصروف "${form.title}" بنجاح!`);
@@ -156,7 +173,7 @@ export const ExpensesView: React.FC = () => {
         form.notes,
         form.recipientOrWorker,
         form.paymentMethod,
-        form.date ? new Date(form.date).toISOString() : undefined,
+        form.date ? toLocalMiddayIso(form.date) : undefined,
         form.shiftRole
       );
       triggerNotify(`تم تسجيل المصروف "${form.title}" بقيمة ${Number(form.amount).toLocaleString()} ${currentRestaurant.currency} بنجاح!`);
@@ -171,14 +188,14 @@ export const ExpensesView: React.FC = () => {
       recipientOrWorker: '',
       paymentMethod: 'cash',
       notes: '',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalTodayStr(),
       shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType
     });
   };
 
   // Calculations
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayExpenses = expenses.filter(e => e.date.startsWith(todayStr));
+  const todayStr = getLocalTodayStr();
+  const todayExpenses = expenses.filter(e => toLocalDateKey(e.date) === todayStr);
   const todayTotal = todayExpenses.reduce((acc, e) => acc + e.amount, 0);
 
   const wagesTotal = expenses.filter(e => e.category === 'wages').reduce((acc, e) => acc + e.amount, 0);

@@ -61,6 +61,15 @@ export const SuppliersView: React.FC = () => {
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
   const [selectedShiftFilter, setSelectedShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>('all');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
+
+  const toLocalDateKey = (isoOrDateStr: string): string => {
+    if (!isoOrDateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDateStr)) return isoOrDateStr;
+    const d = new Date(isoOrDateStr);
+    if (isNaN(d.getTime())) return isoOrDateStr.split('T')[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
 
   // Helper to determine shift of a purchase record
   const getPurchaseShift = (pur: { shiftRole?: string; date?: string }): 'cashier_morning' | 'cashier_evening' => {
@@ -70,16 +79,21 @@ export const SuppliersView: React.FC = () => {
     return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
   };
 
-  const filteredPurchases = purchases.filter(pur => {
+  const dateFilteredPurchases = purchases.filter(pur => {
+    if (!selectedDateFilter) return true;
+    return toLocalDateKey(pur.date) === selectedDateFilter;
+  });
+
+  const filteredPurchases = dateFilteredPurchases.filter(pur => {
     if (selectedShiftFilter === 'all') return true;
     return getPurchaseShift(pur) === selectedShiftFilter;
   });
 
-  const morningPurchasesTotal = purchases
+  const morningPurchasesTotal = dateFilteredPurchases
     .filter(p => getPurchaseShift(p) === 'cashier_morning')
     .reduce((acc, p) => acc + p.totalAmount, 0);
 
-  const eveningPurchasesTotal = purchases
+  const eveningPurchasesTotal = dateFilteredPurchases
     .filter(p => getPurchaseShift(p) === 'cashier_evening')
     .reduce((acc, p) => acc + p.totalAmount, 0);
 
@@ -134,7 +148,7 @@ export const SuppliersView: React.FC = () => {
       costPerUnit: firstItem ? firstItem.costPerUnit.toString() : '',
       date: purDateStr,
       shiftRole: getPurchaseShift(pur),
-      payFromCashDrawer: true
+      payFromCashDrawer: pur.payFromCashDrawer !== false
     });
     setShowPurchaseModal(true);
   };
@@ -178,7 +192,8 @@ export const SuppliersView: React.FC = () => {
           }
         ],
         shiftRole: purchaseForm.shiftRole,
-        date: purchaseForm.date
+        date: purchaseForm.date,
+        payFromCashDrawer: purchaseForm.payFromCashDrawer
       });
     } else {
       recordPurchase(
@@ -194,7 +209,8 @@ export const SuppliersView: React.FC = () => {
           }
         ],
         purchaseForm.shiftRole,
-        purchaseForm.date
+        purchaseForm.date,
+        purchaseForm.payFromCashDrawer
       );
     }
 
@@ -315,20 +331,58 @@ export const SuppliersView: React.FC = () => {
             <span>سجل فواتير التوريد والشراء حسب الوردية</span>
           </div>
 
-          {/* Shift Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-800 p-1 rounded-xl text-xs">
-            <button
-              type="button"
-              onClick={() => setSelectedShiftFilter('all')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
-                selectedShiftFilter === 'all'
-                  ? 'bg-emerald-500 text-slate-950 shadow'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <Store className="w-3.5 h-3.5" />
-              <span>الكل ({purchases.length})</span>
-            </button>
+          {/* Date & Shift Filter Tabs */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Date Filter for Purchases */}
+            <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectedDateFilter('')}
+                className={`px-2.5 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                  !selectedDateFilter ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                كل التواريخ
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDateFilter(getLocalTodayStr())}
+                className={`px-2.5 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                  selectedDateFilter === getLocalTodayStr() ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                اليوم
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDateFilter(getLocalYesterdayStr())}
+                className={`px-2.5 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                  selectedDateFilter === getLocalYesterdayStr() ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                أمس
+              </button>
+              <input
+                type="date"
+                value={selectedDateFilter}
+                onChange={(e) => setSelectedDateFilter(e.target.value)}
+                className="bg-slate-900 border border-slate-700 text-white rounded-lg px-2 py-1 text-xs font-bold outline-none cursor-pointer"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 bg-slate-800 p-1 rounded-xl text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectedShiftFilter('all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                  selectedShiftFilter === 'all'
+                    ? 'bg-emerald-500 text-slate-950 shadow'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>الكل ({dateFilteredPurchases.length})</span>
+              </button>
 
             <button
               type="button"
@@ -355,6 +409,7 @@ export const SuppliersView: React.FC = () => {
               <Moon className="w-3.5 h-3.5" />
               <span>🌙 مشتريات المساء ({eveningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
             </button>
+            </div>
           </div>
         </div>
 
@@ -409,7 +464,18 @@ export const SuppliersView: React.FC = () => {
                         {new Date(pur.date).toLocaleDateString('ar-SY')} {new Date(pur.date).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="p-3.5 text-left font-black text-amber-600 text-sm">
-                        {pur.totalAmount.toLocaleString()} {currentRestaurant.currency}
+                        <div>{pur.totalAmount.toLocaleString()} {currentRestaurant.currency}</div>
+                        <div className="mt-0.5">
+                          {pur.payFromCashDrawer !== false ? (
+                            <span className="inline-block text-[10px] px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-bold">
+                              مخصوم من كاش الوردية
+                            </span>
+                          ) : (
+                            <span className="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                              خارج صندوق الكاش / ذمم
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3.5 text-center whitespace-nowrap">
                         {isOwnerOnly ? (
@@ -624,6 +690,37 @@ export const SuppliersView: React.FC = () => {
                 <p className="text-[10px] text-amber-900/80 font-semibold">
                   💡 ملاحظة: إذا تجاوزت الساعة 12 منتصف الليل وتريد تنزيل المشتريات على حساب اليوم السابق، اضغط على زر «تاريخ أمس» أو اختر التاريخ يدوياً.
                 </p>
+              </div>
+
+              {/* Cash Drawer Deduction Toggle */}
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-2">
+                <label className="block font-extrabold text-slate-800 text-xs">
+                  طريقة دفع الفاتورة وتأثيرها على صندوق الكاش:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseForm({ ...purchaseForm, payFromCashDrawer: true })}
+                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer text-right border ${
+                      purchaseForm.payFromCashDrawer
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    💵 مدفوعة نقداً من كاش الوردية (يُخصم من الصندوق تلقائياً)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPurchaseForm({ ...purchaseForm, payFromCashDrawer: false })}
+                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer text-right border ${
+                      !purchaseForm.payFromCashDrawer
+                        ? 'bg-slate-800 text-amber-400 border-slate-900 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    🏦 على الحساب / دُفعت خارج صندوق الكاش
+                  </button>
+                </div>
               </div>
 
               <div>

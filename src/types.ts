@@ -150,6 +150,7 @@ export interface Purchase {
   totalAmount: number;
   date: string;
   shiftRole?: ShiftRoleType;
+  payFromCashDrawer?: boolean;
   createdByUserId: string;
   createdByName: string;
 }
@@ -261,11 +262,14 @@ export interface ExpenseAlert {
 }
 
 export interface DashboardStats {
+  selectedDate: string;
   todaySales: number;
   orderCount: number;
   avgOrderValue: number;
   estimatedProfit: number;
   todayExpenses: number;
+  todayPurchases: number;
+  todayCashPurchases: number;
   netProfitAfterExpenses: number;
   salesByDay: { day: string; sales: number; orders: number }[];
   topSellingProducts: { name: string; quantity: number; revenue: number }[];

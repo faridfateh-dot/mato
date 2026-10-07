@@ -205,8 +205,8 @@ interface DataContextType {
   addSupplier: (supplier: Omit<Supplier, 'id' | 'restaurantId'>) => Supplier;
   deleteSupplier: (id: string) => boolean;
   
-  recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[], shiftRoleOverride?: ShiftRoleType, customDate?: string) => Purchase;
-  updatePurchase: (purchaseId: string, updates: { supplierId: string; supplierName: string; items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]; shiftRole?: ShiftRoleType; date?: string }) => boolean;
+  recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[], shiftRoleOverride?: ShiftRoleType, customDate?: string, payFromCashDrawer?: boolean) => Purchase;
+  updatePurchase: (purchaseId: string, updates: { supplierId: string; supplierName: string; items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]; shiftRole?: ShiftRoleType; date?: string; payFromCashDrawer?: boolean }) => boolean;
   deletePurchase: (purchaseId: string) => boolean;
   
   recordWaste: (ingredientId: string, quantity: number, unit: string, reason?: string) => StockMovement;
@@ -250,7 +250,7 @@ interface DataContextType {
   syncCloudNow: () => Promise<void>;
 
   // Reports & Analytics Helpers
-  getDashboardStats: () => DashboardStats;
+  getDashboardStats: (targetDate?: string) => DashboardStats;
   getLowMarginProducts: () => { product: Product; recipe?: Recipe; margin: number; cost: number }[];
 
   // In-App Realtime Notifications System
@@ -3568,7 +3568,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supplierName: string,
     items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[],
     shiftRoleOverride?: ShiftRoleType,
-    customDate?: string
+    customDate?: string,
+    payFromCashDrawer: boolean = true
   ) => {
     let totalAmount = 0;
     const purchaseItems = items.map(item => {
@@ -3613,6 +3614,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalAmount,
       date: finalIsoDate,
       shiftRole: currentShift,
+      payFromCashDrawer,
       createdByUserId: currentUser.id,
       createdByName: shiftLabelName
     };
@@ -3665,6 +3667,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[];
       shiftRole?: ShiftRoleType;
       date?: string;
+      payFromCashDrawer?: boolean;
     }
   ): boolean => {
     const oldPurchase = purchases.find(p => p.id === purchaseId);
@@ -3754,6 +3757,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               totalAmount,
               date: updatedDateIso,
               shiftRole: updatedShift,
+              payFromCashDrawer: updates.payFromCashDrawer !== undefined ? updates.payFromCashDrawer : (oldPurchase.payFromCashDrawer !== false),
               createdByName: shiftLabelName
             }
           : p
@@ -4003,10 +4007,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Analytics Calculation Helper
-  const getDashboardStats = (): DashboardStats => {
-    const today = new Date().toISOString().split('T')[0];
+  const getDashboardStats = (targetDate?: string): DashboardStats => {
+    const toLocalDateKey = (isoOrDateStr: string): string => {
+      if (!isoOrDateStr) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDateStr)) return isoOrDateStr;
+      const d = new Date(isoOrDateStr);
+      if (isNaN(d.getTime())) return isoOrDateStr.split('T')[0];
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    const now = new Date();
+    const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const activeDate = targetDate || todayLocal;
+
     const todayOrders = orders.filter(
-      o => o.createdAt.startsWith(today) && o.status === 'completed' && o.paymentMethod !== 'staff_meal'
+      o => toLocalDateKey(o.createdAt) === activeDate && o.status === 'completed' && o.paymentMethod !== 'staff_meal'
     );
 
     const todaySales = todayOrders.reduce((acc, o) => acc + o.totalAmount, 0);
@@ -4019,11 +4034,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const dayName = d.toLocaleDateString('ar-SY', { weekday: 'short' });
 
       const dayOrders = orders.filter(
-        o => o.createdAt.startsWith(dateStr) && o.status === 'completed' && o.paymentMethod !== 'staff_meal'
+        o => toLocalDateKey(o.createdAt) === dateStr && o.status === 'completed' && o.paymentMethod !== 'staff_meal'
       );
       const sales = dayOrders.reduce((acc, o) => acc + o.totalAmount, 0);
 
@@ -4132,9 +4147,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
 
-    // Expense Calculations
-    const todayExpensesList = expenses.filter(e => e.date.startsWith(today));
+    // Expense & Purchase Calculations for activeDate
+    const todayExpensesList = expenses.filter(e => toLocalDateKey(e.date) === activeDate);
     const todayExpenses = todayExpensesList.reduce((acc, e) => acc + e.amount, 0);
+
+    const todayPurchasesList = purchases.filter(p => toLocalDateKey(p.date) === activeDate);
+    const todayPurchases = todayPurchasesList.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+    const todayCashPurchases = todayPurchasesList
+      .filter(p => p.payFromCashDrawer !== false)
+      .reduce((acc, p) => acc + (p.totalAmount || 0), 0);
 
     const catLabels: Record<ExpenseCategory, string> = {
       wages: 'أجور ورواتب العمال',
@@ -4173,11 +4194,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const netProfitAfterExpenses = Math.max(0, estimatedProfit - todayExpenses - totalWasteCost);
 
     return {
+      selectedDate: activeDate,
       todaySales,
       orderCount,
       avgOrderValue,
       estimatedProfit,
       todayExpenses,
+      todayPurchases,
+      todayCashPurchases,
       netProfitAfterExpenses,
       salesByDay: daysArr,
       topSellingProducts,

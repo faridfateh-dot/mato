@@ -15,7 +15,7 @@ import {
   ArrowLeftRight
 } from 'lucide-react';
 import { Ingredient, RecipeIngredientItem } from '../types';
-import { convertQuantityAdvanced, getCompatibleUnits, getUnitCategory } from '../lib/unitUtils';
+import { convertQuantityAdvanced, getCompatibleUnits, getUnitCategory, parseNumericInput } from '../lib/unitUtils';
 
 interface RecipesViewProps {
   initialProductId?: string;
@@ -59,6 +59,13 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
     initialProductId || (products[0]?.id || '')
   );
 
+  // Sync selectedProductId when products load if empty or invalid
+  useEffect(() => {
+    if (products.length > 0 && (!selectedProductId || !products.some(p => p.id === selectedProductId))) {
+      setSelectedProductId(initialProductId || products[0].id);
+    }
+  }, [products, selectedProductId, initialProductId]);
+
   const selectedProduct = products.find(p => p.id === selectedProductId) || products[0];
   const existingRecipe = recipes.find(r => r.productId === selectedProduct?.id);
   const [recipeItems, setRecipeItems] = useState<RecipeIngredientItem[]>([]);
@@ -71,10 +78,10 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
     } else {
       setRecipeItems([]);
     }
-  }, [selectedProductId, existingRecipe]);
+  }, [selectedProduct?.id, existingRecipe?.updatedAt, existingRecipe?.items?.length]);
 
   const addIngredientToRecipe = () => {
-    if (ingredients.length === 0) return;
+    if (ingredients.length === 0 || !selectedProduct) return;
     const firstIng = ingredients[0];
     const cat = getUnitCategory(firstIng.unit);
     let defaultUnit = firstIng.unit;
@@ -88,7 +95,7 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
       defaultQty = 50;
     }
 
-    setRecipeItems([
+    const nextItems = [
       ...recipeItems,
       {
         ingredientId: firstIng.id,
@@ -96,15 +103,21 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
         unit: defaultUnit,
         quantity: defaultQty
       }
-    ]);
+    ];
+    setRecipeItems(nextItems);
+    saveRecipe(selectedProduct.id, nextItems);
   };
 
   const removeIngredientFromRecipe = (index: number) => {
-    setRecipeItems(recipeItems.filter((_, idx) => idx !== index));
+    const nextItems = recipeItems.filter((_, idx) => idx !== index);
+    setRecipeItems(nextItems);
+    if (selectedProduct) {
+      saveRecipe(selectedProduct.id, nextItems);
+    }
   };
 
   const updateRecipeItem = (index: number, field: keyof RecipeIngredientItem, value: any) => {
-    setRecipeItems(recipeItems.map((item, idx) => {
+    const nextItems = recipeItems.map((item, idx) => {
       if (idx === index) {
         if (field === 'ingredientId') {
           const ing = ingredients.find(i => i.id === value);
@@ -130,10 +143,21 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
             quantity: newQty
           };
         }
+        if (field === 'quantity') {
+          return { ...item, quantity: value === '' ? ('' as any) : parseNumericInput(value) };
+        }
         return { ...item, [field]: value };
       }
       return item;
-    }));
+    });
+    setRecipeItems(nextItems);
+    if (selectedProduct) {
+      const sanitizedItems = nextItems.map(it => ({
+        ...it,
+        quantity: parseNumericInput(it.quantity)
+      }));
+      saveRecipe(selectedProduct.id, sanitizedItems);
+    }
   };
 
   // Live Calculations with Unit Conversion for Menu Product

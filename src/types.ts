@@ -103,6 +103,7 @@ export interface Ingredient {
   isManufactured?: boolean;
   batchYieldQuantity?: number; // الكمية الناتجة من الطبخة الواحدة (مثلاً 5 كغ)
   subRecipeItems?: RecipeIngredientItem[]; // المكونات الأولية الداخلة في الطبخة
+  updatedAt?: string;
 }
 
 export interface RecipeIngredientItem {
@@ -120,6 +121,7 @@ export interface Recipe {
   calculatedCost: number;
   profitMargin: number; // percentage
   suggestedPrice: number;
+  updatedAt?: string;
 }
 
 export interface Supplier {
@@ -129,6 +131,7 @@ export interface Supplier {
   phone: string;
   companyName?: string;
   notes?: string;
+  updatedAt?: string;
 }
 
 export interface PurchaseItem {
@@ -153,6 +156,7 @@ export interface Purchase {
   payFromCashDrawer?: boolean;
   createdByUserId: string;
   createdByName: string;
+  updatedAt?: string;
 }
 
 export type StockMovementType = 'purchase' | 'waste' | 'sale' | 'adjustment';
@@ -180,6 +184,15 @@ export interface OrderItem {
   total: number;
 }
 
+export interface DepletedOrderIngredient {
+  ingredientId: string;
+  ingredientName: string;
+  deductedQty: number;
+  deductedUnit: string;
+  remainingStock: number;
+  baseUnit: string;
+}
+
 export interface Order {
   id: string;
   restaurantId: string;
@@ -192,9 +205,11 @@ export interface Order {
   status: 'completed' | 'cancelled';
   paymentMethod: 'cash' | 'card' | 'staff_meal';
   shiftRole?: ShiftRoleType;
+  depletedIngredients?: DepletedOrderIngredient[];
   createdAt: string;
   createdByUserId: string;
   createdByName: string;
+  updatedAt?: string;
 }
 
 export interface ActivityLog {

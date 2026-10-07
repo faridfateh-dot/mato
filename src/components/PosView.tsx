@@ -325,30 +325,47 @@ export const PosView: React.FC = () => {
 
           {/* Products Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {filteredProducts.map(product => (
-              <button
-                key={product.id}
-                onClick={() => addToCart(product)}
-                disabled={!product.isAvailable}
-                className={`p-3 bg-white rounded-2xl border text-right transition-all flex flex-col justify-between h-36 cursor-pointer hover:border-amber-400 hover:shadow-md ${
-                  !product.isAvailable ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50' : 'border-slate-200/80'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 font-bold flex items-center justify-center flex-shrink-0">
-                    <Utensils className="w-5 h-5" />
+            {filteredProducts.map(product => {
+              const linkedRecipe = recipes.find(r => r.productId === product.id);
+              const hasRecipeItems = Boolean(linkedRecipe && linkedRecipe.items && linkedRecipe.items.length > 0);
+              return (
+                <button
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  disabled={!product.isAvailable}
+                  className={`p-3 bg-white rounded-2xl border text-right transition-all flex flex-col justify-between h-40 cursor-pointer hover:border-amber-400 hover:shadow-md ${
+                    !product.isAvailable ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50' : 'border-slate-200/80'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 font-bold flex items-center justify-center flex-shrink-0">
+                        <Utensils className="w-4 h-4" />
+                      </div>
+                      <div className="font-bold text-slate-900 text-xs line-clamp-2">{product.name}</div>
+                    </div>
+                    <div>
+                      {hasRecipeItems ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span>✓ مربوط بـ {linkedRecipe!.items.length} مواد مخزون</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                          <span>⚠️ بدون وصفة خصم</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="font-bold text-slate-900 text-xs line-clamp-2">{product.name}</div>
-                </div>
 
-                <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400">{product.categoryName}</span>
-                  <span className="font-black text-amber-600 text-xs">
-                    {product.price.toLocaleString()} {currentRestaurant.currency}
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 truncate max-w-[50%]">{product.categoryName}</span>
+                    <span className="font-black text-amber-600 text-xs">
+                      {product.price.toLocaleString()} {currentRestaurant.currency}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
         </div>
@@ -532,14 +549,35 @@ export const PosView: React.FC = () => {
                 </span>
               </div>
 
-              {lastCompletedOrder.paymentMethod === 'staff_meal' ? (
-                <p className="text-[10px] text-orange-800 bg-orange-50 p-2.5 rounded-xl text-center font-bold border border-orange-200">
-                  ✓ تم خصم المواد من مخزون المطبخ آلياً وتسجيل التكلفة كمصروف بـ قسم (وجبات وأكل العمال).
-                </p>
+              {lastCompletedOrder.depletedIngredients && lastCompletedOrder.depletedIngredients.length > 0 ? (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1.5">
+                  <div className="text-[11px] font-black text-emerald-900 flex items-center justify-between">
+                    <span>✓ المواد المخصومة تلقائياً من المخزون:</span>
+                    <span className="text-[10px] bg-emerald-200/70 text-emerald-950 px-1.5 py-0.5 rounded">
+                      {lastCompletedOrder.depletedIngredients.length} مادة
+                    </span>
+                  </div>
+                  <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                    {lastCompletedOrder.depletedIngredients.map((dep: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between text-[10px] bg-white/90 px-2 py-1 rounded-lg border border-emerald-100"
+                      >
+                        <span className="font-extrabold text-slate-800">{dep.ingredientName}</span>
+                        <span className="font-black text-rose-600">
+                          - {Number(dep.deductedRecipeQty).toLocaleString('en-US', { maximumFractionDigits: 3 })} {dep.recipeUnit}
+                        </span>
+                        <span className="text-slate-500 font-bold">
+                          (المتبقي: {Number(dep.remainingStock).toLocaleString('en-US', { maximumFractionDigits: 4 })} {dep.baseUnit})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
-                <p className="text-[10px] text-emerald-700 bg-emerald-50 p-2 rounded-lg text-center font-bold">
-                  ✓ تم خصم المكونات المستهلكة تلقائياً من مخزون الفرع
-                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[10px] text-amber-900 font-bold text-center">
+                  ⚠️ لم يتم خصم مواد أولية لأن الأصناف المباعة ليس لها وصفة مسجلة في قسم (الوصفات وحساب التكاليف).
+                </div>
               )}
 
               <div className="flex flex-col gap-2 pt-1">

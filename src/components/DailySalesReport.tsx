@@ -108,28 +108,36 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
   };
 
-  // Opening Cash in Drawer (stored independently per restaurant, date, AND shift!)
-  const openingCashKey = `mato_opening_cash_${currentRestaurant.id || 'curr'}_${selectedDate}_${selectedShiftFilter}`;
-  const [openingCash, setOpeningCash] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem(openingCashKey);
-      return saved !== null ? Number(saved) : 50000;
-    } catch {
-      return 50000;
-    }
-  });
+  // Helper to get or set Opening Cash for a specific shift ('cashier_morning' | 'cashier_evening')
+  const getShiftOpeningKey = (shift: 'cashier_morning' | 'cashier_evening') =>
+    `mato_opening_cash_${currentRestaurant.id || 'curr'}_${selectedDate}_${shift}`;
+
+  const [morningOpeningCash, setMorningOpeningCash] = useState<number>(0);
+  const [eveningOpeningCash, setEveningOpeningCash] = useState<number>(0);
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(openingCashKey);
-      setOpeningCash(saved !== null ? Number(saved) : 50000);
+      const mSaved = localStorage.getItem(getShiftOpeningKey('cashier_morning'));
+      const eSaved = localStorage.getItem(getShiftOpeningKey('cashier_evening'));
+      setMorningOpeningCash(mSaved !== null ? Number(mSaved) : 0);
+      setEveningOpeningCash(eSaved !== null ? Number(eSaved) : 0);
     } catch {
-      setOpeningCash(50000);
+      setMorningOpeningCash(0);
+      setEveningOpeningCash(0);
     }
-  }, [openingCashKey]);
+  }, [currentRestaurant.id, selectedDate]);
+
+  const openingCash =
+    selectedShiftFilter === 'cashier_morning'
+      ? morningOpeningCash
+      : selectedShiftFilter === 'cashier_evening'
+      ? eveningOpeningCash
+      : morningOpeningCash + eveningOpeningCash;
 
   const [isEditingOpeningCash, setIsEditingOpeningCash] = useState(false);
-  const [tempOpeningCash, setTempOpeningCash] = useState(openingCash.toString());
+  const [tempOpeningCash, setTempOpeningCash] = useState('0');
+  const [editingShiftFloat, setEditingShiftFloat] = useState<'cashier_morning' | 'cashier_evening' | null>(null);
+  const [tempShiftFloatVal, setTempShiftFloatVal] = useState('0');
 
   // Actual Counted Cash for reconciliation
   const [actualCashCounted, setActualCashCounted] = useState<string>('');
@@ -157,11 +165,29 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
 
   const handleSaveOpeningCash = () => {
     const val = Number(tempOpeningCash) || 0;
-    setOpeningCash(val);
+    const targetShift = selectedShiftFilter === 'cashier_evening' ? 'cashier_evening' : 'cashier_morning';
+    if (targetShift === 'cashier_morning') {
+      setMorningOpeningCash(val);
+    } else {
+      setEveningOpeningCash(val);
+    }
     try {
-      localStorage.setItem(openingCashKey, val.toString());
+      localStorage.setItem(getShiftOpeningKey(targetShift), val.toString());
     } catch {}
     setIsEditingOpeningCash(false);
+  };
+
+  const handleSaveSpecificShiftFloat = (shift: 'cashier_morning' | 'cashier_evening') => {
+    const val = Number(tempShiftFloatVal) || 0;
+    if (shift === 'cashier_morning') {
+      setMorningOpeningCash(val);
+    } else {
+      setEveningOpeningCash(val);
+    }
+    try {
+      localStorage.setItem(getShiftOpeningKey(shift), val.toString());
+    } catch {}
+    setEditingShiftFloat(null);
   };
 
   // 1. Filter orders for selected date AND selected shift drawer (using local date)
@@ -289,28 +315,51 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return actual - expectedCashInDrawer;
   }, [actualCashCounted, expectedCashInDrawer]);
 
-  // Shift Breakdown (Uses shiftRole stamp on orders, with time fallback for legacy orders)
+  // Full Shift Cash Drawer Breakdown (Morning vs Evening Net Cash in Drawer)
   const shiftBreakdown = useMemo(() => {
-    let morningSales = 0;
-    let morningOrders = 0;
-    let eveningSales = 0;
-    let eveningOrders = 0;
+    const calcShiftDrawer = (shift: 'cashier_morning' | 'cashier_evening', shiftFloat: number) => {
+      const sOrders = allDayOrders.filter(o => getRecordShift(o) === shift && o.paymentMethod !== 'staff_meal');
+      const totalShiftSales = sOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+      const cashSales = sOrders
+        .filter(o => !o.paymentMethod || o.paymentMethod === 'cash')
+        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+      const cardSales = sOrders
+        .filter(o => o.paymentMethod === 'card')
+        .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
 
-    allDayOrders.filter(o => o.paymentMethod !== 'staff_meal').forEach(o => {
-      if (getRecordShift(o) === 'cashier_morning') {
-        morningSales += o.totalAmount;
-        morningOrders++;
-      } else {
-        eveningSales += o.totalAmount;
-        eveningOrders++;
-      }
-    });
+      const sExpenses = allDayExpenses.filter(
+        e => getRecordShift(e) === shift && !e.id.startsWith('exp_staff_') && e.paymentMethod === 'cash'
+      );
+      const cashExpenses = sExpenses.reduce((acc, e) => acc + (e.amount || 0), 0);
 
-    return {
-      morning: { sales: morningSales, orders: morningOrders },
-      evening: { sales: eveningSales, orders: eveningOrders }
+      const sPurchases = allDayPurchases.filter(
+        p => getRecordShift(p) === shift && p.payFromCashDrawer !== false
+      );
+      const cashPurchases = sPurchases.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+
+      const netCashBeforeFloat = cashSales - cashExpenses - cashPurchases;
+      const expectedCashInDrawer = shiftFloat + netCashBeforeFloat;
+
+      return {
+        sales: totalShiftSales,
+        orders: sOrders.length,
+        cashSales,
+        cardSales,
+        cashExpenses,
+        expensesCount: sExpenses.length,
+        cashPurchases,
+        purchasesCount: sPurchases.length,
+        openingFloat: shiftFloat,
+        netCashBeforeFloat,
+        expectedCashInDrawer
+      };
     };
-  }, [allDayOrders]);
+
+    const morning = calcShiftDrawer('cashier_morning', morningOpeningCash);
+    const evening = calcShiftDrawer('cashier_evening', eveningOpeningCash);
+
+    return { morning, evening };
+  }, [allDayOrders, allDayExpenses, allDayPurchases, morningOpeningCash, eveningOpeningCash]);
 
   // Top Selling Products for this Day
   const topProducts = useMemo(() => {
@@ -489,6 +538,208 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
             <Store className="w-3.5 h-3.5" />
             <span>📊 إجمالي اليوم (الورديتين معاً)</span>
           </button>
+        </div>
+      </div>
+
+      {/* 1.5 Side-by-Side Shift Cash Drawer Summary (صافي الكاش المتبقي بكل وردية بعد البيع والمشتريات والمصاريف) */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 rounded-2xl p-5 border-2 border-amber-400/40 shadow-lg text-white space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-sm">
+              <Wallet className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-black text-amber-400">
+                صافي الكاش المفروض تواجده في الدرج لكل وردية (الصباحية والمسائية)
+              </h3>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                حساب تلقائي مستقل لكل وردية: (المبيعات النقدية + عهدة الصندوق) − (مشتريات الكاش + مصاريف الكاش) = الصافي المفروض بالكاش
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-bold bg-slate-800 text-amber-300 px-3 py-1 rounded-xl border border-slate-700 self-start sm:self-center">
+            تاريخ الجرد: {selectedDate}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Morning Shift Drawer Card */}
+          <div
+            onClick={() => setSelectedShiftFilter('cashier_morning')}
+            className={`rounded-2xl p-4 border-2 transition-all cursor-pointer ${
+              selectedShiftFilter === 'cashier_morning'
+                ? 'bg-amber-950/40 border-amber-400 shadow-md shadow-amber-400/10'
+                : 'bg-slate-800/70 border-slate-700 hover:border-amber-400/60'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-700/80">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-bold">
+                  <Sun className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-black text-sm text-amber-300">☀️ كاش الوردية الصباحية</div>
+                  <div className="text-[10px] text-slate-400">{shiftBreakdown.morning.orders} فاتورة بيع مسجلة</div>
+                </div>
+              </div>
+              <div className="text-left">
+                <div className="text-[10px] text-slate-400 font-bold">المفروض فاضل بالكاش الصباحي:</div>
+                <div className={`text-xl font-black font-mono ${shiftBreakdown.morning.expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {shiftBreakdown.morning.expectedCashInDrawer.toLocaleString()} <span className="text-xs text-amber-300">{currency}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+              <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/70">
+                <div className="text-slate-400 flex items-center justify-between">
+                  <span>عهدة أول الوردية</span>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setEditingShiftFloat('cashier_morning');
+                      setTempShiftFloatVal(String(morningOpeningCash));
+                    }}
+                    className="text-[10px] text-amber-400 hover:underline font-bold"
+                  >
+                    تعديل
+                  </button>
+                </div>
+                {editingShiftFloat === 'cashier_morning' ? (
+                  <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="number"
+                      value={tempShiftFloatVal}
+                      onChange={e => setTempShiftFloatVal(e.target.value)}
+                      className="w-full px-1.5 py-0.5 bg-slate-800 border border-amber-400 rounded text-white font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSpecificShiftFloat('cashier_morning')}
+                      className="px-2 py-0.5 bg-amber-400 text-slate-950 font-black rounded text-[10px]"
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                ) : (
+                  <div className="font-black text-white font-mono text-xs mt-1">
+                    {morningOpeningCash.toLocaleString()} {currency}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-700/40">
+                <div className="text-emerald-300 font-bold">(+) مبيعات الكاش</div>
+                <div className="font-black text-emerald-400 font-mono text-xs mt-1">
+                  +{shiftBreakdown.morning.cashSales.toLocaleString()} {currency}
+                </div>
+              </div>
+
+              <div className="bg-orange-950/40 p-2.5 rounded-xl border border-orange-700/40">
+                <div className="text-orange-300 font-bold">(-) مشتريات البضاعة</div>
+                <div className="font-black text-orange-400 font-mono text-xs mt-1">
+                  -{shiftBreakdown.morning.cashPurchases.toLocaleString()} {currency}
+                </div>
+              </div>
+
+              <div className="bg-rose-950/40 p-2.5 rounded-xl border border-rose-700/40">
+                <div className="text-rose-300 font-bold">(-) المصاريف النقدية</div>
+                <div className="font-black text-rose-400 font-mono text-xs mt-1">
+                  -{shiftBreakdown.morning.cashExpenses.toLocaleString()} {currency}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Evening Shift Drawer Card */}
+          <div
+            onClick={() => setSelectedShiftFilter('cashier_evening')}
+            className={`rounded-2xl p-4 border-2 transition-all cursor-pointer ${
+              selectedShiftFilter === 'cashier_evening'
+                ? 'bg-indigo-950/50 border-indigo-400 shadow-md shadow-indigo-400/10'
+                : 'bg-slate-800/70 border-slate-700 hover:border-indigo-400/60'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-700/80">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500 text-white flex items-center justify-center font-bold">
+                  <Moon className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-black text-sm text-indigo-300">🌙 كاش الوردية المسائية</div>
+                  <div className="text-[10px] text-slate-400">{shiftBreakdown.evening.orders} فاتورة بيع مسجلة</div>
+                </div>
+              </div>
+              <div className="text-left">
+                <div className="text-[10px] text-slate-400 font-bold">المفروض فاضل بالكاش المسائي:</div>
+                <div className={`text-xl font-black font-mono ${shiftBreakdown.evening.expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {shiftBreakdown.evening.expectedCashInDrawer.toLocaleString()} <span className="text-xs text-indigo-300">{currency}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+              <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-700/70">
+                <div className="text-slate-400 flex items-center justify-between">
+                  <span>عهدة أول الوردية</span>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setEditingShiftFloat('cashier_evening');
+                      setTempShiftFloatVal(String(eveningOpeningCash));
+                    }}
+                    className="text-[10px] text-indigo-400 hover:underline font-bold"
+                  >
+                    تعديل
+                  </button>
+                </div>
+                {editingShiftFloat === 'cashier_evening' ? (
+                  <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="number"
+                      value={tempShiftFloatVal}
+                      onChange={e => setTempShiftFloatVal(e.target.value)}
+                      className="w-full px-1.5 py-0.5 bg-slate-800 border border-indigo-400 rounded text-white font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSpecificShiftFloat('cashier_evening')}
+                      className="px-2 py-0.5 bg-indigo-500 text-white font-black rounded text-[10px]"
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                ) : (
+                  <div className="font-black text-white font-mono text-xs mt-1">
+                    {eveningOpeningCash.toLocaleString()} {currency}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-700/40">
+                <div className="text-emerald-300 font-bold">(+) مبيعات الكاش</div>
+                <div className="font-black text-emerald-400 font-mono text-xs mt-1">
+                  +{shiftBreakdown.evening.cashSales.toLocaleString()} {currency}
+                </div>
+              </div>
+
+              <div className="bg-orange-950/40 p-2.5 rounded-xl border border-orange-700/40">
+                <div className="text-orange-300 font-bold">(-) مشتريات البضاعة</div>
+                <div className="font-black text-orange-400 font-mono text-xs mt-1">
+                  -{shiftBreakdown.evening.cashPurchases.toLocaleString()} {currency}
+                </div>
+              </div>
+
+              <div className="bg-rose-950/40 p-2.5 rounded-xl border border-rose-700/40">
+                <div className="text-rose-300 font-bold">(-) المصاريف النقدية</div>
+                <div className="font-black text-rose-400 font-mono text-xs mt-1">
+                  -{shiftBreakdown.evening.cashExpenses.toLocaleString()} {currency}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -835,29 +1086,37 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           <div className="grid grid-cols-2 gap-3 pt-1">
             {/* Morning Shift */}
             <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs">
-                <Sun className="w-4 h-4 text-amber-600" />
-                <span>الوردية الصباحية</span>
+              <div className="flex items-center justify-between text-amber-900 font-extrabold text-xs">
+                <span className="flex items-center gap-1.5">
+                  <Sun className="w-4 h-4 text-amber-600" />
+                  <span>الوردية الصباحية</span>
+                </span>
+                <span className="text-[10px] bg-amber-200/70 px-1.5 py-0.5 rounded">{shiftBreakdown.morning.orders} طلبات</span>
               </div>
               <div className="text-lg font-black text-slate-900 pt-1">
                 {shiftBreakdown.morning.sales.toLocaleString()} <span className="text-[10px] text-slate-500">{currency}</span>
               </div>
-              <div className="text-[11px] text-slate-500 font-medium">
-                {shiftBreakdown.morning.orders} طلبات مكتملة
+              <div className="text-[11px] text-emerald-800 font-black pt-1 border-t border-amber-200/60 flex justify-between">
+                <span>فاضل بالكاش الصباحي:</span>
+                <span>{shiftBreakdown.morning.expectedCashInDrawer.toLocaleString()} {currency}</span>
               </div>
             </div>
 
             {/* Evening Shift */}
             <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200 space-y-1">
-              <div className="flex items-center gap-1.5 text-purple-900 font-extrabold text-xs">
-                <Moon className="w-4 h-4 text-purple-600" />
-                <span>الوردية المسائية</span>
+              <div className="flex items-center justify-between text-purple-900 font-extrabold text-xs">
+                <span className="flex items-center gap-1.5">
+                  <Moon className="w-4 h-4 text-purple-600" />
+                  <span>الوردية المسائية</span>
+                </span>
+                <span className="text-[10px] bg-purple-200/70 px-1.5 py-0.5 rounded">{shiftBreakdown.evening.orders} طلبات</span>
               </div>
               <div className="text-lg font-black text-slate-900 pt-1">
                 {shiftBreakdown.evening.sales.toLocaleString()} <span className="text-[10px] text-slate-500">{currency}</span>
               </div>
-              <div className="text-[11px] text-slate-500 font-medium">
-                {shiftBreakdown.evening.orders} طلبات مكتملة
+              <div className="text-[11px] text-indigo-900 font-black pt-1 border-t border-purple-200/60 flex justify-between">
+                <span>فاضل بالكاش المسائي:</span>
+                <span>{shiftBreakdown.evening.expectedCashInDrawer.toLocaleString()} {currency}</span>
               </div>
             </div>
           </div>

@@ -31,7 +31,7 @@ import {
   Scan
 } from 'lucide-react';
 import { Ingredient, RawMaterialCategory } from '../types';
-import { getCompatibleUnits, convertQuantity } from '../lib/unitUtils';
+import { getCompatibleUnits, convertQuantity, isKgUnit, isLiterUnit, parseNumericInput } from '../lib/unitUtils';
 import { InvoiceScannerModal } from './InvoiceScannerModal';
 
 export const InventoryView: React.FC = () => {
@@ -62,6 +62,9 @@ export const InventoryView: React.FC = () => {
   const [newCatForm, setNewCatForm] = useState({ name: '', icon: '🏷️' });
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
   const [ingredientToDelete, setIngredientToDelete] = useState<Ingredient | null>(null);
+  const [quickAdjustIngredient, setQuickAdjustIngredient] = useState<Ingredient | null>(null);
+  const [quickAdjustQty, setQuickAdjustQty] = useState<string>('');
+  const [quickAdjustReason, setQuickAdjustReason] = useState<string>('تعديل جرد مباشر من المخزون');
   const [showWasteModal, setShowWasteModal] = useState(false);
   const [showInvoiceScanner, setShowInvoiceScanner] = useState(false);
   const [showAutoAuditModal, setShowAutoAuditModal] = useState(false);
@@ -188,11 +191,11 @@ export const InventoryView: React.FC = () => {
     let unitType: 'kg' | 'g' | 'piece' | 'liter' | 'ml' | 'custom' = 'custom';
     let customUnit = '';
 
-    if (ing.unit === 'kg' || ing.unit === 'كيلوغرام' || ing.unit === 'كغ') unitType = 'kg';
-    else if (ing.unit === 'g' || ing.unit === 'غرام' || ing.unit === 'غ') unitType = 'g';
-    else if (ing.unit === 'piece' || ing.unit === 'قطعة') unitType = 'piece';
-    else if (ing.unit === 'liter' || ing.unit === 'لتر') unitType = 'liter';
-    else if (ing.unit === 'ml' || ing.unit === 'مليلتر' || ing.unit === 'مل') unitType = 'ml';
+    if (ing.unit === 'kg' || ing.unit === 'كيلوغرام' || ing.unit === 'كغ' || ing.unit === 'كيلوغرام (كغ)' || ing.unit.includes('كيلو')) unitType = 'kg';
+    else if (ing.unit === 'g' || ing.unit === 'غرام' || ing.unit === 'غ' || ing.unit === 'غرام (غ)') unitType = 'g';
+    else if (ing.unit === 'piece' || ing.unit === 'قطعة' || ing.unit.includes('قطعة')) unitType = 'piece';
+    else if (ing.unit === 'liter' || ing.unit === 'لتر' || ing.unit.includes('لتر')) unitType = 'liter';
+    else if (ing.unit === 'ml' || ing.unit === 'مليلتر' || ing.unit === 'مل' || ing.unit === 'مليلتر (مل)') unitType = 'ml';
     else {
       unitType = 'custom';
       customUnit = ing.unit;
@@ -237,11 +240,11 @@ export const InventoryView: React.FC = () => {
       finalUnit = 'مليلتر (مل)';
     }
 
-    const currentStockNum = Number(ingForm.currentStock || 0);
-    const minStockNum = Number(ingForm.minStockThreshold || 0);
-    const costNum = Number(ingForm.costPerUnit || 0);
+    const currentStockNum = parseNumericInput(ingForm.currentStock);
+    const minStockNum = parseNumericInput(ingForm.minStockThreshold);
+    const costNum = parseNumericInput(ingForm.costPerUnit);
 
-    const pieceWeightNum = ingForm.hasPieceWeight && Number(ingForm.pieceWeight) > 0 ? Number(ingForm.pieceWeight) : undefined;
+    const pieceWeightNum = ingForm.hasPieceWeight && parseNumericInput(ingForm.pieceWeight) > 0 ? parseNumericInput(ingForm.pieceWeight) : undefined;
     const pieceWeightUnitVal = ingForm.hasPieceWeight ? ingForm.pieceWeightUnit : undefined;
     const pieceUnitNameVal = ingForm.hasPieceWeight ? (ingForm.pieceUnitName.trim() || 'رأس') : undefined;
 
@@ -843,10 +846,22 @@ export const InventoryView: React.FC = () => {
 
                       {/* Current Stock */}
                       <td className="p-3.5">
-                        <span className="font-black text-sm text-slate-900">
-                          {ing.currentStock.toLocaleString()}
-                        </span>{' '}
-                        <span className="text-[11px] font-bold text-slate-500">{ing.unit}</span>
+                        <div>
+                          <span className="font-black text-sm text-slate-900">
+                            {Number(ing.currentStock || 0).toLocaleString('en-US', { maximumFractionDigits: 4 })}
+                          </span>{' '}
+                          <span className="text-[11px] font-bold text-slate-500">{ing.unit}</span>
+                        </div>
+                        {isKgUnit(ing.unit) && (
+                          <div className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md inline-block mt-1">
+                            = {Math.round(Number(ing.currentStock || 0) * 1000).toLocaleString('en-US')} غرام متاح
+                          </div>
+                        )}
+                        {isLiterUnit(ing.unit) && (
+                          <div className="text-[10px] font-extrabold text-cyan-700 bg-cyan-50 border border-cyan-200/80 px-2 py-0.5 rounded-md inline-block mt-1">
+                            = {Math.round(Number(ing.currentStock || 0) * 1000).toLocaleString('en-US')} مل متاح
+                          </div>
+                        )}
                       </td>
 
                       {/* Threshold */}
@@ -885,14 +900,12 @@ export const InventoryView: React.FC = () => {
                           {/* Stock adjustment button */}
                           <button
                             onClick={() => {
-                              const newQty = prompt(`تعديل الكمية الحالية لـ (${ing.name}):`, ing.currentStock.toString());
-                              if (newQty !== null && !isNaN(Number(newQty))) {
-                                updateIngredientStock(ing.id, Number(newQty), 'تعديل مباشر من جدولة المخزون');
-                                triggerNotification(`تم تعديل مخزون ${ing.name} إلى ${newQty} ${ing.unit}`);
-                              }
+                              setQuickAdjustIngredient(ing);
+                              setQuickAdjustQty(String(ing.currentStock));
+                              setQuickAdjustReason('تعديل جرد مباشر من المخزون');
                             }}
-                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-                            title="تعديل سريع للكمية"
+                            className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-lg text-[11px] font-extrabold transition-colors cursor-pointer"
+                            title="تعديل وحفظ سريع للكمية"
                           >
                             تعديل الكمية
                           </button>
@@ -973,6 +986,96 @@ export const InventoryView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Modal: Quick Stock Adjustment */}
+      {quickAdjustIngredient && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-xs">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <h3 className="font-extrabold text-sm flex items-center gap-2">
+                <Scale className="w-4 h-4 text-amber-400" />
+                <span>تعديل كمية المخزون: {quickAdjustIngredient.name}</span>
+              </h3>
+              <button
+                onClick={() => setQuickAdjustIngredient(null)}
+                className="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const parsed = parseNumericInput(quickAdjustQty);
+                updateIngredientStock(
+                  quickAdjustIngredient.id,
+                  parsed,
+                  quickAdjustReason.trim() || 'تعديل جرد مباشر من المخزون'
+                );
+                triggerNotification(
+                  `تم حفظ وتثبيت كمية "${quickAdjustIngredient.name}" الجديدة (${parsed} ${quickAdjustIngredient.unit}) بنجاح!`
+                );
+                setQuickAdjustIngredient(null);
+              }}
+              className="p-5 space-y-4"
+            >
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                <span className="text-slate-600 font-bold">الكمية المسجلة حالياً:</span>
+                <span className="font-black text-sm text-slate-900">
+                  {Number(quickAdjustIngredient.currentStock).toLocaleString('en-US', { maximumFractionDigits: 4 })}{' '}
+                  {quickAdjustIngredient.unit}
+                </span>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1.5">
+                  الكمية الفعلية الجديدة ({quickAdjustIngredient.unit}) *
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  required
+                  autoFocus
+                  value={quickAdjustQty}
+                  onChange={e => setQuickAdjustQty(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-amber-50/60 border-2 border-amber-400 rounded-xl font-black text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                {isKgUnit(quickAdjustIngredient.unit) && (
+                  <p className="text-[11px] text-emerald-700 font-bold mt-1">
+                    يعادل بالغرام: {Math.round(parseNumericInput(quickAdjustQty) * 1000).toLocaleString('en-US')} غرام
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">سبب التعديل / ملاحظة الجرد</label>
+                <input
+                  type="text"
+                  value={quickAdjustReason}
+                  onChange={e => setQuickAdjustReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  حفظ وتثبيت الكمية فوراً ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickAdjustIngredient(null)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal: Add or Edit Ingredient */}
       {showAddModal && (

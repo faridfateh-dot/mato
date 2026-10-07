@@ -844,6 +844,9 @@ export function subscribeRestaurantAppDataRealtime(
     return onSnapshot(
       docRef,
       (snapshot) => {
+        if (snapshot.metadata.hasPendingWrites) {
+          return;
+        }
         if (snapshot.exists()) {
           callback(snapshot.data() as RestaurantCloudData);
         } else {

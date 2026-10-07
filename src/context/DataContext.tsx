@@ -489,8 +489,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const pendingUsers = useMemo(() => {
-    return users.filter(u => u.isPendingApproval === true);
-  }, [users]);
+    return users.filter(u => u.isPendingApproval === true && u.restaurantId === restaurant.id);
+  }, [users, restaurant.id]);
 
   const pendingUsersCount = pendingUsers.length;
 
@@ -700,42 +700,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return safeStorageArrayParse(`${STORAGE_KEY}_licenseKeys`, DEFAULT_LICENSE_KEYS);
   });
 
-  // In-App Realtime Notifications System (Dedicated to Employee Registration Requests)
+  // In-App Realtime Notifications System (Dedicated to Employee Registration Requests for current restaurant)
   const [notifications, setNotifications] = useState<InAppNotification[]>(() => {
     const saved = safeStorageArrayParse<InAppNotification>(`${STORAGE_KEY}_inapp_notifications`, []);
-    // Filter out any previous subscription_request notifications if present in local storage
-    const filteredSaved = saved ? saved.filter(n => n.type !== 'subscription_request') : [];
-    if (filteredSaved && filteredSaved.length > 0) return filteredSaved;
-
-    const initialList: InAppNotification[] = [
-      {
-        id: 'notif_demo_01',
-        type: 'user_registration',
-        title: 'طلب انضمام موظف جديد',
-        message: 'قام الموظف (سامر العلي) بطلب انضمام بصفة كاشير إلى الفرع الرئيسي.',
-        createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-        isRead: false,
-        entityId: 'usr_samer_pending',
-        entityData: {
-          name: 'سامر العلي',
-          emailOrPhone: 'samer.ali@restaurant.sy',
-          role: 'Cashier',
-          branchId: 'br_main',
-          notes: 'خبرة 3 سنوات في نقاط البيع والكاشير'
-        },
-        status: 'pending'
-      },
-      {
-        id: 'notif_demo_03',
-        type: 'system',
-        title: 'منظومة تنبيهات الموظفين نشطة 🔔',
-        message: 'يتم تنبيه مالك ومدير المطعم فورياً بالصوت والإشعار الفوري عند تسجيل أو طلب انضمام أي موظف جديد.',
-        createdAt: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
-        isRead: true,
-        status: 'approved'
-      }
-    ];
-    return initialList;
+    const filteredSaved = saved
+      ? saved.filter(
+          n =>
+            n.type !== 'subscription_request' &&
+            n.id !== 'notif_demo_01' &&
+            n.id !== 'notif_demo_03' &&
+            n.entityId !== 'usr_samer_pending'
+        )
+      : [];
+    return filteredSaved;
   });
 
   const [activeRealtimeAlert, setActiveRealtimeAlert] = useState<InAppNotification | null>(null);

@@ -413,8 +413,17 @@ export const UsersSettingsView: React.FC = () => {
     setUserToDelete(null);
   };
 
-  // Filter approved users (not pending)
-  const approvedUsers = users.filter(u => !u.isPendingApproval);
+  // Filter approved users strictly for this restaurant (exclude Platform Owner Farid and other tenants)
+  const approvedUsers = users.filter(
+    u =>
+      !u.isPendingApproval &&
+      !u.isPlatformOwner &&
+      u.id !== 'usr_owner_farid' &&
+      u.email?.toLowerCase() !== 'farid.fateh@hotmail.com' &&
+      u.name?.toLowerCase() !== 'farid' &&
+      !u.name?.includes('فريد (مالك المنظومة)') &&
+      u.restaurantId === currentRestaurant.id
+  );
 
   const filteredApprovedUsers = approvedUsers.filter(u => {
     const matchesSearch =

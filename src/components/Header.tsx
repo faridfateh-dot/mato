@@ -850,72 +850,85 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                     </>
                   )}
 
-                  {/* Switch User / Staff with Password Verification */}
-                  <div className="border-t border-slate-700/60 pt-1.5 mt-1">
-                    <div className="text-[10px] text-slate-400 font-bold px-2 py-0.5 mb-1 flex items-center justify-between">
-                      <span className="flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-amber-400" />
-                        <span>التبديل بين المستخدمين (بكلمة المرور):</span>
-                      </span>
-                      <span className="text-amber-400 text-[9px] font-mono">محمي 🔒</span>
-                    </div>
+                  {/* Switch User / Staff with Password Verification (Strictly isolated to current restaurant staff only, never Platform Owner) */}
+                  {(() => {
+                    const tenantStaffList = users.filter(
+                      u =>
+                        u.id !== currentUser?.id &&
+                        u.isActive &&
+                        !u.isPendingApproval &&
+                        !u.isPlatformOwner &&
+                        u.id !== 'usr_owner_farid' &&
+                        u.email?.toLowerCase() !== 'farid.fateh@hotmail.com' &&
+                        u.name?.toLowerCase() !== 'farid' &&
+                        !u.name?.includes('فريد (مالك المنظومة)') &&
+                        u.restaurantId === currentRestaurant.id
+                    );
 
-                    <div className="space-y-1">
-                      {/* List other active staff for this restaurant */}
-                      {users
-                        .filter(u => u.id !== currentUser?.id && u.isActive && (u.restaurantId === currentRestaurant.id || u.isPlatformOwner || u.role === 'Owner'))
-                        .slice(0, 5)
-                        .map(u => (
+                    return (
+                      <div className="border-t border-slate-700/60 pt-1.5 mt-1">
+                        {tenantStaffList.length > 0 && (
+                          <>
+                            <div className="text-[10px] text-slate-400 font-bold px-2 py-0.5 mb-1 flex items-center justify-between">
+                              <span className="flex items-center gap-1">
+                                <Lock className="w-3 h-3 text-amber-400" />
+                                <span>موظفو هذا المطعم فقط:</span>
+                              </span>
+                              <span className="text-amber-400 text-[9px] font-mono">محمي 🔒</span>
+                            </div>
+
+                            <div className="space-y-1 mb-1.5">
+                              {tenantStaffList.slice(0, 5).map(u => (
+                                <button
+                                  key={u.id}
+                                  onClick={() => {
+                                    setShowRoleMenu(false);
+                                    setUserToSwitchWithPassword(u);
+                                    setShowSwitchUserPasswordModal(true);
+                                  }}
+                                  className="w-full text-right px-2 py-1.5 rounded bg-slate-900/60 hover:bg-slate-700/60 text-slate-200 text-xs flex items-center justify-between transition-colors cursor-pointer group"
+                                  title="يتطلب إدخال كلمة المرور للتبديل لهذا الحساب"
+                                >
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <span className={`w-2 h-2 rounded-full ${u.role === 'Cashier' ? 'bg-emerald-400' : u.role === 'Manager' ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                                    <span className="font-bold truncate">{u.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                      u.role === 'Cashier' ? 'bg-emerald-500/20 text-emerald-400' :
+                                      u.role === 'Manager' ? 'bg-blue-500/20 text-blue-400' :
+                                      'bg-amber-500/20 text-amber-400'
+                                    }`}>
+                                      {u.role === 'Cashier' ? 'كاشير' : u.role === 'Manager' ? 'مدير' : 'مالك المطعم'}
+                                    </span>
+                                    <Lock className="w-3 h-3 text-slate-500 group-hover:text-amber-400 transition-colors" />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                        {/* If current shift/user is cashier or manager, allow switching back to Restaurant Owner via Shift Lock */}
+                        {(activeShiftRole !== 'owner' && !currentUser?.isPlatformOwner) && (
                           <button
-                            key={u.id}
                             onClick={() => {
                               setShowRoleMenu(false);
-                              setUserToSwitchWithPassword(u);
-                              setShowSwitchUserPasswordModal(true);
+                              lockToShiftSelection();
                             }}
-                            className="w-full text-right px-2 py-1.5 rounded bg-slate-900/60 hover:bg-slate-700/60 text-slate-200 text-xs flex items-center justify-between transition-colors cursor-pointer group"
-                            title="يتطلب إدخال كلمة المرور للتبديل لهذا الحساب"
+                            className="w-full text-right px-2 py-1.5 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-xs flex items-center justify-between font-bold cursor-pointer transition-colors"
+                            title="يتطلب إدخال كلمة مرور مالك المطعم"
                           >
-                            <div className="flex items-center gap-1.5 truncate">
-                              <span className={`w-2 h-2 rounded-full ${u.role === 'Cashier' ? 'bg-emerald-400' : u.role === 'Manager' ? 'bg-blue-400' : 'bg-amber-400'}`} />
-                              <span className="font-bold truncate">{u.name}</span>
+                            <div className="flex items-center gap-1.5">
+                              <Shield className="w-3.5 h-3.5 text-amber-400" />
+                              <span>العودة لحساب مالك المطعم</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                                u.role === 'Cashier' ? 'bg-emerald-500/20 text-emerald-400' :
-                                u.role === 'Manager' ? 'bg-blue-500/20 text-blue-400' :
-                                'bg-amber-500/20 text-amber-400'
-                              }`}>
-                                {u.role === 'Cashier' ? 'كاشير' : u.role === 'Manager' ? 'مدير' : u.role}
-                              </span>
-                              <Lock className="w-3 h-3 text-slate-500 group-hover:text-amber-400 transition-colors" />
-                            </div>
+                            <Lock className="w-3 h-3 text-amber-400" />
                           </button>
-                        ))}
-
-                      {/* If current user is cashier or manager, allow switching back to Owner WITH PASSWORD */}
-                      {currentUser?.role !== 'Owner' && !currentUser?.isPlatformOwner && (
-                        <button
-                          onClick={() => {
-                            const ownerUser = users.find(u => u.isPlatformOwner || u.role === 'Owner');
-                            if (ownerUser) {
-                              setShowRoleMenu(false);
-                              setUserToSwitchWithPassword(ownerUser);
-                              setShowSwitchUserPasswordModal(true);
-                            }
-                          }}
-                          className="w-full text-right px-2 py-1.5 rounded bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-xs flex items-center justify-between font-bold cursor-pointer transition-colors"
-                          title="يتطلب إدخال كلمة مرور المالك للتحقق"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <Shield className="w-3.5 h-3.5 text-amber-400" />
-                            <span>العودة لحساب المالك (صاحب المنشأة)</span>
-                          </div>
-                          <Lock className="w-3 h-3 text-amber-400" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <button
                     onClick={() => {

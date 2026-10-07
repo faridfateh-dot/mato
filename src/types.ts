@@ -189,6 +189,7 @@ export interface Order {
   profitAmount: number;
   status: 'completed' | 'cancelled';
   paymentMethod: 'cash' | 'card' | 'staff_meal';
+  shiftRole?: ShiftRoleType;
   createdAt: string;
   createdByUserId: string;
   createdByName: string;
@@ -237,6 +238,7 @@ export interface Expense {
   notes?: string;
   recipientOrWorker?: string;
   paymentMethod: 'cash' | 'card' | 'bank';
+  shiftRole?: ShiftRoleType;
   createdByUserId: string;
   createdByName: string;
 }

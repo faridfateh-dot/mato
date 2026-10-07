@@ -3700,6 +3700,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     paymentMethod: 'cash' | 'card' | 'bank' = 'cash',
     date?: string
   ): Expense => {
+    const currentShift: ShiftRoleType = activeShiftRole || currentUser.shiftRole || 'owner';
     const newExpense: Expense = {
       id: `exp_${Date.now()}`,
       restaurantId: restaurant.id,
@@ -3711,6 +3712,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       notes: notes?.trim(),
       recipientOrWorker: recipientOrWorker?.trim(),
       paymentMethod,
+      shiftRole: currentShift,
       createdByUserId: currentUser.id,
       createdByName: currentUser.name
     };
@@ -3803,6 +3805,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isStaffMeal = paymentMethod === 'staff_meal';
     const finalTotalAmount = isStaffMeal ? 0 : totalAmount;
     const profitAmount = isStaffMeal ? 0 : (totalAmount - costAmount);
+    const currentShift: ShiftRoleType = activeShiftRole || currentUser.shiftRole || 'owner';
 
     const newOrder: Order = {
       id: `ord_${Date.now()}`,
@@ -3815,6 +3818,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profitAmount: Math.round(profitAmount),
       status: 'completed',
       paymentMethod,
+      shiftRole: currentShift,
       createdAt: new Date().toISOString(),
       createdByUserId: currentUser.id,
       createdByName: currentUser.name
@@ -3837,6 +3841,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         notes: `وجبة طعام للعمال من منيو المحل (${mealItemsStr}) - تم خصم البضاعة المستخدمة من المخزون فقط وتسجيل تكلفتها الفعلية (${expenseAmount} ${restaurant.currency}) كمصروف دون احتسابها كمبيعات`,
         recipientOrWorker: 'طاقم العمل والعمال',
         paymentMethod: 'cash',
+        shiftRole: currentShift,
         createdByUserId: currentUser.id,
         createdByName: currentUser.name
       };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { Order, OrderItem, Expense } from '../types';
 import {
@@ -47,23 +47,57 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     expenses,
     products,
     currentUser,
-    isPlatformOwner
+    isPlatformOwner,
+    activeShiftRole
   } = useData();
 
   // Selected date: defaults to today YYYY-MM-DD
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || todayStr);
 
-  // Opening Cash in Drawer (stored in localStorage per restaurant and date)
-  const openingCashKey = `mato_opening_cash_${currentRestaurant.id || 'curr'}_${selectedDate}`;
+  // Shift Drawer Filter: 'all' | 'cashier_morning' | 'cashier_evening'
+  const [selectedShiftFilter, setSelectedShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>(() => {
+    if (activeShiftRole === 'cashier_morning') return 'cashier_morning';
+    if (activeShiftRole === 'cashier_evening') return 'cashier_evening';
+    return 'all';
+  });
+
+  useEffect(() => {
+    if (activeShiftRole === 'cashier_morning') {
+      setSelectedShiftFilter('cashier_morning');
+    } else if (activeShiftRole === 'cashier_evening') {
+      setSelectedShiftFilter('cashier_evening');
+    }
+  }, [activeShiftRole]);
+
+  // Helper to determine if an Order or Expense belongs to Morning or Evening shift
+  const getRecordShift = (rec: { shiftRole?: string; createdAt?: string; date?: string }): 'cashier_morning' | 'cashier_evening' => {
+    if (rec.shiftRole === 'cashier_morning') return 'cashier_morning';
+    if (rec.shiftRole === 'cashier_evening') return 'cashier_evening';
+    const ts = rec.createdAt || rec.date || '';
+    const hour = ts ? new Date(ts).getHours() : 12;
+    return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
+  };
+
+  // Opening Cash in Drawer (stored independently per restaurant, date, AND shift!)
+  const openingCashKey = `mato_opening_cash_${currentRestaurant.id || 'curr'}_${selectedDate}_${selectedShiftFilter}`;
   const [openingCash, setOpeningCash] = useState<number>(() => {
     try {
       const saved = localStorage.getItem(openingCashKey);
-      return saved !== null ? Number(saved) : 50000; // default 50k
+      return saved !== null ? Number(saved) : 50000;
     } catch {
       return 50000;
     }
   });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(openingCashKey);
+      setOpeningCash(saved !== null ? Number(saved) : 50000);
+    } catch {
+      setOpeningCash(50000);
+    }
+  }, [openingCashKey]);
 
   const [isEditingOpeningCash, setIsEditingOpeningCash] = useState(false);
   const [tempOpeningCash, setTempOpeningCash] = useState(openingCash.toString());
@@ -95,15 +129,25 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     setIsEditingOpeningCash(false);
   };
 
-  // 1. Filter orders for selected date
-  const dayOrders = useMemo(() => {
+  // 1. Filter orders for selected date AND selected shift drawer
+  const allDayOrders = useMemo(() => {
     return orders.filter(o => o.createdAt.startsWith(selectedDate) && o.status === 'completed');
   }, [orders, selectedDate]);
 
-  // 2. Filter expenses for selected date
-  const dayExpenses = useMemo(() => {
+  const dayOrders = useMemo(() => {
+    if (selectedShiftFilter === 'all') return allDayOrders;
+    return allDayOrders.filter(o => getRecordShift(o) === selectedShiftFilter);
+  }, [allDayOrders, selectedShiftFilter]);
+
+  // 2. Filter expenses for selected date AND selected shift drawer
+  const allDayExpenses = useMemo(() => {
     return expenses.filter(e => e.date.startsWith(selectedDate));
   }, [expenses, selectedDate]);
+
+  const dayExpenses = useMemo(() => {
+    if (selectedShiftFilter === 'all') return allDayExpenses;
+    return allDayExpenses.filter(e => getRecordShift(e) === selectedShiftFilter);
+  }, [allDayExpenses, selectedShiftFilter]);
 
   // Financial Metrics (Exclude internal staff meals from customer sales & gross profit)
   const customerDayOrders = useMemo(() => {
@@ -184,16 +228,15 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return actual - expectedCashInDrawer;
   }, [actualCashCounted, expectedCashInDrawer]);
 
-  // Shift Breakdown (Morning: 06:00 - 16:00, Evening: 16:00 - 04:00)
+  // Shift Breakdown (Uses shiftRole stamp on orders, with time fallback for legacy orders)
   const shiftBreakdown = useMemo(() => {
     let morningSales = 0;
     let morningOrders = 0;
     let eveningSales = 0;
     let eveningOrders = 0;
 
-    customerDayOrders.forEach(o => {
-      const hour = new Date(o.createdAt).getHours();
-      if (hour >= 6 && hour < 16) {
+    allDayOrders.filter(o => o.paymentMethod !== 'staff_meal').forEach(o => {
+      if (getRecordShift(o) === 'cashier_morning') {
         morningSales += o.totalAmount;
         morningOrders++;
       } else {
@@ -206,7 +249,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       morning: { sales: morningSales, orders: morningOrders },
       evening: { sales: eveningSales, orders: eveningOrders }
     };
-  }, [customerDayOrders]);
+  }, [allDayOrders]);
 
   // Top Selling Products for this Day
   const topProducts = useMemo(() => {
@@ -318,6 +361,56 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           >
             <Printer className="w-3.5 h-3.5" />
             <span>طباعة الإغلاق (Z-Report)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Shift Drawer Isolation Selector (فصل صندوق الكاشير الصباحي عن المسائي) */}
+      <div className="bg-slate-900 text-white p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs">
+          <Layers className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="font-extrabold text-amber-400">فصل صناديق الكاش حسب الوردية:</span>
+          <span className="text-slate-300 text-[11px]">كل وردية لها عهدة افتتاحية، كاش مبيعات، ومصاريف مستقلة تماماً</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-800 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setSelectedShiftFilter('cashier_morning')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              selectedShiftFilter === 'cashier_morning'
+                ? 'bg-amber-400 text-slate-950 shadow'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5" />
+            <span>☀️ صندوق الكاشير الصباحي</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedShiftFilter('cashier_evening')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              selectedShiftFilter === 'cashier_evening'
+                ? 'bg-indigo-500 text-white shadow'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Moon className="w-3.5 h-3.5" />
+            <span>🌙 صندوق الكاشير المسائي</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedShiftFilter('all')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              selectedShiftFilter === 'all'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5" />
+            <span>📊 إجمالي اليوم (الورديتين معاً)</span>
           </button>
         </div>
       </div>

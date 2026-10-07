@@ -28,6 +28,185 @@ export const PosView: React.FC = () => {
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'staff_meal'>('cash');
   const [lastCompletedOrder, setLastCompletedOrder] = useState<any | null>(null);
+  const [autoPrintReceipt, setAutoPrintReceipt] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('mato_pos_auto_print_receipt') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleAutoPrint = () => {
+    const next = !autoPrintReceipt;
+    setAutoPrintReceipt(next);
+    try {
+      localStorage.setItem('mato_pos_auto_print_receipt', String(next));
+    } catch {}
+  };
+
+  const printThermalReceipt = (order: any) => {
+    if (!order) return;
+    const isStaff = order.paymentMethod === 'staff_meal';
+    const paymentLabel =
+      order.paymentMethod === 'cash'
+        ? 'نقدي (Cash)'
+        : order.paymentMethod === 'card'
+        ? 'بطاقة (Card)'
+        : 'وجبة عمال داخلية';
+
+    const dateStr = new Date(order.createdAt).toLocaleDateString('ar-SY');
+    const timeStr = new Date(order.createdAt).toLocaleTimeString('ar-SY', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const rowsHtml = (order.items || [])
+      .map(
+        (it: any) => `
+        <tr>
+          <td style="padding: 5px 0; font-weight: 700; text-align: right; border-bottom: 1px dashed #cbd5e1;">${it.productName}</td>
+          <td style="padding: 5px 0; font-weight: 700; text-align: center; border-bottom: 1px dashed #cbd5e1;">${it.quantity}</td>
+          <td style="padding: 5px 0; font-weight: 800; text-align: left; border-bottom: 1px dashed #cbd5e1;">${Number(it.total || 0).toLocaleString()}</td>
+        </tr>`
+      )
+      .join('');
+
+    const htmlContent = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>فاتورة ${order.orderNumber}</title>
+  <style>
+    @page {
+      size: 80mm auto;
+      margin: 2mm;
+    }
+    body {
+      font-family: 'Tahoma', 'Arial', sans-serif;
+      width: 74mm;
+      margin: 0 auto;
+      padding: 4px;
+      color: #000;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px dashed #000;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: 900;
+      margin: 0;
+    }
+    .subtitle {
+      font-size: 11px;
+      margin: 2px 0;
+      font-weight: 700;
+    }
+    .meta {
+      font-size: 11px;
+      margin-bottom: 8px;
+      border-bottom: 1px dashed #000;
+      padding-bottom: 6px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    th {
+      border-bottom: 2px solid #000;
+      padding: 4px 0;
+      font-weight: 900;
+    }
+    .total-box {
+      border-top: 2px solid #000;
+      border-bottom: 2px dashed #000;
+      padding: 6px 0;
+      margin: 8px 0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+      font-weight: 900;
+    }
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">${currentRestaurant.name}</div>
+    <div class="subtitle">${currentBranch.name}</div>
+    ${currentBranch.phone ? `<div class="subtitle">هاتف: ${currentBranch.phone}</div>` : ''}
+  </div>
+
+  <div class="meta">
+    <div class="meta-row"><span>رقم الفاتورة:</span><strong>${order.orderNumber}</strong></div>
+    <div class="meta-row"><span>التاريخ والوقت:</span><span>${dateStr} - ${timeStr}</span></div>
+    <div class="meta-row"><span>الكاشير:</span><span>${order.createdByName || 'الكاشير'}</span></div>
+    <div class="meta-row"><span>طريقة الدفع:</span><strong>${paymentLabel}</strong></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align: right;">الصنف</th>
+        <th style="text-align: center;">العدد</th>
+        <th style="text-align: left;">الإجمالي</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+
+  <div class="total-box">
+    <span>${isStaff ? 'تكلفة وجبة العمال:' : 'المجموع المطلوب:'}</span>
+    <span>${Number(isStaff ? order.costAmount : order.totalAmount).toLocaleString()} ${currentRestaurant.currency}</span>
+  </div>
+
+  <div class="footer">
+    شكراً لزيارتكم - صحتين وهنا!
+  </div>
+</body>
+</html>`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 2000);
+      }, 250);
+    }
+  };
 
   const addToCart = (product: Product) => {
     if (!product.isAvailable) return;
@@ -67,6 +246,9 @@ export const PosView: React.FC = () => {
     const order = createOrder(cart, paymentMethod);
     setLastCompletedOrder(order);
     setCart([]);
+    if (autoPrintReceipt && paymentMethod !== 'staff_meal') {
+      printThermalReceipt(order);
+    }
   };
 
   const filteredProducts = products.filter(p =>
@@ -88,7 +270,20 @@ export const PosView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAutoPrint}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all cursor-pointer ${
+              autoPrintReceipt
+                ? 'bg-amber-400 text-slate-950 border-amber-500 shadow-sm'
+                : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>طباعة الفاتورة تلقائياً: {autoPrintReceipt ? 'مفعّلة ✓' : 'يدوية'}</span>
+          </button>
+
           <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full border border-emerald-300">
             الفرع النشط: {currentBranch.name}
           </span>
@@ -347,12 +542,23 @@ export const PosView: React.FC = () => {
                 </p>
               )}
 
-              <button
-                onClick={() => setLastCompletedOrder(null)}
-                className="w-full py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                إغلاق والعودة للكاشير
-              </button>
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => printThermalReceipt(lastCompletedOrder)}
+                  className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>طباعة فاتورة الكاشير الحرارية (80mm) 🖨️</span>
+                </button>
+
+                <button
+                  onClick={() => setLastCompletedOrder(null)}
+                  className="w-full py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  إغلاق والعودة للكاشير
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -205,8 +205,8 @@ interface DataContextType {
   addSupplier: (supplier: Omit<Supplier, 'id' | 'restaurantId'>) => Supplier;
   deleteSupplier: (id: string) => boolean;
   
-  recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[], shiftRoleOverride?: ShiftRoleType) => Purchase;
-  updatePurchase: (purchaseId: string, updates: { supplierId: string; supplierName: string; items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]; shiftRole?: ShiftRoleType }) => boolean;
+  recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[], shiftRoleOverride?: ShiftRoleType, customDate?: string) => Purchase;
+  updatePurchase: (purchaseId: string, updates: { supplierId: string; supplierName: string; items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]; shiftRole?: ShiftRoleType; date?: string }) => boolean;
   deletePurchase: (purchaseId: string) => boolean;
   
   recordWaste: (ingredientId: string, quantity: number, unit: string, reason?: string) => StockMovement;
@@ -3567,7 +3567,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supplierId: string,
     supplierName: string,
     items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[],
-    shiftRoleOverride?: ShiftRoleType
+    shiftRoleOverride?: ShiftRoleType,
+    customDate?: string
   ) => {
     let totalAmount = 0;
     const purchaseItems = items.map(item => {
@@ -3589,6 +3590,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? '👔 مدير المطعم'
         : currentUser.name;
 
+    const finalIsoDate = customDate
+      ? (() => {
+          // Preserve current time of day if only YYYY-MM-DD is provided
+          if (/^\d{4}-\d{2}-\d{2}$/.test(customDate)) {
+            const now = new Date();
+            const [y, m, d] = customDate.split('-').map(Number);
+            const merged = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+            return merged.toISOString();
+          }
+          return new Date(customDate).toISOString();
+        })()
+      : new Date().toISOString();
+
     const newPurchase: Purchase = {
       id: `pur_${Date.now()}`,
       restaurantId: restaurant.id,
@@ -3597,7 +3611,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supplierName,
       items: purchaseItems,
       totalAmount,
-      date: new Date().toISOString(),
+      date: finalIsoDate,
       shiftRole: currentShift,
       createdByUserId: currentUser.id,
       createdByName: shiftLabelName
@@ -3650,6 +3664,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supplierName: string;
       items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[];
       shiftRole?: ShiftRoleType;
+      date?: string;
     }
   ): boolean => {
     const oldPurchase = purchases.find(p => p.id === purchaseId);
@@ -3674,6 +3689,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         : updatedShift === 'manager'
         ? '👔 مدير المطعم'
         : oldPurchase.createdByName;
+
+    const updatedDateIso = updates.date
+      ? (() => {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(updates.date)) {
+            const oldTime = new Date(oldPurchase.date);
+            const [y, m, d] = updates.date.split('-').map(Number);
+            const merged = new Date(
+              y,
+              m - 1,
+              d,
+              isNaN(oldTime.getHours()) ? 12 : oldTime.getHours(),
+              isNaN(oldTime.getMinutes()) ? 0 : oldTime.getMinutes(),
+              isNaN(oldTime.getSeconds()) ? 0 : oldTime.getSeconds()
+            );
+            return merged.toISOString();
+          }
+          return new Date(updates.date).toISOString();
+        })()
+      : oldPurchase.date;
 
     // Adjust ingredients stock: revert old items, apply new items
     setIngredients(prev =>
@@ -3718,6 +3752,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               supplierName: updates.supplierName,
               items: purchaseItems,
               totalAmount,
+              date: updatedDateIso,
               shiftRole: updatedShift,
               createdByName: shiftLabelName
             }

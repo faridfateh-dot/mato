@@ -362,7 +362,7 @@ export const InvoiceScannerModal: React.FC<InvoiceScannerModalProps> = ({
     });
 
     // 3. Record purchase (updates stock & costs in DataContext automatically)
-    recordPurchase(finalSupplierId, finalSupplierName, purchaseItems);
+    recordPurchase(finalSupplierId, finalSupplierName, purchaseItems, undefined, invoiceData.date);
 
     const summary = {
       supplierName: finalSupplierName,

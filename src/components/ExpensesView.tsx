@@ -35,8 +35,19 @@ import { InvoiceScannerModal } from './InvoiceScannerModal';
 export const ExpensesView: React.FC = () => {
   const { currentRestaurant, expenses, addExpense, updateExpense, deleteExpense, clearAllExpenses, currentUser, activeShiftRole, products, recipes, createOrder } = useData();
 
-  const currentShiftRole = activeShiftRole || currentUser.shiftRole || (currentUser.role === 'owner' ? 'owner' : 'cashier_morning');
-  const isOwnerOnly = currentShiftRole === 'owner' && currentUser.role === 'owner';
+  const currentShiftRole = activeShiftRole || currentUser.shiftRole || (currentUser.role === 'Owner' ? 'owner' : 'cashier_morning');
+  const isOwnerOnly = currentShiftRole === 'owner' || (currentUser.role === 'Owner' && !activeShiftRole);
+
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const getLocalYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -649,9 +660,9 @@ export const ExpensesView: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-bold border border-slate-200/80" title="التعديل والمسح متاح من حساب المالك حصراً">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-bold border border-slate-200/80" title="التعديل والمسح متاح عند الدخول بصلاحية مالك المطعم حصراً">
                             <Lock className="w-3 h-3 text-slate-400" />
-                            <span>للمالك حصراً</span>
+                            <span>لمالك المطعم حصراً</span>
                           </span>
                         )}
                       </td>
@@ -949,7 +960,33 @@ export const ExpensesView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">تاريخ المصروف</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-700">تاريخ المصروف</label>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, date: getLocalTodayStr() })}
+                        className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] transition-all cursor-pointer ${
+                          form.date === getLocalTodayStr()
+                            ? 'bg-slate-900 text-amber-400'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        اليوم
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, date: getLocalYesterdayStr() })}
+                        className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] transition-all cursor-pointer ${
+                          form.date === getLocalYesterdayStr()
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                        }`}
+                      >
+                        🌙 أمس (بعد الـ 12 ليلاً)
+                      </button>
+                    </div>
+                  </div>
                   <input
                     type="date"
                     value={form.date}

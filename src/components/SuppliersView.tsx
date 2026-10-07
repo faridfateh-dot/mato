@@ -40,8 +40,19 @@ export const SuppliersView: React.FC = () => {
     deletePurchase
   } = useData();
 
-  const currentShiftRole = activeShiftRole || currentUser.shiftRole || (currentUser.role === 'owner' ? 'owner' : 'cashier_morning');
-  const isOwnerOnly = currentShiftRole === 'owner' && currentUser.role === 'owner';
+  const currentShiftRole = activeShiftRole || currentUser.shiftRole || (currentUser.role === 'Owner' ? 'owner' : 'cashier_morning');
+  const isOwnerOnly = currentShiftRole === 'owner' || (currentUser.role === 'Owner' && !activeShiftRole);
+
+  const getLocalTodayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const getLocalYesterdayStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
 
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -87,6 +98,7 @@ export const SuppliersView: React.FC = () => {
     quantity: '',
     unit: '',
     costPerUnit: '',
+    date: getLocalTodayStr(),
     shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType,
     payFromCashDrawer: true
   });
@@ -99,6 +111,7 @@ export const SuppliersView: React.FC = () => {
       quantity: '',
       unit: '',
       costPerUnit: '',
+      date: getLocalTodayStr(),
       shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType,
       payFromCashDrawer: true
     });
@@ -108,6 +121,10 @@ export const SuppliersView: React.FC = () => {
   const handleOpenEditPurchase = (pur: Purchase) => {
     if (!isOwnerOnly) return;
     const firstItem = pur.items[0];
+    const purDateObj = pur.date ? new Date(pur.date) : new Date();
+    const purDateStr = !isNaN(purDateObj.getTime())
+      ? `${purDateObj.getFullYear()}-${String(purDateObj.getMonth() + 1).padStart(2, '0')}-${String(purDateObj.getDate()).padStart(2, '0')}`
+      : getLocalTodayStr();
     setEditingPurchase(pur);
     setPurchaseForm({
       supplierId: pur.supplierId === 'sup_direct_market' ? '' : pur.supplierId,
@@ -115,6 +132,7 @@ export const SuppliersView: React.FC = () => {
       quantity: firstItem ? firstItem.quantity.toString() : '',
       unit: firstItem ? firstItem.unit : '',
       costPerUnit: firstItem ? firstItem.costPerUnit.toString() : '',
+      date: purDateStr,
       shiftRole: getPurchaseShift(pur),
       payFromCashDrawer: true
     });
@@ -159,7 +177,8 @@ export const SuppliersView: React.FC = () => {
             costPerUnit: Number(purchaseForm.costPerUnit)
           }
         ],
-        shiftRole: purchaseForm.shiftRole
+        shiftRole: purchaseForm.shiftRole,
+        date: purchaseForm.date
       });
     } else {
       recordPurchase(
@@ -174,7 +193,8 @@ export const SuppliersView: React.FC = () => {
             costPerUnit: Number(purchaseForm.costPerUnit)
           }
         ],
-        purchaseForm.shiftRole
+        purchaseForm.shiftRole,
+        purchaseForm.date
       );
     }
 
@@ -186,6 +206,7 @@ export const SuppliersView: React.FC = () => {
       quantity: '',
       unit: '',
       costPerUnit: '',
+      date: getLocalTodayStr(),
       shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType,
       payFromCashDrawer: true
     });
@@ -347,7 +368,7 @@ export const SuppliersView: React.FC = () => {
                 <th className="p-3.5">المادة المشتراة والكمية</th>
                 <th className="p-3.5">تاريخ الفاتورة</th>
                 <th className="p-3.5 text-left">المبلغ الإجمالي</th>
-                <th className="p-3.5 text-center">إدارة وتعديل (للمالك حصراً)</th>
+                <th className="p-3.5 text-center">إدارة وتعديل (لمالك المطعم حصراً)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
@@ -413,9 +434,9 @@ export const SuppliersView: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-bold border border-slate-200/80" title="التعديل والمسح متاح من حساب المالك حصراً">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-bold border border-slate-200/80" title="التعديل والمسح متاح عند الدخول بصلاحية مالك المطعم حصراً">
                             <Lock className="w-3 h-3 text-slate-400" />
-                            <span>للمالك حصراً</span>
+                            <span>لمالك المطعم حصراً</span>
                           </span>
                         )}
                       </td>
@@ -559,6 +580,50 @@ export const SuppliersView: React.FC = () => {
                     <span>🌙 وردية المساء</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Date Selector with Post-Midnight Yesterday Quick Button */}
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-amber-600" />
+                    <span>تاريخ الفاتورة (حدد يوم الشراء الفعلي):</span>
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseForm({ ...purchaseForm, date: getLocalTodayStr() })}
+                      className={`px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition-all cursor-pointer ${
+                        purchaseForm.date === getLocalTodayStr()
+                          ? 'bg-slate-900 text-amber-400 shadow-xs'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      📅 تاريخ اليوم
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseForm({ ...purchaseForm, date: getLocalYesterdayStr() })}
+                      className={`px-2.5 py-1 rounded-lg font-extrabold text-[11px] transition-all cursor-pointer ${
+                        purchaseForm.date === getLocalYesterdayStr()
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50'
+                      }`}
+                    >
+                      🌙 تاريخ أمس (بعد الـ 12 ليلاً)
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="date"
+                  required
+                  value={purchaseForm.date}
+                  onChange={e => setPurchaseForm({ ...purchaseForm, date: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-400 font-bold text-slate-900"
+                />
+                <p className="text-[10px] text-amber-900/80 font-semibold">
+                  💡 ملاحظة: إذا تجاوزت الساعة 12 منتصف الليل وتريد تنزيل المشتريات على حساب اليوم السابق، اضغط على زر «تاريخ أمس» أو اختر التاريخ يدوياً.
+                </p>
               </div>
 
               <div>

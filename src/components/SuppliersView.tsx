@@ -68,14 +68,17 @@ export const SuppliersView: React.FC = () => {
 
   const handlePurchaseSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const sup = suppliers.find(s => s.id === purchaseForm.supplierId);
     const ing = ingredients.find(i => i.id === purchaseForm.ingredientId);
 
-    if (!sup || !ing || !purchaseForm.quantity || !purchaseForm.costPerUnit) return;
+    if (!ing || !purchaseForm.quantity || !purchaseForm.costPerUnit) return;
+
+    const sup = suppliers.find(s => s.id === purchaseForm.supplierId);
+    const finalSupplierId = sup ? sup.id : 'sup_direct_market';
+    const finalSupplierName = sup ? sup.name : '🛒 شراء مباشر من السوق (نقدي)';
 
     recordPurchase(
-      sup.id,
-      sup.name,
+      finalSupplierId,
+      finalSupplierName,
       [
         {
           ingredientId: ing.id,
@@ -326,14 +329,13 @@ export const SuppliersView: React.FC = () => {
 
             <form onSubmit={handlePurchaseSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 pb-20">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">المورد *</label>
+                <label className="block font-bold text-slate-700 mb-1">المورد / جهة الشراء (اختياري - غير إجباري)</label>
                 <select
-                  required
                   value={purchaseForm.supplierId}
                   onChange={e => setPurchaseForm({ ...purchaseForm, supplierId: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 font-bold"
                 >
-                  <option value="">-- اختر المورد --</option>
+                  <option value="">🛒 شراء مباشر من السوق / سوبرماركت (بدون مورد محدد)</option>
                   {suppliers.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.companyName || 'مستقل'})</option>
                   ))}

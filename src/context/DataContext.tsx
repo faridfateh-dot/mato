@@ -206,6 +206,8 @@ interface DataContextType {
   deleteSupplier: (id: string) => boolean;
   
   recordPurchase: (supplierId: string, supplierName: string, items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[], shiftRoleOverride?: ShiftRoleType) => Purchase;
+  updatePurchase: (purchaseId: string, updates: { supplierId: string; supplierName: string; items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[]; shiftRole?: ShiftRoleType }) => boolean;
+  deletePurchase: (purchaseId: string) => boolean;
   
   recordWaste: (ingredientId: string, quantity: number, unit: string, reason?: string) => StockMovement;
   
@@ -3641,6 +3643,118 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newPurchase;
   };
 
+  const updatePurchase = (
+    purchaseId: string,
+    updates: {
+      supplierId: string;
+      supplierName: string;
+      items: { ingredientId: string; ingredientName: string; quantity: number; unit: string; costPerUnit: number }[];
+      shiftRole?: ShiftRoleType;
+    }
+  ): boolean => {
+    const oldPurchase = purchases.find(p => p.id === purchaseId);
+    if (!oldPurchase) return false;
+
+    let totalAmount = 0;
+    const purchaseItems = updates.items.map(item => {
+      const lineTotal = item.quantity * item.costPerUnit;
+      totalAmount += lineTotal;
+      return {
+        ...item,
+        totalCost: lineTotal
+      };
+    });
+
+    const updatedShift = updates.shiftRole || oldPurchase.shiftRole || 'cashier_morning';
+    const shiftLabelName =
+      updatedShift === 'cashier_morning'
+        ? '☀️ كاشير صباحي'
+        : updatedShift === 'cashier_evening'
+        ? '🌙 كاشير مسائي'
+        : updatedShift === 'manager'
+        ? '👔 مدير المطعم'
+        : oldPurchase.createdByName;
+
+    // Adjust ingredients stock: revert old items, apply new items
+    setIngredients(prev =>
+      prev.map(ing => {
+        let updatedStock = ing.currentStock;
+        let updatedCostPerUnit = ing.costPerUnit;
+
+        // Revert old quantities for this ingredient
+        oldPurchase.items
+          .filter(it => it.ingredientId === ing.id)
+          .forEach(oldItem => {
+            const revertedBaseStock = convertQuantityAdvanced(oldItem.quantity, oldItem.unit, ing.unit, ing);
+            updatedStock = Math.max(0, updatedStock - revertedBaseStock);
+          });
+
+        // Apply new quantities & cost for this ingredient
+        updates.items
+          .filter(it => it.ingredientId === ing.id)
+          .forEach(newItem => {
+            const addedBaseStock = convertQuantityAdvanced(newItem.quantity, newItem.unit, ing.unit, ing);
+            updatedStock += addedBaseStock;
+            const baseCost = convertCostPerUnitAdvanced(newItem.costPerUnit, newItem.unit, ing.unit, ing);
+            if (baseCost > 0) {
+              updatedCostPerUnit = baseCost;
+            }
+          });
+
+        return {
+          ...ing,
+          currentStock: updatedStock,
+          costPerUnit: updatedCostPerUnit
+        };
+      })
+    );
+
+    setPurchases(prev =>
+      prev.map(p =>
+        p.id === purchaseId
+          ? {
+              ...p,
+              supplierId: updates.supplierId,
+              supplierName: updates.supplierName,
+              items: purchaseItems,
+              totalAmount,
+              shiftRole: updatedShift,
+              createdByName: shiftLabelName
+            }
+          : p
+      )
+    );
+
+    logActivity('تعديل فاتورة شراء', `تعديل فاتورة الشراء (${purchaseId}) من حساب المالك بقيمة ${totalAmount} ${restaurant.currency}`);
+    return true;
+  };
+
+  const deletePurchase = (purchaseId: string): boolean => {
+    const targetPurchase = purchases.find(p => p.id === purchaseId);
+    if (!targetPurchase) return false;
+
+    // Revert stock added by this purchase
+    setIngredients(prev =>
+      prev.map(ing => {
+        let updatedStock = ing.currentStock;
+        targetPurchase.items
+          .filter(it => it.ingredientId === ing.id)
+          .forEach(oldItem => {
+            const revertedBaseStock = convertQuantityAdvanced(oldItem.quantity, oldItem.unit, ing.unit, ing);
+            updatedStock = Math.max(0, updatedStock - revertedBaseStock);
+          });
+        return {
+          ...ing,
+          currentStock: updatedStock
+        };
+      })
+    );
+
+    setPurchases(prev => prev.filter(p => p.id !== purchaseId));
+    logActivity('حذف فاتورة شراء', `حذف فاتورة الشراء (${purchaseId}) واسترجاع كميتها من المخزون`);
+    return true;
+  };
+
   // Waste Record Actions
   const recordWaste = (ingredientId: string, quantity: number, unit: string, reason?: string) => {
     const ing = ingredients.find(i => i.id === ingredientId);
@@ -4517,6 +4631,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addSupplier,
         deleteSupplier,
         recordPurchase,
+        updatePurchase,
+        deletePurchase,
         recordWaste,
         addExpense,
         updateExpense,

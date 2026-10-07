@@ -27,12 +27,16 @@ import {
   Scan,
   Sun,
   Moon,
-  Store
+  Store,
+  Lock
 } from 'lucide-react';
 import { InvoiceScannerModal } from './InvoiceScannerModal';
 
 export const ExpensesView: React.FC = () => {
   const { currentRestaurant, expenses, addExpense, updateExpense, deleteExpense, clearAllExpenses, currentUser, activeShiftRole, products, recipes, createOrder } = useData();
+
+  const currentShiftRole = activeShiftRole || currentUser.shiftRole || (currentUser.role === 'owner' ? 'owner' : 'cashier_morning');
+  const isOwnerOnly = currentShiftRole === 'owner' && currentUser.role === 'owner';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -525,7 +529,7 @@ export const ExpensesView: React.FC = () => {
               الإجمالي المعروض: {filteredExpenses.reduce((acc, e) => acc + e.amount, 0).toLocaleString()} {currentRestaurant.currency}
             </span>
 
-            {expenses.length > 0 && (
+            {expenses.length > 0 && isOwnerOnly && (
               <button
                 onClick={() => setShowClearConfirmModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs border border-rose-200 transition-colors cursor-pointer"
@@ -625,24 +629,31 @@ export const ExpensesView: React.FC = () => {
                       </td>
 
                       <td className="p-3.5 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => handleEditClick(item)}
-                            className="px-2.5 py-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer"
-                            title="تعديل المصروف"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-amber-500" />
-                            <span>تعديل</span>
-                          </button>
-                          <button
-                            onClick={() => setItemToDelete(item)}
-                            className="px-2.5 py-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer"
-                            title="مسح المصروف"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                            <span>مسح</span>
-                          </button>
-                        </div>
+                        {isOwnerOnly ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleEditClick(item)}
+                              className="px-2.5 py-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                              title="تعديل المصروف (للمالك حصراً)"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-amber-500" />
+                              <span>تعديل</span>
+                            </button>
+                            <button
+                              onClick={() => setItemToDelete(item)}
+                              className="px-2.5 py-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl transition-all flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                              title="مسح المصروف (للمالك حصراً)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                              <span>مسح</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-bold border border-slate-200/80" title="التعديل والمسح متاح من حساب المالك حصراً">
+                            <Lock className="w-3 h-3 text-slate-400" />
+                            <span>للمالك حصراً</span>
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

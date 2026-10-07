@@ -16,9 +16,12 @@ import {
   Sun,
   Moon,
   Store,
-  Layers
+  Layers,
+  Pencil,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
-import { Supplier, ShiftRoleType } from '../types';
+import { Supplier, ShiftRoleType, Purchase } from '../types';
 import { getCompatibleUnits, convertQuantity, convertCostPerUnit, convertQuantityAdvanced, convertCostPerUnitAdvanced } from '../lib/unitUtils';
 import { InvoiceScannerModal } from './InvoiceScannerModal';
 
@@ -28,16 +31,24 @@ export const SuppliersView: React.FC = () => {
     purchases,
     ingredients,
     currentRestaurant,
+    currentUser,
     activeShiftRole,
     addSupplier,
     deleteSupplier,
-    recordPurchase
+    recordPurchase,
+    updatePurchase,
+    deletePurchase
   } = useData();
+
+  const currentShiftRole = activeShiftRole || currentUser.shiftRole || (currentUser.role === 'owner' ? 'owner' : 'cashier_morning');
+  const isOwnerOnly = currentShiftRole === 'owner' && currentUser.role === 'owner';
 
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showInvoiceScanner, setShowInvoiceScanner] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
   const [selectedShiftFilter, setSelectedShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>('all');
 
   // Helper to determine shift of a purchase record
@@ -80,6 +91,36 @@ export const SuppliersView: React.FC = () => {
     payFromCashDrawer: true
   });
 
+  const handleOpenNewPurchaseModal = () => {
+    setEditingPurchase(null);
+    setPurchaseForm({
+      supplierId: '',
+      ingredientId: '',
+      quantity: '',
+      unit: '',
+      costPerUnit: '',
+      shiftRole: (activeShiftRole === 'cashier_morning' || activeShiftRole === 'cashier_evening' ? activeShiftRole : 'cashier_morning') as ShiftRoleType,
+      payFromCashDrawer: true
+    });
+    setShowPurchaseModal(true);
+  };
+
+  const handleOpenEditPurchase = (pur: Purchase) => {
+    if (!isOwnerOnly) return;
+    const firstItem = pur.items[0];
+    setEditingPurchase(pur);
+    setPurchaseForm({
+      supplierId: pur.supplierId === 'sup_direct_market' ? '' : pur.supplierId,
+      ingredientId: firstItem ? firstItem.ingredientId : '',
+      quantity: firstItem ? firstItem.quantity.toString() : '',
+      unit: firstItem ? firstItem.unit : '',
+      costPerUnit: firstItem ? firstItem.costPerUnit.toString() : '',
+      shiftRole: getPurchaseShift(pur),
+      payFromCashDrawer: true
+    });
+    setShowPurchaseModal(true);
+  };
+
   const handleSupplierSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!supplierForm.name) return;
@@ -105,22 +146,40 @@ export const SuppliersView: React.FC = () => {
     const finalSupplierId = sup ? sup.id : 'sup_direct_market';
     const finalSupplierName = sup ? sup.name : '🛒 شراء مباشر من السوق (نقدي)';
 
-    recordPurchase(
-      finalSupplierId,
-      finalSupplierName,
-      [
-        {
-          ingredientId: ing.id,
-          ingredientName: ing.name,
-          quantity: Number(purchaseForm.quantity),
-          unit: purchaseForm.unit || ing.unit,
-          costPerUnit: Number(purchaseForm.costPerUnit)
-        }
-      ],
-      purchaseForm.shiftRole
-    );
+    if (editingPurchase && isOwnerOnly) {
+      updatePurchase(editingPurchase.id, {
+        supplierId: finalSupplierId,
+        supplierName: finalSupplierName,
+        items: [
+          {
+            ingredientId: ing.id,
+            ingredientName: ing.name,
+            quantity: Number(purchaseForm.quantity),
+            unit: purchaseForm.unit || ing.unit,
+            costPerUnit: Number(purchaseForm.costPerUnit)
+          }
+        ],
+        shiftRole: purchaseForm.shiftRole
+      });
+    } else {
+      recordPurchase(
+        finalSupplierId,
+        finalSupplierName,
+        [
+          {
+            ingredientId: ing.id,
+            ingredientName: ing.name,
+            quantity: Number(purchaseForm.quantity),
+            unit: purchaseForm.unit || ing.unit,
+            costPerUnit: Number(purchaseForm.costPerUnit)
+          }
+        ],
+        purchaseForm.shiftRole
+      );
+    }
 
     setShowPurchaseModal(false);
+    setEditingPurchase(null);
     setPurchaseForm({
       supplierId: '',
       ingredientId: '',
@@ -165,7 +224,7 @@ export const SuppliersView: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setShowPurchaseModal(true)}
+            onClick={handleOpenNewPurchaseModal}
             className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm transition-all cursor-pointer"
           >
             <ShoppingBag className="w-4 h-4 text-amber-600" />
@@ -288,12 +347,13 @@ export const SuppliersView: React.FC = () => {
                 <th className="p-3.5">المادة المشتراة والكمية</th>
                 <th className="p-3.5">تاريخ الفاتورة</th>
                 <th className="p-3.5 text-left">المبلغ الإجمالي</th>
+                <th className="p-3.5 text-center">إدارة وتعديل (للمالك حصراً)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
               {filteredPurchases.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400 font-bold">
+                  <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
                     لا توجد فواتير شراء مسجلة في هذه الوردية بعد
                   </td>
                 </tr>
@@ -329,6 +389,35 @@ export const SuppliersView: React.FC = () => {
                       </td>
                       <td className="p-3.5 text-left font-black text-amber-600 text-sm">
                         {pur.totalAmount.toLocaleString()} {currentRestaurant.currency}
+                      </td>
+                      <td className="p-3.5 text-center whitespace-nowrap">
+                        {isOwnerOnly ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPurchase(pur)}
+                              className="px-2.5 py-1.5 text-slate-700 hover:text-amber-800 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-xl transition-all flex items-center gap-1 text-[11px] font-extrabold cursor-pointer"
+                              title="تعديل الفاتورة وتحديث المخزون (للمالك حصراً)"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-amber-500" />
+                              <span>تعديل</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPurchaseToDelete(pur)}
+                              className="px-2.5 py-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl transition-all flex items-center gap-1 text-[11px] font-extrabold cursor-pointer"
+                              title="حذف الفاتورة واسترجاع الكمية من المخزون (للمالك حصراً)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                              <span>مسح</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[10px] font-bold border border-slate-200/80" title="التعديل والمسح متاح من حساب المالك حصراً">
+                            <Lock className="w-3 h-3 text-slate-400" />
+                            <span>للمالك حصراً</span>
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -417,16 +506,24 @@ export const SuppliersView: React.FC = () => {
         </div>
       )}
 
-      {/* Modal: Record Purchase */}
+      {/* Modal: Record or Edit Purchase */}
       {showPurchaseModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-xs my-auto max-h-[88vh] flex flex-col">
-            <div className="p-4 sm:p-5 bg-amber-400 text-slate-950 flex items-center justify-between shrink-0">
+            <div className={`p-4 sm:p-5 flex items-center justify-between shrink-0 ${editingPurchase ? 'bg-slate-900 text-amber-400' : 'bg-amber-400 text-slate-950'}`}>
               <h2 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 fill-slate-950" />
-                <span>تسجيل فاتورة شراء جديدة</span>
+                {editingPurchase ? <Pencil className="w-4 h-4 text-amber-400" /> : <ShoppingBag className="w-4 h-4 fill-slate-950" />}
+                <span>{editingPurchase ? `تعديل فاتورة شراء (${editingPurchase.id}) - صلاحية المالك` : 'تسجيل فاتورة شراء جديدة'}</span>
               </h2>
-              <button onClick={() => setShowPurchaseModal(false)} className="w-8 h-8 rounded-full bg-slate-950/10 hover:bg-slate-950/20 text-slate-950 flex items-center justify-center font-bold text-sm transition-all">✕</button>
+              <button
+                onClick={() => {
+                  setShowPurchaseModal(false);
+                  setEditingPurchase(null);
+                }}
+                className="w-8 h-8 rounded-full bg-slate-950/10 hover:bg-slate-950/20 text-current flex items-center justify-center font-bold text-sm transition-all"
+              >
+                ✕
+              </button>
             </div>
 
             <form onSubmit={handlePurchaseSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 pb-20">
@@ -586,7 +683,10 @@ export const SuppliersView: React.FC = () => {
               <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowPurchaseModal(false)}
+                  onClick={() => {
+                    setShowPurchaseModal(false);
+                    setEditingPurchase(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-slate-100 font-bold text-slate-700 cursor-pointer"
                 >
                   إلغاء
@@ -595,10 +695,54 @@ export const SuppliersView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-amber-400 text-slate-950 font-extrabold shadow-md cursor-pointer"
                 >
-                  حفظ الفاتورة وتحديث المخزون
+                  {editingPurchase ? 'حفظ التعديلات وتحديث المخزون' : 'حفظ الفاتورة وتحديث المخزون'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirm Delete Purchase (Owner Only) */}
+      {purchaseToDelete && isOwnerOnly && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-xs">
+            <div className="p-4 bg-rose-600 text-white flex items-center justify-between">
+              <h2 className="font-extrabold text-sm flex items-center gap-2">
+                <Trash2 className="w-4 h-4" />
+                <span>تأكيد حذف فاتورة الشراء</span>
+              </h2>
+              <button onClick={() => setPurchaseToDelete(null)} className="text-white/80 hover:text-white font-bold text-base">✕</button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-slate-700 text-xs font-medium leading-relaxed">
+                هل أنت متأكد من حذف فاتورة الشراء رقم <strong className="text-slate-900 font-extrabold font-mono">{purchaseToDelete.id}</strong> بقيمة <strong className="text-rose-600 font-extrabold">{purchaseToDelete.totalAmount.toLocaleString()} {currentRestaurant.currency}</strong>؟
+              </p>
+              <p className="text-[11px] text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-semibold">
+                ⚠️ تنبيه: عند حذف الفاتورة سيتم خصم الكمية المشتراة تلقائياً من رصيد المخزون الحالي لضمان دقة الجرد.
+              </p>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPurchaseToDelete(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    deletePurchase(purchaseToDelete.id);
+                    setPurchaseToDelete(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold shadow-sm cursor-pointer"
+                >
+                  نعم، حذف الفاتورة وتعديل المخزون
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

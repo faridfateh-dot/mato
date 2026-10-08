@@ -36,13 +36,15 @@ interface DailySalesReportProps {
   selectedDate?: string;
   onDateChange?: (date: string) => void;
   isOwnerOrManager?: boolean;
+  triggerOpenOrdersAt?: number;
 }
 
 export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   initialDate,
   selectedDate: controlledDate,
   onDateChange,
-  isOwnerOrManager = true
+  isOwnerOrManager = true,
+  triggerOpenOrdersAt = 0
 }) => {
   const {
     currentRestaurant,
@@ -169,8 +171,25 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   const [actualCashCounted, setActualCashCounted] = useState<string>('');
   const [showReconciliation, setShowReconciliation] = useState(false);
   const [showAllProducts, setShowAllProducts] = useState(false);
-  const [showOrdersList, setShowOrdersList] = useState(false);
+  const [showOrdersList, setShowOrdersList] = useState(true);
   const [showPrintModal, setShowPrintModal] = useState(false);
+
+  useEffect(() => {
+    if (triggerOpenOrdersAt > 0) {
+      setShowOrdersList(true);
+    }
+  }, [triggerOpenOrdersAt]);
+
+  const openShiftOrdersAndScroll = (shift: 'all' | 'cashier_morning' | 'cashier_evening') => {
+    setSelectedShiftFilter(shift);
+    setShowOrdersList(true);
+    setTimeout(() => {
+      const el = document.getElementById('shift-orders-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  };
 
   // Quick Date Changers
   const setQuickDate = (type: 'today' | 'yesterday') => {
@@ -698,7 +717,19 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                 </div>
                 <div>
                   <div className="font-black text-sm text-amber-300">☀️ كاش الوردية الصباحية</div>
-                  <div className="text-[10px] text-slate-400">{shiftBreakdown.morning.orders} فاتورة بيع مسجلة</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-slate-400">{shiftBreakdown.morning.orders} فاتورة بيع مسجلة</span>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        openShiftOrdersAndScroll('cashier_morning');
+                      }}
+                      className="text-[10px] bg-amber-400/20 hover:bg-amber-400 text-amber-300 hover:text-slate-950 font-black px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                    >
+                      📋 عرض فواتير الصباح
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="text-left">
@@ -833,7 +864,19 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                 </div>
                 <div>
                   <div className="font-black text-sm text-indigo-300">🌙 كاش الوردية المسائية</div>
-                  <div className="text-[10px] text-slate-400">{shiftBreakdown.evening.orders} فاتورة بيع مسجلة</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-slate-400">{shiftBreakdown.evening.orders} فاتورة بيع مسجلة</span>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        openShiftOrdersAndScroll('cashier_evening');
+                      }}
+                      className="text-[10px] bg-indigo-500/30 hover:bg-indigo-400 text-indigo-200 hover:text-slate-950 font-black px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                    >
+                      📋 عرض فواتير المساء
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="text-left">
@@ -1510,51 +1553,149 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
         )}
       </div>
 
-      {/* 6. Orders List Collapse Toggle (Optional Audit Trail) */}
-      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-        <button
-          onClick={() => setShowOrdersList(!showOrdersList)}
-          className="w-full p-4 bg-slate-50 hover:bg-slate-100 flex items-center justify-between transition-colors cursor-pointer text-xs font-bold text-slate-800"
-        >
-          <div className="flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-amber-600" />
-            <span>سجل وتفاصيل فواتير اليوم بالكامل ({dayOrders.length} فاتورة)</span>
+      {/* 6. Orders List Collapse Toggle (Audit Trail per Shift) */}
+      <div id="shift-orders-section" className="rounded-2xl border-2 border-amber-300/80 bg-white overflow-hidden scroll-mt-4 shadow-xs">
+        <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setShowOrdersList(!showOrdersList)}
+            className="flex items-center gap-2 text-right cursor-pointer"
+          >
+            <Receipt className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <div className="font-black text-xs sm:text-sm text-amber-300 flex items-center gap-2">
+                <span>
+                  سجل وتفاصيل الطلبات والفواتير (
+                  {selectedShiftFilter === 'cashier_morning'
+                    ? '☀️ الوردية الصباحية'
+                    : selectedShiftFilter === 'cashier_evening'
+                    ? '🌙 الوردية المسائية'
+                    : '📊 جميع الورديات'}
+                  )
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[11px] font-black">
+                  {dayOrders.length} فاتورة
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                عرض كل طلب بالتفصيل مع توقيته، الأصناف المباعة بداخله، والوردية التي أصدرته
+              </p>
+            </div>
+          </button>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedShiftFilter('cashier_morning');
+                setShowOrdersList(true);
+              }}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                selectedShiftFilter === 'cashier_morning'
+                  ? 'bg-amber-400 text-slate-950 shadow'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              ☀️ طلبات الصباح ({allDayOrders.filter(o => getRecordShift(o) === 'cashier_morning').length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedShiftFilter('cashier_evening');
+                setShowOrdersList(true);
+              }}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                selectedShiftFilter === 'cashier_evening'
+                  ? 'bg-indigo-500 text-white shadow'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              🌙 طلبات المساء ({allDayOrders.filter(o => getRecordShift(o) === 'cashier_evening').length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedShiftFilter('all');
+                setShowOrdersList(true);
+              }}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                selectedShiftFilter === 'all'
+                  ? 'bg-emerald-500 text-slate-950 shadow'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              📊 الكل ({allDayOrders.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowOrdersList(!showOrdersList)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <span>{showOrdersList ? 'طيّ' : 'فتح'}</span>
+              {showOrdersList ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <span>{showOrdersList ? 'إخفاء الفواتير' : 'عرض الفواتير'}</span>
-            {showOrdersList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </div>
-        </button>
+        </div>
 
         {showOrdersList && (
-          <div className="p-4 space-y-2 max-h-72 overflow-y-auto border-t border-slate-200">
+          <div className="p-4 space-y-2.5 max-h-96 overflow-y-auto border-t border-slate-200 bg-slate-50/40">
             {dayOrders.length === 0 ? (
-              <div className="text-center py-4 text-xs text-slate-400">لا توجد فواتير بعد لهذا اليوم</div>
+              <div className="text-center py-6 text-xs text-slate-400 font-bold">
+                لا توجد فواتير مسجلة في هذه الوردية بتاريخ ({selectedDate})
+              </div>
             ) : (
               <div className="space-y-2">
-                {dayOrders.map(order => (
-                  <div key={order.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="font-extrabold text-slate-900 flex items-center gap-2">
-                        <span>فاتورة #{order.orderNumber}</span>
-                        <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
-                          order.paymentMethod === 'cash' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {order.paymentMethod === 'cash' ? 'نقداً' : 'شبكة/بطاقة'}
-                        </span>
+                {dayOrders.map(order => {
+                  const orderShift = getRecordShift(order);
+                  return (
+                    <div key={order.id} className="p-3.5 rounded-xl bg-white border border-slate-200 hover:border-amber-300 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-all">
+                      <div className="space-y-1">
+                        <div className="font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm">فاتورة #{order.orderNumber}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                            orderShift === 'cashier_morning'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                          }`}>
+                            {orderShift === 'cashier_morning' ? '☀️ الوردية الصباحية' : '🌙 الوردية المسائية'}
+                          </span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                            order.paymentMethod === 'cash'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : order.paymentMethod === 'staff_meal'
+                              ? 'bg-orange-100 text-orange-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {order.paymentMethod === 'cash'
+                              ? '💵 نقداً (Cash)'
+                              : order.paymentMethod === 'staff_meal'
+                              ? '🍲 وجبة عمال'
+                              : '💳 شبكة/بطاقة'}
+                          </span>
+                          {order.createdByName && (
+                            <span className="text-[10px] text-slate-500 font-bold">
+                              بواسطة: {order.createdByName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-700 font-bold bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
+                          {order.items.map(it => `${it.productName} × ${it.quantity}`).join(' ، ')}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        {order.items.map(it => `${it.productName} (${it.quantity})`).join('، ')}
+                      <div className="text-left font-mono flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                        <div className="font-black text-sm text-slate-900">
+                          {order.totalAmount.toLocaleString()} <span className="text-[10px] text-slate-500">{currency}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-bold">
+                          🕒 {new Date(order.createdAt).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-left font-mono">
-                      <div className="font-black text-slate-900">{order.totalAmount.toLocaleString()} {currency}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {new Date(order.createdAt).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

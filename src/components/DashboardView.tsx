@@ -47,6 +47,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
   const stats = getDashboardStats(selectedDashboardDate);
   const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
   const [activeTab, setActiveTab] = useState<'daily_sales' | 'overview'>('daily_sales');
+  const [triggerOpenOrdersAt, setTriggerOpenOrdersAt] = useState<number>(0);
+
+  const openAndScrollToZReport = (openOrdersList = false) => {
+    setActiveTab('daily_sales');
+    if (openOrdersList) {
+      setTriggerOpenOrdersAt(Date.now());
+    }
+    setTimeout(() => {
+      const targetId = openOrdersList ? 'shift-orders-section' : 'z-report-section';
+      const el = document.getElementById(targetId) || document.getElementById('z-report-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 80);
+  };
 
   const stepDashboardDate = (daysDelta: number) => {
     const [y, m, d] = selectedDashboardDate.split('-').map(Number);
@@ -77,15 +92,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => setActiveTab('daily_sales')}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md ${
-              activeTab === 'daily_sales'
-                ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20'
-                : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700'
-            }`}
+            type="button"
+            onClick={() => openAndScrollToZReport(false)}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer shadow-md bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20 active:scale-95"
           >
             <Receipt className="w-4 h-4" />
-            <span>تقرير المبيعات والخزينة (Z-Report)</span>
+            <span>تقرير المبيعات والخزينة (Z-Report) 👇</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openAndScrollToZReport(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md active:scale-95"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>عرض فواتير وطلبات الورديات 📋</span>
           </button>
 
           <button
@@ -185,10 +206,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         
         {/* Today Sales */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+        <div
+          onClick={() => openAndScrollToZReport(false)}
+          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-amber-400 transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between text-slate-500 mb-3">
             <span className="text-xs font-bold text-slate-600">مبيعات اليوم المحدد</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
               <CircleDollarSign className="w-5 h-5" />
             </div>
           </div>
@@ -197,24 +221,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
           </div>
           <div className="mt-2 flex items-center text-[11px] text-emerald-600 font-semibold gap-1">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>بتاريخ {selectedDashboardDate}</span>
+            <span>اضغط لعرض تقرير المبيعات 👇</span>
           </div>
         </div>
 
         {/* Order Count */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow">
+        <div
+          onClick={() => openAndScrollToZReport(true)}
+          className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-pointer group"
+        >
           <div className="flex items-center justify-between text-slate-500 mb-3">
             <span className="text-xs font-bold text-slate-600">عدد الطلبات</span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold group-hover:scale-105 transition-transform">
               <ShoppingBag className="w-5 h-5" />
             </div>
           </div>
           <div className="text-xl font-black text-slate-900 tracking-tight">
             {stats.orderCount} <span className="text-xs font-normal text-slate-500">طلب</span>
           </div>
-          <div className="mt-2 flex items-center text-[11px] text-blue-600 font-semibold gap-1">
+          <div className="mt-2 flex items-center text-[11px] text-blue-600 font-bold gap-1">
             <Clock className="w-3.5 h-3.5" />
-            <span>فواتير مكتملة</span>
+            <span>اضغط لعرض فواتير الورديات 📋</span>
           </div>
         </div>
 
@@ -325,10 +352,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
       </div>
 
       {/* Main View Mode Selector Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div id="z-report-section" className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 scroll-mt-4">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveTab('daily_sales')}
+            type="button"
+            onClick={() => openAndScrollToZReport(false)}
             className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'daily_sales'
                 ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20'
@@ -345,6 +373,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'overview'
@@ -375,6 +404,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
             selectedDate={selectedDashboardDate}
             onDateChange={setSelectedDashboardDate}
             isOwnerOrManager={isOwner || currentUser?.role === 'Manager'}
+            triggerOpenOrdersAt={triggerOpenOrdersAt}
           />
 
           {/* Quick Secondary Analytics (7-Day Sales Trend & Low Stock) */}

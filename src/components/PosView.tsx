@@ -10,7 +10,12 @@ import {
   CheckCircle2,
   Printer,
   Sparkles,
-  Utensils
+  Utensils,
+  Receipt,
+  Sun,
+  Moon,
+  Clock,
+  X
 } from 'lucide-react';
 import { Product } from '../types';
 
@@ -21,13 +26,25 @@ export const PosView: React.FC = () => {
     createOrder,
     currentRestaurant,
     currentBranch,
-    recipes
+    recipes,
+    orders,
+    activeShiftRole
   } = useData();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'staff_meal'>('cash');
   const [lastCompletedOrder, setLastCompletedOrder] = useState<any | null>(null);
+  const [showOrdersHistoryModal, setShowOrdersHistoryModal] = useState(false);
+  const [historyShiftFilter, setHistoryShiftFilter] = useState<'all' | 'cashier_morning' | 'cashier_evening'>(() => {
+    if (activeShiftRole === 'cashier_morning') return 'cashier_morning';
+    if (activeShiftRole === 'cashier_evening') return 'cashier_evening';
+    return 'all';
+  });
+  const [historyDateFilter, setHistoryDateFilter] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [autoPrintReceipt, setAutoPrintReceipt] = useState<boolean>(() => {
     try {
       return localStorage.getItem('mato_pos_auto_print_receipt') === 'true';
@@ -271,6 +288,15 @@ export const PosView: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowOrdersHistoryModal(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-slate-900 hover:bg-slate-800 text-amber-400 shadow-sm transition-all cursor-pointer active:scale-95"
+          >
+            <Receipt className="w-4 h-4" />
+            <span>سجل الطلبات / الفواتير بالوردية ({orders.filter(o => o.status === 'completed').length}) 📋</span>
+          </button>
+
           <button
             type="button"
             onClick={toggleAutoPrint}
@@ -601,6 +627,167 @@ export const PosView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Shift Orders History Modal */}
+      {showOrdersHistoryModal && (() => {
+        const toLocalKey = (isoStr: string) => {
+          if (!isoStr) return '';
+          const d = new Date(isoStr);
+          if (isNaN(d.getTime())) return isoStr.split('T')[0];
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+        const getOrderShift = (o: any): 'cashier_morning' | 'cashier_evening' => {
+          if (o.shiftRole === 'cashier_morning') return 'cashier_morning';
+          if (o.shiftRole === 'cashier_evening') return 'cashier_evening';
+          const h = o.createdAt ? new Date(o.createdAt).getHours() : 12;
+          return h >= 6 && h < 16 ? 'cashier_morning' : 'cashier_evening';
+        };
+
+        const dateOrders = orders.filter(o => o.status === 'completed' && toLocalKey(o.createdAt) === historyDateFilter);
+        const filteredHistoryOrders = dateOrders.filter(o =>
+          historyShiftFilter === 'all' ? true : getOrderShift(o) === historyShiftFilter
+        );
+        const morningCount = dateOrders.filter(o => getOrderShift(o) === 'cashier_morning').length;
+        const eveningCount = dateOrders.filter(o => getOrderShift(o) === 'cashier_evening').length;
+        const totalFilteredRevenue = filteredHistoryOrders
+          .filter(o => o.paymentMethod !== 'staff_meal')
+          .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+
+        return (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden text-xs flex flex-col max-h-[85vh]">
+              <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <h2 className="font-black text-sm text-amber-400">سجل الطلبات والفواتير حسب الوردية</h2>
+                    <p className="text-[11px] text-slate-300">استعراض وطباعة جميع الطلبات المسجلة في الوردية الصباحية أو المسائية</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowOrdersHistoryModal(false)}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryShiftFilter('cashier_morning')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold flex items-center gap-1 cursor-pointer ${
+                      historyShiftFilter === 'cashier_morning'
+                        ? 'bg-amber-400 text-slate-950 shadow'
+                        : 'bg-white text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                    <span>☀️ الوردية الصباحية ({morningCount})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryShiftFilter('cashier_evening')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold flex items-center gap-1 cursor-pointer ${
+                      historyShiftFilter === 'cashier_evening'
+                        ? 'bg-indigo-600 text-white shadow'
+                        : 'bg-white text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>🌙 الوردية المسائية ({eveningCount})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryShiftFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl font-extrabold cursor-pointer ${
+                      historyShiftFilter === 'all'
+                        ? 'bg-slate-900 text-amber-400 shadow'
+                        : 'bg-white text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    📊 الكل ({dateOrders.length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={historyDateFilter}
+                    onChange={e => setHistoryDateFilter(e.target.value)}
+                    className="bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-black text-slate-900 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="px-4 py-2.5 bg-amber-50/70 border-b border-amber-200/70 flex items-center justify-between font-bold text-slate-800">
+                <span>عدد الطلبات المعروضة: <strong>{filteredHistoryOrders.length} طلب</strong></span>
+                <span>إجمالي مبيعاتها: <strong className="text-emerald-700 font-black">{totalFilteredRevenue.toLocaleString()} {currentRestaurant.currency}</strong></span>
+              </div>
+
+              <div className="p-4 overflow-y-auto space-y-2.5 flex-1">
+                {filteredHistoryOrders.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 font-bold">
+                    لا توجد فواتير مسجلة في هذه الوردية بتاريخ {historyDateFilter}
+                  </div>
+                ) : (
+                  filteredHistoryOrders.map(order => {
+                    const shift = getOrderShift(order);
+                    return (
+                      <div key={order.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2 font-extrabold text-slate-900">
+                            <span className="font-mono text-sm">#{order.orderNumber}</span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                              shift === 'cashier_morning'
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                : 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                            }`}>
+                              {shift === 'cashier_morning' ? '☀️ صباحية' : '🌙 مسائية'}
+                            </span>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                              order.paymentMethod === 'cash'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : order.paymentMethod === 'staff_meal'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {order.paymentMethod === 'cash' ? 'نقداً' : order.paymentMethod === 'staff_meal' ? 'وجبة عمال' : 'بطاقة'}
+                            </span>
+                            <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(order.createdAt).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-700">
+                            {order.items.map((it: any) => `${it.productName} × ${it.quantity}`).join(' ، ')}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200">
+                          <div className="font-black text-sm text-slate-900 font-mono">
+                            {order.totalAmount.toLocaleString()} {currentRestaurant.currency}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => printThermalReceipt(order)}
+                            className="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 cursor-pointer"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>طباعة</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

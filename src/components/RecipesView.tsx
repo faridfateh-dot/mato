@@ -35,6 +35,8 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
     products,
     ingredients,
     recipes,
+    expenses,
+    orders,
     currentRestaurant,
     saveRecipe,
     updateProduct,
@@ -170,10 +172,31 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
     }
   });
 
+  // Operating Expenses (Overhead) Allocation for Suggested Selling Price
+  const [includeOverheadInPricing, setIncludeOverheadInPricing] = useState<boolean>(true);
+  const [overheadPercent, setOverheadPercent] = useState<number>(20); // 20% default operating expenses (rent, wages, electricity, gas)
+  const [targetMarkupPercent, setTargetMarkupPercent] = useState<number>(50); // 50% net profit markup
+
+  // Calculate historical real overhead ratio from recorded expenses vs sales if available
+  const totalRecordedSales = orders
+    .filter(o => o.status === 'completed' && o.paymentMethod !== 'staff_meal')
+    .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  const totalRecordedExpenses = expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
+  const actualExpenseToSalesPercent =
+    totalRecordedSales > 0 ? Math.min(80, Math.round((totalRecordedExpenses / totalRecordedSales) * 100)) : null;
+
+  const overheadCostPerUnit = includeOverheadInPricing ? calculatedCost * (overheadPercent / 100) : 0;
+  const fullUnitCost = calculatedCost + overheadCostPerUnit;
+
   const sellingPrice = selectedProduct ? selectedProduct.price : 0;
-  const profitAmount = sellingPrice - calculatedCost;
+  const profitAmount = sellingPrice - fullUnitCost;
   const profitMargin = sellingPrice > 0 ? (profitAmount / sellingPrice) * 100 : 0;
-  const suggestedPrice = Math.round((calculatedCost * 1.5) / 1000) * 1000;
+
+  const rawSuggested = fullUnitCost * (1 + targetMarkupPercent / 100);
+  const suggestedPrice =
+    rawSuggested >= 1000
+      ? Math.round(rawSuggested / 1000) * 1000
+      : Math.round(rawSuggested);
 
   const handleSaveRecipe = () => {
     if (!selectedProduct) return;
@@ -624,21 +647,37 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between">
-                  <span className="text-slate-400">التكلفة الفعلية للمكونات:</span>
+                  <span className="text-slate-400">تكلفة المواد الخام للقطعة:</span>
                   <span className="text-base font-extrabold text-slate-200">
                     {Math.round(calculatedCost).toLocaleString()} {currentRestaurant.currency}
                   </span>
                 </div>
 
+                {includeOverheadInPricing && (
+                  <div className="pt-2 flex items-center justify-between">
+                    <span className="text-amber-300/90">حصة المصاريف التشغيلية ({overheadPercent}%):</span>
+                    <span className="text-sm font-extrabold text-amber-300">
+                      +{Math.round(overheadCostPerUnit).toLocaleString()} {currentRestaurant.currency}
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-slate-300 font-bold">التكلفة الكلية للقطعة (مع المصاريف):</span>
+                  <span className="text-base font-black text-white">
+                    {Math.round(fullUnitCost).toLocaleString()} {currentRestaurant.currency}
+                  </span>
+                </div>
+
                 <div className="pt-2 flex items-center justify-between">
                   <span className="text-slate-400">هامش الربح الصافي (%):</span>
-                  <span className={`text-base font-extrabold ${profitMargin >= 40 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <span className={`text-base font-extrabold ${profitMargin >= 30 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {profitMargin.toFixed(1)}%
                   </span>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between">
-                  <span className="text-slate-400">مبلغ الربح الصافي بالوجبة:</span>
+                  <span className="text-slate-400">صافي ربح القطعة (بعد المصاريف):</span>
                   <span className="text-base font-black text-emerald-400">
                     {Math.round(profitAmount).toLocaleString()} {currentRestaurant.currency}
                   </span>
@@ -647,17 +686,81 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
             </div>
 
             {/* Price Recommendation Card */}
-            <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl space-y-2">
-              <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
-                <Lightbulb className="w-4 h-4 text-amber-600" />
-                <span>اقتراح السعر المثالي للبيع</span>
+            <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-900 font-extrabold text-xs">
+                  <Lightbulb className="w-4 h-4 text-amber-600" />
+                  <span>اقتراح السعر المثالي للبيع (شامل المصاريف)</span>
+                </div>
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-amber-900 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeOverheadInPricing}
+                    onChange={e => setIncludeOverheadInPricing(e.target.checked)}
+                    className="rounded accent-amber-600 cursor-pointer"
+                  />
+                  <span>احتساب المصاريف الباقية</span>
+                </label>
               </div>
 
-              <p className="text-xs text-amber-900/80 leading-relaxed">
-                بناءً على التكلفة المحسوبة ({Math.round(calculatedCost).toLocaleString()} {currentRestaurant.currency}) وهامش ربح معتمد، نوصي بسعر بيع:
+              {/* Overhead & Profit Margin Controls */}
+              <div className="bg-white/90 border border-amber-200/80 rounded-xl p-3 space-y-2.5 text-xs">
+                {includeOverheadInPricing && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                      <span>نسبة تحميل المصاريف الباقية (أجور، غاز، كهرباء، إيجار):</span>
+                      <span className="font-mono font-black text-amber-700">{overheadPercent}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={overheadPercent}
+                        onChange={e => setOverheadPercent(Number(e.target.value))}
+                        className="flex-1 accent-amber-500 cursor-pointer"
+                      />
+                      {actualExpenseToSalesPercent !== null && (
+                        <button
+                          type="button"
+                          onClick={() => setOverheadPercent(actualExpenseToSalesPercent)}
+                          className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded text-[10px] font-bold cursor-pointer shrink-0"
+                          title="تطبيق نسبة مصاريفك الفعلية المسجلة إلى المبيعات"
+                        >
+                          نسبتك الفعلية ({actualExpenseToSalesPercent}%)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span>نسبة الربح الصافي المطلوبة فوق التكلفة الكلية:</span>
+                    <span className="font-mono font-black text-emerald-700">+{targetMarkupPercent}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="150"
+                    step="5"
+                    value={targetMarkupPercent}
+                    onChange={e => setTargetMarkupPercent(Number(e.target.value))}
+                    className="w-full accent-emerald-600 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-amber-900/90 leading-relaxed">
+                بناءً على تكلفة المواد (<b>{Math.round(calculatedCost).toLocaleString()}</b>)
+                {includeOverheadInPricing ? (
+                  <> + حصة المصاريف التشغيلية (<b>{Math.round(overheadCostPerUnit).toLocaleString()}</b>)</>
+                ) : null}{' '}
+                + ربح صافي (<b>{targetMarkupPercent}%</b>)، نوصي بسعر بيع للقطعة:
               </p>
 
-              <div className="text-xl font-black text-slate-900 dir-rtl">
+              <div className="text-2xl font-black text-slate-900 dir-rtl">
                 {suggestedPrice.toLocaleString()} <span className="text-xs font-normal text-slate-600">{currentRestaurant.currency}</span>
               </div>
 
@@ -668,7 +771,7 @@ export const RecipesView: React.FC<RecipesViewProps> = ({ initialProductId }) =>
                     showToast(`تم تطبيق السعر المقترح (${suggestedPrice.toLocaleString()} ${currentRestaurant.currency}) للمنتج بنجاح!`);
                   }
                 }}
-                className="w-full mt-2 py-2 bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                className="w-full mt-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 تطبيق السعر المقترح تلقائياً
               </button>

@@ -127,6 +127,32 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     }
   }, [currentRestaurant.id, selectedDate]);
 
+  // Helper to get or set Owner Manual Final Cash Override/Adjustment for a specific shift
+  const getShiftFinalOverrideKey = (shift: 'cashier_morning' | 'cashier_evening') =>
+    `mato_final_cash_override_${currentRestaurant.id || 'curr'}_${selectedDate}_${shift}`;
+
+  const [morningFinalOverride, setMorningFinalOverride] = useState<number | null>(null);
+  const [eveningFinalOverride, setEveningFinalOverride] = useState<number | null>(null);
+  const [editingFinalShift, setEditingFinalShift] = useState<'cashier_morning' | 'cashier_evening' | 'all' | null>(null);
+  const [tempFinalCashVal, setTempFinalCashVal] = useState<string>('');
+
+  useEffect(() => {
+    try {
+      const mFinal = localStorage.getItem(getShiftFinalOverrideKey('cashier_morning'));
+      const eFinal = localStorage.getItem(getShiftFinalOverrideKey('cashier_evening'));
+      setMorningFinalOverride(mFinal !== null && mFinal !== '' ? Number(mFinal) : null);
+      setEveningFinalOverride(eFinal !== null && eFinal !== '' ? Number(eFinal) : null);
+    } catch {
+      setMorningFinalOverride(null);
+      setEveningFinalOverride(null);
+    }
+  }, [currentRestaurant.id, selectedDate]);
+
+  // Period Analytics Mode: 'day' | 'week' | 'month'
+  const [reportPeriodMode, setReportPeriodMode] = useState<'day' | 'week' | 'month'>('day');
+
+  const isRestaurantOwner = isPlatformOwner || currentUser?.role === 'Owner' || activeShiftRole === 'owner';
+
   const openingCash =
     selectedShiftFilter === 'cashier_morning'
       ? morningOpeningCash
@@ -188,6 +214,36 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       localStorage.setItem(getShiftOpeningKey(shift), val.toString());
     } catch {}
     setEditingShiftFloat(null);
+  };
+
+  const handleSaveFinalCashOverride = (shift: 'cashier_morning' | 'cashier_evening' | 'all') => {
+    if (tempFinalCashVal.trim() === '' || isNaN(Number(tempFinalCashVal))) {
+      setEditingFinalShift(null);
+      return;
+    }
+    const val = Number(tempFinalCashVal);
+    const targetShift = shift === 'all' ? (selectedShiftFilter === 'cashier_evening' ? 'cashier_evening' : 'cashier_morning') : shift;
+    if (targetShift === 'cashier_morning') {
+      setMorningFinalOverride(val);
+    } else {
+      setEveningFinalOverride(val);
+    }
+    try {
+      localStorage.setItem(getShiftFinalOverrideKey(targetShift), val.toString());
+    } catch {}
+    setEditingFinalShift(null);
+  };
+
+  const handleClearFinalCashOverride = (shift: 'cashier_morning' | 'cashier_evening') => {
+    if (shift === 'cashier_morning') {
+      setMorningFinalOverride(null);
+    } else {
+      setEveningFinalOverride(null);
+    }
+    try {
+      localStorage.removeItem(getShiftFinalOverrideKey(shift));
+    } catch {}
+    setEditingFinalShift(null);
   };
 
   // 1. Filter orders for selected date AND selected shift drawer (using local date)
@@ -305,19 +361,17 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   // Cash Treasury Calculations
   // Cash In: Opening float + Cash sales
   // Cash Out: Cash expenses + Cash purchases paid from cash drawer
-  const expectedCashInDrawer = useMemo(() => {
+  const calculatedExpectedCashInDrawer = useMemo(() => {
     return openingCash + paymentBreakdown.cash.total - totalCashDrawerOutflow;
   }, [openingCash, paymentBreakdown.cash.total, totalCashDrawerOutflow]);
 
-  const cashDiscrepancy = useMemo(() => {
-    if (!actualCashCounted || isNaN(Number(actualCashCounted))) return null;
-    const actual = Number(actualCashCounted);
-    return actual - expectedCashInDrawer;
-  }, [actualCashCounted, expectedCashInDrawer]);
-
   // Full Shift Cash Drawer Breakdown (Morning vs Evening Net Cash in Drawer)
   const shiftBreakdown = useMemo(() => {
-    const calcShiftDrawer = (shift: 'cashier_morning' | 'cashier_evening', shiftFloat: number) => {
+    const calcShiftDrawer = (
+      shift: 'cashier_morning' | 'cashier_evening',
+      shiftFloat: number,
+      overrideVal: number | null
+    ) => {
       const sOrders = allDayOrders.filter(o => getRecordShift(o) === shift && o.paymentMethod !== 'staff_meal');
       const totalShiftSales = sOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
       const cashSales = sOrders
@@ -338,7 +392,8 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       const cashPurchases = sPurchases.reduce((acc, p) => acc + (p.totalAmount || 0), 0);
 
       const netCashBeforeFloat = cashSales - cashExpenses - cashPurchases;
-      const expectedCashInDrawer = shiftFloat + netCashBeforeFloat;
+      const calculatedExpected = shiftFloat + netCashBeforeFloat;
+      const expectedCashInDrawer = overrideVal !== null ? overrideVal : calculatedExpected;
 
       return {
         sales: totalShiftSales,
@@ -351,18 +406,61 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
         purchasesCount: sPurchases.length,
         openingFloat: shiftFloat,
         netCashBeforeFloat,
-        expectedCashInDrawer
+        calculatedExpected,
+        expectedCashInDrawer,
+        isOverridden: overrideVal !== null
       };
     };
 
-    const morning = calcShiftDrawer('cashier_morning', morningOpeningCash);
-    const evening = calcShiftDrawer('cashier_evening', eveningOpeningCash);
+    const morning = calcShiftDrawer('cashier_morning', morningOpeningCash, morningFinalOverride);
+    const evening = calcShiftDrawer('cashier_evening', eveningOpeningCash, eveningFinalOverride);
 
     return { morning, evening };
-  }, [allDayOrders, allDayExpenses, allDayPurchases, morningOpeningCash, eveningOpeningCash]);
+  }, [allDayOrders, allDayExpenses, allDayPurchases, morningOpeningCash, eveningOpeningCash, morningFinalOverride, eveningFinalOverride]);
 
-  // Top Selling Products for this Day
-  const topProducts = useMemo(() => {
+  const expectedCashInDrawer = useMemo(() => {
+    if (selectedShiftFilter === 'cashier_morning') {
+      return shiftBreakdown.morning.expectedCashInDrawer;
+    }
+    if (selectedShiftFilter === 'cashier_evening') {
+      return shiftBreakdown.evening.expectedCashInDrawer;
+    }
+    if (morningFinalOverride !== null || eveningFinalOverride !== null) {
+      return shiftBreakdown.morning.expectedCashInDrawer + shiftBreakdown.evening.expectedCashInDrawer;
+    }
+    return calculatedExpectedCashInDrawer;
+  }, [selectedShiftFilter, shiftBreakdown, morningFinalOverride, eveningFinalOverride, calculatedExpectedCashInDrawer]);
+
+  const cashDiscrepancy = useMemo(() => {
+    if (!actualCashCounted || isNaN(Number(actualCashCounted))) return null;
+    const actual = Number(actualCashCounted);
+    return actual - expectedCashInDrawer;
+  }, [actualCashCounted, expectedCashInDrawer]);
+
+  // Period Orders for Sold Products Table ('day' | 'week' | 'month')
+  const periodAnalytics = useMemo(() => {
+    const [selY, selM, selD] = selectedDate.split('-').map(Number);
+    const selDateObj = new Date(selY, selM - 1, selD, 23, 59, 59);
+    const weekStartObj = new Date(selY, selM - 1, selD - 6, 0, 0, 0);
+    const monthPrefix = `${selY}-${String(selM).padStart(2, '0')}`;
+
+    const filteredOrders = orders.filter(o => {
+      if (o.status !== 'completed' || o.paymentMethod === 'staff_meal') return false;
+      if (selectedShiftFilter !== 'all' && getRecordShift(o) !== selectedShiftFilter) return false;
+
+      const dKey = toLocalDateKey(o.createdAt);
+      if (reportPeriodMode === 'day') {
+        return dKey === selectedDate;
+      }
+      if (reportPeriodMode === 'month') {
+        return dKey.startsWith(monthPrefix);
+      }
+      // week (last 7 days ending on selectedDate)
+      const [oy, om, od] = dKey.split('-').map(Number);
+      const oDate = new Date(oy, om - 1, od, 12, 0, 0);
+      return oDate >= weekStartObj && oDate <= selDateObj;
+    });
+
     const map: Record<string, {
       productId: string;
       productName: string;
@@ -372,7 +470,10 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       profit: number;
     }> = {};
 
-    dayOrders.forEach(o => {
+    let periodTotalRevenue = 0;
+    let periodTotalUnits = 0;
+
+    filteredOrders.forEach(o => {
       o.items.forEach(it => {
         if (!map[it.productName]) {
           map[it.productName] = {
@@ -386,8 +487,9 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
         }
         map[it.productName].quantity += it.quantity;
         map[it.productName].revenue += it.total;
+        periodTotalRevenue += it.total;
+        periodTotalUnits += it.quantity;
 
-        // Find product cost if available
         const prod = products.find(p => p.id === it.productId || p.name === it.productName);
         const unitCost = prod?.cost || (it.price * 0.45);
         const itemCost = unitCost * it.quantity;
@@ -396,8 +498,25 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       });
     });
 
-    return Object.values(map).sort((a, b) => b.quantity - a.quantity);
-  }, [dayOrders, products]);
+    const sortedItems = Object.values(map).sort((a, b) => b.quantity - a.quantity);
+    const weekStartStr = `${weekStartObj.getFullYear()}-${String(weekStartObj.getMonth() + 1).padStart(2, '0')}-${String(weekStartObj.getDate()).padStart(2, '0')}`;
+
+    return {
+      items: sortedItems,
+      ordersCount: filteredOrders.length,
+      totalRevenue: periodTotalRevenue,
+      totalUnits: periodTotalUnits,
+      periodLabel:
+        reportPeriodMode === 'day'
+          ? `يوم ${selectedDate}`
+          : reportPeriodMode === 'week'
+          ? `آخر 7 أيام (${weekStartStr} إلى ${selectedDate})`
+          : `شهر ${monthPrefix} بالكامل`
+    };
+  }, [orders, selectedDate, selectedShiftFilter, reportPeriodMode, products]);
+
+  // Top Selling Products for current selected period
+  const topProducts = periodAnalytics.items;
 
   const currency = currentRestaurant.currency || 'ل.س';
 
@@ -583,10 +702,56 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                 </div>
               </div>
               <div className="text-left">
-                <div className="text-[10px] text-slate-400 font-bold">المفروض فاضل بالكاش الصباحي:</div>
-                <div className={`text-xl font-black font-mono ${shiftBreakdown.morning.expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  {shiftBreakdown.morning.expectedCashInDrawer.toLocaleString()} <span className="text-xs text-amber-300">{currency}</span>
+                <div className="text-[10px] text-slate-400 font-bold flex items-center justify-end gap-1.5">
+                  <span>المفروض فاضل بالكاش الصباحي:</span>
+                  {isRestaurantOwner && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setEditingFinalShift('cashier_morning');
+                        setTempFinalCashVal(String(shiftBreakdown.morning.expectedCashInDrawer));
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 hover:bg-amber-400 hover:text-slate-950 font-black text-[10px] transition-colors cursor-pointer"
+                    >
+                      ✎ تعديل النهائي
+                    </button>
+                  )}
                 </div>
+                {editingFinalShift === 'cashier_morning' ? (
+                  <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="number"
+                      value={tempFinalCashVal}
+                      onChange={e => setTempFinalCashVal(e.target.value)}
+                      className="w-28 px-2 py-1 bg-slate-900 border border-amber-400 rounded text-white font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveFinalCashOverride('cashier_morning')}
+                      className="px-2 py-1 bg-amber-400 text-slate-950 font-black rounded text-[10px] cursor-pointer"
+                    >
+                      حفظ
+                    </button>
+                    {shiftBreakdown.morning.isOverridden && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearFinalCashOverride('cashier_morning')}
+                        className="px-1.5 py-1 bg-rose-600 text-white font-bold rounded text-[10px] cursor-pointer"
+                        title="إعادة الحساب التلقائي"
+                      >
+                        تلقائي
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`text-xl font-black font-mono ${shiftBreakdown.morning.expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {shiftBreakdown.morning.expectedCashInDrawer.toLocaleString()} <span className="text-xs text-amber-300">{currency}</span>
+                    {shiftBreakdown.morning.isOverridden && (
+                      <span className="block text-[9px] text-amber-400 font-bold">مُعدّل يدوياً من المالك</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -672,10 +837,56 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                 </div>
               </div>
               <div className="text-left">
-                <div className="text-[10px] text-slate-400 font-bold">المفروض فاضل بالكاش المسائي:</div>
-                <div className={`text-xl font-black font-mono ${shiftBreakdown.evening.expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                  {shiftBreakdown.evening.expectedCashInDrawer.toLocaleString()} <span className="text-xs text-indigo-300">{currency}</span>
+                <div className="text-[10px] text-slate-400 font-bold flex items-center justify-end gap-1.5">
+                  <span>المفروض فاضل بالكاش المسائي:</span>
+                  {isRestaurantOwner && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setEditingFinalShift('cashier_evening');
+                        setTempFinalCashVal(String(shiftBreakdown.evening.expectedCashInDrawer));
+                      }}
+                      className="px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200 hover:bg-indigo-400 hover:text-slate-950 font-black text-[10px] transition-colors cursor-pointer"
+                    >
+                      ✎ تعديل النهائي
+                    </button>
+                  )}
                 </div>
+                {editingFinalShift === 'cashier_evening' ? (
+                  <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="number"
+                      value={tempFinalCashVal}
+                      onChange={e => setTempFinalCashVal(e.target.value)}
+                      className="w-28 px-2 py-1 bg-slate-900 border border-indigo-400 rounded text-white font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveFinalCashOverride('cashier_evening')}
+                      className="px-2 py-1 bg-indigo-500 text-white font-black rounded text-[10px] cursor-pointer"
+                    >
+                      حفظ
+                    </button>
+                    {shiftBreakdown.evening.isOverridden && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearFinalCashOverride('cashier_evening')}
+                        className="px-1.5 py-1 bg-rose-600 text-white font-bold rounded text-[10px] cursor-pointer"
+                        title="إعادة الحساب التلقائي"
+                      >
+                        تلقائي
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`text-xl font-black font-mono ${shiftBreakdown.evening.expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    {shiftBreakdown.evening.expectedCashInDrawer.toLocaleString()} <span className="text-xs text-indigo-300">{currency}</span>
+                    {shiftBreakdown.evening.isOverridden && (
+                      <span className="block text-[9px] text-indigo-300 font-bold">مُعدّل يدوياً من المالك</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -928,13 +1139,53 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           {/* Expected Final Drawer Balance */}
           <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 shadow-2xs">
             <div className="flex items-center justify-between text-amber-300 mb-1">
-              <span className="font-bold">5. الرصيد الصافي بالكاش (=)</span>
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span className="font-bold">5. الرصيد النهائي بالكاش (=)</span>
+              {isRestaurantOwner ? (
+                editingFinalShift === 'all' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveFinalCashOverride('all')}
+                    className="text-[10px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black cursor-pointer"
+                  >
+                    حفظ
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempFinalCashVal(String(expectedCashInDrawer));
+                      setEditingFinalShift('all');
+                    }}
+                    className="text-[10px] text-amber-400 hover:underline font-extrabold cursor-pointer"
+                  >
+                    ✎ تعديل النهائي
+                  </button>
+                )
+              ) : (
+                <ShieldCheck className="w-4 h-4 text-amber-400" />
+              )}
             </div>
-            <div className={`text-base font-black mt-1 ${expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-amber-400'}`}>
-              {expectedCashInDrawer.toLocaleString()} <span className="text-[10px] text-slate-300">{currency}</span>
+            {editingFinalShift === 'all' ? (
+              <div className="flex items-center gap-1 mt-1">
+                <input
+                  type="number"
+                  value={tempFinalCashVal}
+                  onChange={e => setTempFinalCashVal(e.target.value)}
+                  className="w-full px-2 py-1 bg-slate-800 border border-amber-400 rounded font-mono font-bold text-xs text-white"
+                />
+              </div>
+            ) : (
+              <div className={`text-base font-black mt-1 ${expectedCashInDrawer < 0 ? 'text-rose-400' : 'text-amber-400'}`}>
+                {expectedCashInDrawer.toLocaleString()} <span className="text-[10px] text-slate-300">{currency}</span>
+              </div>
+            )}
+            <div className="text-[10px] text-slate-400 mt-1">
+              {(selectedShiftFilter === 'cashier_morning' && shiftBreakdown.morning.isOverridden) ||
+              (selectedShiftFilter === 'cashier_evening' && shiftBreakdown.evening.isOverridden) ||
+              (selectedShiftFilter === 'all' && (morningFinalOverride !== null || eveningFinalOverride !== null))
+                ? 'مُعدّل يدوياً من مالك المطعم'
+                : 'بعد خصم المصاريف والمشتريات'}
             </div>
-            <div className="text-[10px] text-slate-400 mt-1">بعد خصم المصاريف والمشتريات</div>
           </div>
 
         </div>
@@ -1128,35 +1379,76 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
 
       </div>
 
-      {/* 5. Top Selling Products Table for this Day */}
+      {/* 5. Top Selling Products Table (اليوم / الأسبوع / الشهر) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
-                أكثر المنتجات مبيعاً لليوم ({topProducts.length} أصناف)
+                جرد كل ما تم بيعه ({periodAnalytics.periodLabel}) — ({topProducts.length} أصناف)
               </h3>
-              <p className="text-xs text-slate-500">ترتيب المنتجات حسب الكمية المباعة، الإيراد المحقق، وهامش الربحية</p>
+              <p className="text-xs text-slate-500">
+                إجمالي القطع المباعة: <strong className="text-slate-900">{periodAnalytics.totalUnits} قطعة</strong> • إجمالي المبيعات: <strong className="text-emerald-700">{periodAnalytics.totalRevenue.toLocaleString()} {currency}</strong> ({periodAnalytics.ordersCount} فاتورة)
+              </p>
             </div>
           </div>
 
-          {topProducts.length > 5 && (
-            <button
-              onClick={() => setShowAllProducts(!showAllProducts)}
-              className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
-            >
-              <span>{showAllProducts ? 'عرض أهم 5 فقط' : `عرض الكل (${topProducts.length})`}</span>
-              {showAllProducts ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Period Filter: Day / Week / Month */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-extrabold">
+              <button
+                type="button"
+                onClick={() => setReportPeriodMode('day')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  reportPeriodMode === 'day'
+                    ? 'bg-slate-900 text-amber-400 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                📅 مبيعات اليوم
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportPeriodMode('week')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  reportPeriodMode === 'week'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                📆 مبيعات الأسبوع (7 أيام)
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportPeriodMode('month')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  reportPeriodMode === 'month'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🗓️ مبيعات الشهر الكامل
+              </button>
+            </div>
+
+            {topProducts.length > 5 && (
+              <button
+                onClick={() => setShowAllProducts(!showAllProducts)}
+                className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showAllProducts ? 'عرض أهم 5 فقط' : `عرض الكل (${topProducts.length})`}</span>
+                {showAllProducts ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
         </div>
 
         {topProducts.length === 0 ? (
           <div className="py-8 text-center text-xs text-slate-400 font-medium">
-            لا توجد مبيعات مسجلة في هذا التاريخ حتى الآن.
+            لا توجد مبيعات مسجلة في هذه الفترة ({periodAnalytics.periodLabel}) حتى الآن.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1172,8 +1464,8 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(showAllProducts ? topProducts : topProducts.slice(0, 5)).map((item, idx) => {
-                  const sharePercent = totalSales > 0 ? Math.round((item.revenue / totalSales) * 100) : 0;
+                {(showAllProducts || reportPeriodMode !== 'day' ? topProducts : topProducts.slice(0, 5)).map((item, idx) => {
+                  const sharePercent = periodAnalytics.totalRevenue > 0 ? Math.round((item.revenue / periodAnalytics.totalRevenue) * 100) : 0;
                   return (
                     <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-3">

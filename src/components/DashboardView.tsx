@@ -20,7 +20,8 @@ import {
   Receipt,
   Printer,
   Calendar,
-  Truck
+  Truck,
+  X
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { DailySalesReport } from './DailySalesReport';
@@ -48,9 +49,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
   const isOwner = isPlatformOwner || currentUser?.role === 'Owner';
   const [activeTab, setActiveTab] = useState<'daily_sales' | 'overview'>('daily_sales');
   const [triggerOpenOrdersAt, setTriggerOpenOrdersAt] = useState<number>(0);
+  const [showZReportModal, setShowZReportModal] = useState<boolean>(false);
 
   const openAndScrollToZReport = (openOrdersList = false) => {
     setActiveTab('daily_sales');
+    setShowZReportModal(true);
     if (openOrdersList) {
       setTriggerOpenOrdersAt(Date.now());
     }
@@ -60,7 +63,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 80);
+    }, 100);
   };
 
   const stepDashboardDate = (daysDelta: number) => {
@@ -755,6 +758,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
         )}
 
       </div>
+        </div>
+      )}
+
+      {/* Instant Full-Screen Z-Report & Shift Orders Modal (For Mobile & Desktop) */}
+      {showZReportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-slate-100 rounded-3xl w-full max-w-6xl max-h-[92vh] flex flex-col shadow-2xl border-2 border-amber-400 overflow-hidden my-auto">
+            {/* Modal Sticky Top Bar */}
+            <div className="bg-slate-900 text-white px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                    <span>تقرير المبيعات والخزينة وفواتير الورديات (Z-Report)</span>
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    التاريخ المحدد: <span className="text-amber-300 font-mono font-bold">{selectedDashboardDate}</span> — يمكنك التبديل بين اليوم، الأسبوع، الشهر أو عرض طلبات كل وردية
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowZReportModal(false)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition-all cursor-pointer shadow-sm"
+              >
+                <X className="w-4 h-4" />
+                <span>إغلاق النافذة</span>
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-3 sm:p-6 overflow-y-auto space-y-6 flex-1">
+              <DailySalesReport
+                selectedDate={selectedDashboardDate}
+                onDateChange={setSelectedDashboardDate}
+                isOwnerOrManager={isOwner || currentUser?.role === 'Manager'}
+                triggerOpenOrdersAt={triggerOpenOrdersAt}
+              />
+            </div>
+          </div>
         </div>
       )}
 

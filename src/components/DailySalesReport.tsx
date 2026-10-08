@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { Order, OrderItem, Expense } from '../types';
 import {
@@ -173,10 +173,14 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [showOrdersList, setShowOrdersList] = useState(true);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const shiftOrdersRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (triggerOpenOrdersAt > 0) {
       setShowOrdersList(true);
+      setTimeout(() => {
+        shiftOrdersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
     }
   }, [triggerOpenOrdersAt]);
 
@@ -184,11 +188,8 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     setSelectedShiftFilter(shift);
     setShowOrdersList(true);
     setTimeout(() => {
-      const el = document.getElementById('shift-orders-section');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 60);
+      shiftOrdersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   };
 
   // Quick Date Changers
@@ -1554,7 +1555,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
       </div>
 
       {/* 6. Orders List Collapse Toggle (Audit Trail per Shift) */}
-      <div id="shift-orders-section" className="rounded-2xl border-2 border-amber-300/80 bg-white overflow-hidden scroll-mt-4 shadow-xs">
+      <div ref={shiftOrdersRef} id="shift-orders-section" className="rounded-2xl border-2 border-amber-300/80 bg-white overflow-hidden scroll-mt-4 shadow-xs">
         <div className="p-4 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <button
             type="button"

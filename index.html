@@ -6,6 +6,25 @@
     <meta name="theme-color" content="#0f172a" />
     <meta name="description" content="نظام إدارة المطاعم والكاشير والمخزون MATO POS مع دعم العمل الكامل دون اتصال بالإنترنت" />
     <script>
+      // 0. Suppress harmless Vite HMR / WebSocket connection errors in environments where HMR is disabled
+      window.addEventListener('unhandledrejection', function(e) {
+        var reasonStr = String((e && e.reason && (e.reason.stack || e.reason.message)) || (e && e.reason) || '');
+        if (reasonStr.indexOf('@vite/client') !== -1 || reasonStr.indexOf('WebSocket') !== -1 || reasonStr.indexOf('vite') !== -1) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      }, true);
+
+      window.addEventListener('error', function(e) {
+        var filename = (e && e.filename) ? String(e.filename) : '';
+        var msg = (e && e.message) ? String(e.message) : '';
+        if (filename.indexOf('@vite/client') !== -1 || msg.indexOf('WebSocket') !== -1 || msg.indexOf('vite') !== -1) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          return;
+        }
+      }, true);
+
       // 1. Instant trailing slash redirect for GitHub Pages relative assets (e.g. /mato -> /mato/)
       (function() {
         var p = window.location.pathname;
@@ -21,23 +40,19 @@
         }).catch(function(){});
       }
 
-      // 3. Global resource & script error listener (useCapture: true to catch script load failures)
+      // 3. Global resource & script error listener for unbuilt GitHub Pages deployments
       window.addEventListener('error', function(e) {
+        if (window.location.hostname.indexOf('github.io') === -1) return;
         var root = document.getElementById('root');
         if (root && root.children.length === 0) {
           var targetUrl = e.target && (e.target.src || e.target.href) ? (e.target.src || e.target.href) : '';
+          if (!targetUrl) return;
           var isTsxError = targetUrl.indexOf('.tsx') !== -1 || (e.message && e.message.indexOf('.tsx') !== -1);
-          renderErrorScreen(e.message || (targetUrl ? 'فشل تحميل الملف: ' + targetUrl : 'خطأ في تحميل النظام'), isTsxError);
+          if (isTsxError) {
+            renderErrorScreen(e.message || ('فشل تحميل الملف: ' + targetUrl), true);
+          }
         }
       }, true);
-
-      // 4. Watchdog timer: if React does not render within 6s, display emergency recovery UI
-      setTimeout(function() {
-        var root = document.getElementById('root');
-        if (root && root.children.length === 0) {
-          renderErrorScreen('تأخر استجابة ملفات التشغيل بسبب ملفات مؤقتة أو عدم تجميع المشروع (Build).', false);
-        }
-      }, 6000);
 
       function renderErrorScreen(msg, isTsx) {
         var root = document.getElementById('root');

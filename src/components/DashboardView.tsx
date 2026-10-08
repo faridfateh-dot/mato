@@ -30,7 +30,7 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) => {
-  const { currentRestaurant, getDashboardStats, orders, currentUser, isPlatformOwner } = useData();
+  const { currentRestaurant, getDashboardStats, orders, currentUser, isPlatformOwner, clearWasteMovements } = useData();
 
   const getLocalTodayStr = () => {
     const d = new Date();
@@ -302,9 +302,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateView }) 
           <div className="text-xl font-black text-rose-600 tracking-tight">
             {stats.wasteAnalytics.totalWasteCost.toLocaleString()} <span className="text-xs font-normal text-rose-900">{currentRestaurant.currency}</span>
           </div>
-          <div className="mt-2 flex items-center text-[11px] text-rose-700 font-bold gap-1">
-            <AlertOctagon className="w-3.5 h-3.5" />
-            <span>{stats.wasteAnalytics.wasteCount} عمليات هدر</span>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-rose-700 font-bold gap-1">
+            <span className="flex items-center gap-1">
+              <AlertOctagon className="w-3.5 h-3.5" />
+              <span>{stats.wasteAnalytics.wasteCount} عمليات هدر</span>
+            </span>
+            {stats.wasteAnalytics.wasteCount > 0 && isOwner && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  clearWasteMovements();
+                }}
+                className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-[10px] font-extrabold transition-colors cursor-pointer"
+                title="تصفير وإلغاء الهدر المسجل بالخطأ"
+              >
+                تصفير الهدر ✕
+              </button>
+            )}
           </div>
         </div>
 

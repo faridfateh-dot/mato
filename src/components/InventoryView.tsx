@@ -45,6 +45,8 @@ export const InventoryView: React.FC = () => {
     deleteIngredient,
     updateIngredientStock,
     recordWaste,
+    deleteStockMovement,
+    clearWasteMovements,
     addRawMaterialCategory,
     deleteRawMaterialCategory,
     getDashboardStats
@@ -516,13 +518,28 @@ export const InventoryView: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowWasteModal(true)}
-            className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer shrink-0"
-          >
-            <TrendingDown className="w-4 h-4" />
-            <span>تسجيل هدر جديد فوراً</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {wasteAnalytics.wasteCount > 0 && (
+              <button
+                onClick={() => {
+                  clearWasteMovements();
+                  triggerNotification('تم تصفير وإلغاء جميع سجلات الهدر الخاطئة بنجاح!');
+                }}
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-800 border border-slate-200 hover:border-rose-300 font-extrabold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                title="مسح وتصفير أي هدر تم تسجيله بالخطأ"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>تصفير سجل الهدر</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowWasteModal(true)}
+              className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-md shadow-rose-600/20 transition-all cursor-pointer shrink-0"
+            >
+              <TrendingDown className="w-4 h-4" />
+              <span>تسجيل هدر جديد فوراً</span>
+            </button>
+          </div>
         </div>
 
         {/* Top Summary Cards Grid */}
@@ -606,7 +623,19 @@ export const InventoryView: React.FC = () => {
                     <div key={idx} className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className="text-slate-800">{item.ingredientName} ({item.totalQuantity} {item.unit})</span>
-                        <span className="text-rose-600 font-extrabold">{item.totalCost.toLocaleString()} {currentRestaurant.currency}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-rose-600 font-extrabold">{item.totalCost.toLocaleString()} {currentRestaurant.currency}</span>
+                          <button
+                            onClick={() => {
+                              clearWasteMovements(item.ingredientName);
+                              triggerNotification(`تم إلغاء احتساب "${item.ingredientName}" كـ هدر بنجاح!`);
+                            }}
+                            className="px-2 py-0.5 bg-rose-100 hover:bg-rose-600 text-rose-800 hover:text-white rounded-md text-[10px] font-extrabold transition-colors cursor-pointer"
+                            title="إلغاء احتساب هذه المادة كـ هدر"
+                          >
+                            إلغاء الهدر ✕
+                          </button>
+                        </div>
                       </div>
                       <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                         <div
@@ -639,7 +668,11 @@ export const InventoryView: React.FC = () => {
                     <div className="font-bold text-slate-900 flex items-center justify-between">
                       <span>{alert.title}</span>
                       <span className="text-[10px] px-1.5 py-0.2 bg-rose-100 text-rose-800 font-black rounded">
-                        {alert.type === 'low_margin' ? 'هامش ضئيل' : 'هدر/مخزون'}
+                        {alert.type === 'low_margin'
+                          ? 'هامش ضئيل'
+                          : alert.type === 'low_stock'
+                          ? 'نقص مخزون (شراء)'
+                          : 'هدر مسجل'}
                       </span>
                     </div>
                     <p className="text-slate-600 text-[11px]">{alert.description}</p>
@@ -959,7 +992,7 @@ export const InventoryView: React.FC = () => {
                     بواسطة {m.createdByName} في {new Date(m.date).toLocaleString('ar-SY')}
                   </span>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                   {m.type === 'purchase' && (
                     <span className="font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-lg">
                       + {m.quantity} {m.unit} (شراء)
@@ -977,9 +1010,19 @@ export const InventoryView: React.FC = () => {
                   )}
                   {m.type === 'adjustment' && (
                     <span className="font-black text-purple-600 bg-purple-50 border border-purple-100 px-2.5 py-1 rounded-lg">
-                      {m.quantity} {m.unit} (تعديل كمية)
+                      {m.quantity} {m.unit} (تعديل كمية - ليس هدر)
                     </span>
                   )}
+                  <button
+                    onClick={() => {
+                      deleteStockMovement(m.id);
+                      triggerNotification(`تم مسح سجل الحركة لـ "${m.ingredientName}"`);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                    title="حذف سجل هذه الحركة"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             ))

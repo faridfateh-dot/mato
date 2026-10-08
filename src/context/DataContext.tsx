@@ -211,6 +211,8 @@ interface DataContextType {
   deletePurchase: (purchaseId: string) => boolean;
   
   recordWaste: (ingredientId: string, quantity: number, unit: string, reason?: string) => StockMovement;
+  deleteStockMovement: (movementId: string) => void;
+  clearWasteMovements: (ingredientName?: string) => void;
   
   addExpense: (title: string, category: ExpenseCategory, amount: number, notes?: string, recipientOrWorker?: string, paymentMethod?: 'cash' | 'card' | 'bank', date?: string, shiftRoleOverride?: ShiftRoleType) => Expense;
   updateExpense: (id: string, updates: Partial<Omit<Expense, 'id' | 'restaurantId' | 'branchId'>>) => void;
@@ -384,6 +386,29 @@ function addTenantDeletedId(restId: string, itemId: string) {
   } catch {
     // ignore
   }
+}
+
+function isAdjustmentReasonNotWaste(reason?: string): boolean {
+  if (!reason) return false;
+  const r = reason.trim();
+  return (
+    r.includes('تعديل مخزون مباشر') ||
+    r.includes('تعديل جرد مباشر') ||
+    r.includes('تعديل كمية') ||
+    r.includes('تحديث مباشر') ||
+    r.includes('استهلاك لتحضير طبخة') ||
+    r.includes('تسوية فارق')
+  );
+}
+
+function sanitizeStockMovements(list: StockMovement[]): StockMovement[] {
+  if (!Array.isArray(list)) return [];
+  return list.map(m => {
+    if (m && m.type === 'waste' && isAdjustmentReasonNotWaste(m.reason)) {
+      return { ...m, type: 'adjustment' };
+    }
+    return m;
+  });
 }
 
 function mergeTenantArray<T extends { id: string; updatedAt?: string; createdAt?: string; date?: string; productId?: string }>(
@@ -733,9 +758,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const rest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
     const rId = rest?.id || INITIAL_RESTAURANT.id;
     const tenantSaved = safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_${rId}_stockMovements`, null as any);
-    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return tenantSaved;
+    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return sanitizeStockMovements(tenantSaved as StockMovement[]);
     const saved = safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_stockMovements`, null as any);
-    if (Array.isArray(saved)) return saved;
+    if (Array.isArray(saved)) return sanitizeStockMovements(saved as StockMovement[]);
     return INITIAL_STOCK_MOVEMENTS;
   });
 
@@ -1850,7 +1875,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         if (Array.isArray(cloudData.stockMovements)) {
           const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${currentRestId}_stockMovements`, []);
-          const merged = mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet);
+          const merged = sanitizeStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
           setStockMovements(merged);
           localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(merged));
           localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_stockMovements`, JSON.stringify(merged));
@@ -3587,10 +3612,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             branchId: currentBranch.id,
             ingredientId: ing.id,
             ingredientName: ing.name,
-            type: diff >= 0 ? 'adjustment' : 'waste',
+            type: 'adjustment',
             quantity: Number(Math.abs(diff).toFixed(4)),
             unit: ing.unit,
-            reason: reason || 'تعديل مخزون مباشر',
+            reason: reason || (diff >= 0 ? 'تعديل وزيادة مخزون مباشر' : 'تعديل وتصحيح كمية المخزون'),
             date: nowIso,
             createdByUserId: currentUser.id,
             createdByName: currentUser.name
@@ -4041,6 +4066,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return movement;
   };
 
+  const deleteStockMovement = (movementId: string) => {
+    const target = stockMovements.find(m => m.id === movementId);
+    if (!target) return;
+    addTenantDeletedId(restaurant.id, movementId);
+    setStockMovements(prev => {
+      const next = prev.filter(m => m.id !== movementId);
+      localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, JSON.stringify(next));
+      if (!isQuotaExhausted() && restaurant?.id) {
+        saveRestaurantAppDataToFirestore(restaurant.id, {
+          restaurantId: restaurant.id,
+          stockMovements: next
+        }).catch(() => {});
+      }
+      return next;
+    });
+    logActivity('حذف سجل حركة مخزون/هدر', `تم حذف حركة (${target.ingredientName} - ${target.reason})`);
+  };
+
+  const clearWasteMovements = (ingredientName?: string) => {
+    setStockMovements(prev => {
+      const toRemove = prev.filter(
+        m =>
+          m.type === 'waste' &&
+          (!ingredientName || m.ingredientName.trim().toLowerCase() === ingredientName.trim().toLowerCase())
+      );
+      toRemove.forEach(m => addTenantDeletedId(restaurant.id, m.id));
+      const next = prev.filter(
+        m =>
+          !(
+            m.type === 'waste' &&
+            (!ingredientName || m.ingredientName.trim().toLowerCase() === ingredientName.trim().toLowerCase())
+          )
+      );
+      localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(next));
+      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, JSON.stringify(next));
+      if (!isQuotaExhausted() && restaurant?.id) {
+        saveRestaurantAppDataToFirestore(restaurant.id, {
+          restaurantId: restaurant.id,
+          stockMovements: next
+        }).catch(() => {});
+      }
+      return next;
+    });
+    logActivity(
+      'تصفير سجل الهدر',
+      ingredientName ? `تم إلغاء وحذف سجل الهدر للمادة (${ingredientName})` : 'تم تصفير وإلغاء كافة سجلات الهدر الخاطئة'
+    );
+  };
+
   // Expense Actions
   const addExpense = (
     title: string,
@@ -4457,22 +4532,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Low stock ingredients
     const lowStockIngredients = ingredients.filter(ing => ing.currentStock <= ing.minStockThreshold);
 
-    // Waste Calculations
-    const wasteMovements = stockMovements.filter(m => m.type === 'waste');
+    // Waste Calculations (Strictly exclude manual stock adjustments)
+    const wasteMovements = stockMovements.filter(
+      m => m.type === 'waste' && !isAdjustmentReasonNotWaste(m.reason)
+    );
     let totalWasteCost = 0;
     const wasteIngMap: Record<string, { ingredientName: string; totalQuantity: number; unit: string; totalCost: number }> = {};
     const wasteReasonMap: Record<string, { reason: string; totalCost: number; count: number }> = {};
 
     wasteMovements.forEach(wm => {
-      const ing = ingredients.find(i => i.id === wm.ingredientId);
+      const ing =
+        ingredients.find(i => i.id === wm.ingredientId) ||
+        ingredients.find(i => i.name.trim().toLowerCase() === (wm.ingredientName || '').trim().toLowerCase());
       const unitCost = ing ? ing.costPerUnit : 0;
-      const cost = wm.quantity * unitCost;
+      const baseQty = ing ? convertQuantityAdvanced(wm.quantity, wm.unit || ing.unit, ing.unit, ing) : wm.quantity;
+      const cost = Math.round(baseQty * unitCost);
       totalWasteCost += cost;
 
       if (!wasteIngMap[wm.ingredientName]) {
         wasteIngMap[wm.ingredientName] = { ingredientName: wm.ingredientName, totalQuantity: 0, unit: wm.unit, totalCost: 0 };
       }
-      wasteIngMap[wm.ingredientName].totalQuantity += wm.quantity;
+      wasteIngMap[wm.ingredientName].totalQuantity = Number((wasteIngMap[wm.ingredientName].totalQuantity + wm.quantity).toFixed(4));
       wasteIngMap[wm.ingredientName].totalCost += cost;
 
       const reasonStr = wm.reason || 'غير محدد';
@@ -5079,6 +5159,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatePurchase,
         deletePurchase,
         recordWaste,
+        deleteStockMovement,
+        clearWasteMovements,
         addExpense,
         updateExpense,
         deleteExpense,

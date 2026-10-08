@@ -4362,12 +4362,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // Compute updated ingredients array synchronously so we can persist immediately
+    // NOTE: We allow negative stock (e.g. -0.5 kg) if the cashier sells items before recording the purchase invoice!
+    // When the purchase is recorded later (e.g. +5 kg), it will automatically add to -0.5 kg and become 4.5 kg accurately.
     const nextIngredients = ingredients.map(ing => {
       const toDeduct = deductionsByIngId.get(ing.id);
       if (toDeduct && toDeduct > 0) {
         return {
           ...ing,
-          currentStock: Number(Math.max(0, ing.currentStock - toDeduct).toFixed(4)),
+          currentStock: Number((ing.currentStock - toDeduct).toFixed(4)),
           updatedAt: nowIso
         };
       }

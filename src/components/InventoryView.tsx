@@ -880,17 +880,22 @@ export const InventoryView: React.FC = () => {
                       {/* Current Stock */}
                       <td className="p-3.5">
                         <div>
-                          <span className="font-black text-sm text-slate-900">
+                          <span className={`font-black text-sm ${ing.currentStock < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
                             {Number(ing.currentStock || 0).toLocaleString('en-US', { maximumFractionDigits: 4 })}
                           </span>{' '}
                           <span className="text-[11px] font-bold text-slate-500">{ing.unit}</span>
                         </div>
-                        {isKgUnit(ing.unit) && (
+                        {ing.currentStock < 0 && (
+                          <div className="text-[10px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md inline-block mt-1">
+                            ⚠️ مسحوب على المكشوف (سجّل فاتورة المشتريات لتسويته تلقائياً)
+                          </div>
+                        )}
+                        {ing.currentStock >= 0 && isKgUnit(ing.unit) && (
                           <div className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md inline-block mt-1">
                             = {Math.round(Number(ing.currentStock || 0) * 1000).toLocaleString('en-US')} غرام متاح
                           </div>
                         )}
-                        {isLiterUnit(ing.unit) && (
+                        {ing.currentStock >= 0 && isLiterUnit(ing.unit) && (
                           <div className="text-[10px] font-extrabold text-cyan-700 bg-cyan-50 border border-cyan-200/80 px-2 py-0.5 rounded-md inline-block mt-1">
                             = {Math.round(Number(ing.currentStock || 0) * 1000).toLocaleString('en-US')} مل متاح
                           </div>
@@ -909,12 +914,17 @@ export const InventoryView: React.FC = () => {
 
                       {/* Total Value */}
                       <td className="p-3.5 font-extrabold text-slate-900">
-                        {totalValue.toLocaleString()} {currentRestaurant.currency}
+                        {Math.max(0, totalValue).toLocaleString()} {currentRestaurant.currency}
                       </td>
 
                       {/* Status */}
                       <td className="p-3.5">
-                        {isLow ? (
+                        {ing.currentStock < 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-600 text-white shadow-2xs">
+                            <AlertTriangle className="w-3 h-3 text-amber-300" />
+                            <span>بيع قبل إدخال المشتريات ({Number(ing.currentStock).toLocaleString('en-US', { maximumFractionDigits: 3 })})</span>
+                          </span>
+                        ) : isLow ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
                             <AlertTriangle className="w-3 h-3 text-rose-600" />
                             <span>منخفض (اطلب توريد)</span>

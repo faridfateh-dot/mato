@@ -798,39 +798,98 @@ export async function saveRestaurantAppDataToFirestore(
   restaurantId: string,
   data: Partial<RestaurantCloudData>
 ): Promise<void> {
-  if (!db || !restaurantId || isQuotaExhausted()) return;
+  if (!db || !restaurantId) return;
+  const nowIso = new Date().toISOString();
+
+  // 1. CRITICAL: Always save orders to a dedicated lightweight document (/restaurant_orders/{restaurantId})
+  // so POS orders NEVER fail due to the 1MB Firestore document size limit (caused by product images/logs)
+  // and NEVER get silently skipped!
+  if (Array.isArray(data.orders)) {
+    try {
+      const ordersDocRef = doc(db, 'restaurant_orders', restaurantId);
+      // Strip heavy optional fields if needed and keep recent 1500 orders so payload stays well under 1MB
+      const compactOrders = sanitizeForFirestore(data.orders.slice(0, 1500));
+      await setDoc(
+        ordersDocRef,
+        {
+          restaurantId,
+          orders: compactOrders,
+          updatedAt: nowIso
+        },
+        { merge: true }
+      );
+    } catch (orderErr: any) {
+      console.warn('Dedicated restaurant_orders sync warning:', orderErr);
+    }
+  }
+
+  // 2. Also save full restaurant operational data (limiting activityLogs & stockMovements to prevent 1MB overflow)
   try {
     const docRef = doc(db, 'restaurant_data', restaurantId);
-    const sanitizedData = sanitizeForFirestore({
+    const payloadToSave: any = {
       ...data,
       restaurantId,
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: nowIso
+    };
+    if (Array.isArray(payloadToSave.stockMovements) && payloadToSave.stockMovements.length > 500) {
+      payloadToSave.stockMovements = payloadToSave.stockMovements.slice(0, 500);
+    }
+    if (Array.isArray(payloadToSave.activityLogs) && payloadToSave.activityLogs.length > 200) {
+      payloadToSave.activityLogs = payloadToSave.activityLogs.slice(0, 200);
+    }
+    if (Array.isArray(payloadToSave.orders) && payloadToSave.orders.length > 800) {
+      payloadToSave.orders = payloadToSave.orders.slice(0, 800);
+    }
+    const sanitizedData = sanitizeForFirestore(payloadToSave);
     await setDoc(docRef, sanitizedData, { merge: true });
   } catch (err: any) {
     handleFirestoreError('saveRestaurantAppData', err);
   }
 }
 
-// Fetch Restaurant Cloud Data
+// Fetch Restaurant Cloud Data (merges both main doc and dedicated restaurant_orders doc)
 export async function fetchRestaurantAppDataFromFirestore(
   restaurantId: string
 ): Promise<RestaurantCloudData | null> {
   if (!db || !restaurantId) return null;
   try {
     const docRef = doc(db, 'restaurant_data', restaurantId);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      return snap.data() as RestaurantCloudData;
+    const ordersDocRef = doc(db, 'restaurant_orders', restaurantId);
+    const [snap, ordersSnap] = await Promise.all([
+      getDoc(docRef).catch(() => null),
+      getDoc(ordersDocRef).catch(() => null)
+    ]);
+
+    let result: RestaurantCloudData | null = null;
+    if (snap && snap.exists()) {
+      result = snap.data() as RestaurantCloudData;
     }
-    return null;
+    if (ordersSnap && ordersSnap.exists()) {
+      const ordersData = ordersSnap.data();
+      if (Array.isArray(ordersData?.orders)) {
+        if (!result) {
+          result = { restaurantId, orders: ordersData.orders };
+        } else {
+          // Combine orders from both docs by id so no order is ever lost
+          const map = new Map<string, any>();
+          (result.orders || []).forEach((o: any) => {
+            if (o && o.id) map.set(o.id, o);
+          });
+          ordersData.orders.forEach((o: any) => {
+            if (o && o.id) map.set(o.id, o);
+          });
+          result.orders = Array.from(map.values());
+        }
+      }
+    }
+    return result;
   } catch (err: any) {
     handleFirestoreError('fetchRestaurantAppData', err);
     return null;
   }
 }
 
-// Real-Time Subscribe to Restaurant Cloud Data
+// Real-Time Subscribe to Restaurant Cloud Data + Dedicated Orders Stream
 export function subscribeRestaurantAppDataRealtime(
   restaurantId: string,
   callback: (data: RestaurantCloudData | null) => void
@@ -841,15 +900,41 @@ export function subscribeRestaurantAppDataRealtime(
   }
   try {
     const docRef = doc(db, 'restaurant_data', restaurantId);
-    return onSnapshot(
+    const ordersDocRef = doc(db, 'restaurant_orders', restaurantId);
+
+    let latestMainData: RestaurantCloudData | null = null;
+    let latestDedicatedOrders: any[] | null = null;
+
+    const emitCombined = () => {
+      if (!latestMainData && !latestDedicatedOrders) {
+        return;
+      }
+      const combined: RestaurantCloudData = latestMainData
+        ? { ...latestMainData }
+        : { restaurantId };
+
+      if (Array.isArray(latestDedicatedOrders)) {
+        const orderMap = new Map<string, any>();
+        if (Array.isArray(combined.orders)) {
+          combined.orders.forEach((o: any) => {
+            if (o && o.id) orderMap.set(o.id, o);
+          });
+        }
+        latestDedicatedOrders.forEach((o: any) => {
+          if (o && o.id) orderMap.set(o.id, o);
+        });
+        combined.orders = Array.from(orderMap.values());
+      }
+      callback(combined);
+    };
+
+    const unsubMain = onSnapshot(
       docRef,
       (snapshot) => {
-        if (snapshot.metadata.hasPendingWrites) {
-          return;
-        }
         if (snapshot.exists()) {
-          callback(snapshot.data() as RestaurantCloudData);
-        } else {
+          latestMainData = snapshot.data() as RestaurantCloudData;
+          emitCombined();
+        } else if (!latestDedicatedOrders) {
           callback(null);
         }
       },
@@ -857,6 +942,27 @@ export function subscribeRestaurantAppDataRealtime(
         handleFirestoreError('subscribeRestaurantAppDataRealtime', err);
       }
     );
+
+    const unsubOrders = onSnapshot(
+      ordersDocRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (Array.isArray(data?.orders)) {
+            latestDedicatedOrders = data.orders;
+            emitCombined();
+          }
+        }
+      },
+      (err: any) => {
+        console.warn('subscribeRestaurantOrdersRealtime warning:', err);
+      }
+    );
+
+    return () => {
+      unsubMain();
+      unsubOrders();
+    };
   } catch (err: any) {
     handleFirestoreError('subscribeRestaurantAppDataRealtime', err);
     return () => {};

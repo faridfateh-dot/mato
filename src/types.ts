@@ -180,6 +180,8 @@ export interface OrderItem {
   productId: string;
   productName: string;
   price: number;
+  originalPrice?: number;
+  discountAmount?: number;
   quantity: number;
   total: number;
 }
@@ -199,6 +201,9 @@ export interface Order {
   branchId: string;
   orderNumber: string;
   items: OrderItem[];
+  subtotalAmount?: number;
+  discountAmount?: number;
+  discountNote?: string;
   totalAmount: number;
   costAmount: number;
   profitAmount: number;

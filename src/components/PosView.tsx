@@ -15,6 +15,8 @@ import {
   Sun,
   Moon,
   Clock,
+  Tag,
+  Percent,
   X
 } from 'lucide-react';
 import { Product } from '../types';
@@ -32,7 +34,12 @@ export const PosView: React.FC = () => {
   } = useData();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
+  const [cart, setCart] = useState<{ product: Product; quantity: number; customUnitPrice?: number }[]>([]);
+  const [editingDiscountProductId, setEditingDiscountProductId] = useState<string | null>(null);
+  const [orderDiscountInput, setOrderDiscountInput] = useState<string>('');
+  const [orderDiscountType, setOrderDiscountType] = useState<'amount' | 'percent'>('amount');
+  const [discountNote, setDiscountNote] = useState<string>('');
+  const [showOrderDiscountBox, setShowOrderDiscountBox] = useState<boolean>(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'staff_meal'>('cash');
   const [lastCompletedOrder, setLastCompletedOrder] = useState<any | null>(null);
   const [showOrdersHistoryModal, setShowOrdersHistoryModal] = useState(false);
@@ -79,14 +86,24 @@ export const PosView: React.FC = () => {
 
     const rowsHtml = (order.items || [])
       .map(
-        (it: any) => `
+        (it: any) => {
+          const hasItemDisc = it.originalPrice && it.originalPrice > it.price;
+          return `
         <tr>
-          <td style="padding: 5px 0; font-weight: 700; text-align: right; border-bottom: 1px dashed #cbd5e1;">${it.productName}</td>
+          <td style="padding: 5px 0; font-weight: 700; text-align: right; border-bottom: 1px dashed #cbd5e1;">
+            ${it.productName}
+            ${hasItemDisc ? `<div style="font-size: 10px; color: #475569;">(سعر أصلي: ${Number(it.originalPrice).toLocaleString()} - بعد الحسم: ${Number(it.price).toLocaleString()})</div>` : ''}
+          </td>
           <td style="padding: 5px 0; font-weight: 700; text-align: center; border-bottom: 1px dashed #cbd5e1;">${it.quantity}</td>
           <td style="padding: 5px 0; font-weight: 800; text-align: left; border-bottom: 1px dashed #cbd5e1;">${Number(it.total || 0).toLocaleString()}</td>
-        </tr>`
+        </tr>`;
+        }
       )
       .join('');
+
+    const hasTotalDiscount = !isStaff && Number(order.discountAmount || 0) > 0;
+    const subtotalVal = Number(order.subtotalAmount || order.totalAmount || 0);
+    const discountVal = Number(order.discountAmount || 0);
 
     const htmlContent = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -190,8 +207,21 @@ export const PosView: React.FC = () => {
     </tbody>
   </table>
 
+  ${hasTotalDiscount ? `
+  <div style="border-top: 1px dashed #000; padding-top: 4px; font-size: 11px; font-weight: 700;">
+    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+      <span>المجموع قبل الحسم:</span>
+      <span>${subtotalVal.toLocaleString()} ${currentRestaurant.currency}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+      <span>قيمة الحسم ${order.discountNote ? `(${order.discountNote})` : ''}:</span>
+      <span>- ${discountVal.toLocaleString()} ${currentRestaurant.currency}</span>
+    </div>
+  </div>
+  ` : ''}
+
   <div class="total-box">
-    <span>${isStaff ? 'تكلفة وجبة العمال:' : 'المجموع المطلوب:'}</span>
+    <span>${isStaff ? 'تكلفة وجبة العمال:' : 'الصافي المطلوب:'}</span>
     <span>${Number(isStaff ? order.costAmount : order.totalAmount).toLocaleString()} ${currentRestaurant.currency}</span>
   </div>
 
@@ -248,21 +278,62 @@ export const PosView: React.FC = () => {
           }
           return item;
         })
-        .filter(Boolean) as { product: Product; quantity: number }[]
+        .filter(Boolean) as { product: Product; quantity: number; customUnitPrice?: number }[]
+    );
+  };
+
+  const setItemCustomPrice = (productId: string, newPrice: number | undefined) => {
+    setCart(prev =>
+      prev.map(item => {
+        if (item.product.id === productId) {
+          if (newPrice === undefined || isNaN(newPrice)) {
+            const { customUnitPrice, ...rest } = item;
+            return rest;
+          }
+          return { ...item, customUnitPrice: Math.max(0, Math.round(newPrice)) };
+        }
+        return item;
+      })
     );
   };
 
   const removeFromCart = (productId: string) => {
     setCart(prev => prev.filter(item => item.product.id !== productId));
+    if (editingDiscountProductId === productId) {
+      setEditingDiscountProductId(null);
+    }
   };
 
-  const cartTotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const cartOriginalSubtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const cartSubtotalAfterItemDiscounts = cart.reduce(
+    (acc, item) => acc + (item.customUnitPrice !== undefined ? item.customUnitPrice : item.product.price) * item.quantity,
+    0
+  );
+  const itemLevelDiscountsTotal = Math.max(0, cartOriginalSubtotal - cartSubtotalAfterItemDiscounts);
+
+  const parsedOrderDiscountVal = Math.max(0, Number(orderDiscountInput) || 0);
+  const computedOrderLevelDiscount =
+    orderDiscountType === 'percent'
+      ? Math.round((cartSubtotalAfterItemDiscounts * Math.min(100, parsedOrderDiscountVal)) / 100)
+      : Math.min(cartSubtotalAfterItemDiscounts, parsedOrderDiscountVal);
+
+  const totalDiscountAmount = itemLevelDiscountsTotal + computedOrderLevelDiscount;
+  const cartTotal = Math.max(0, cartSubtotalAfterItemDiscounts - computedOrderLevelDiscount);
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    const order = createOrder(cart, paymentMethod);
+    const order = createOrder(
+      cart,
+      paymentMethod,
+      computedOrderLevelDiscount,
+      discountNote.trim() || undefined
+    );
     setLastCompletedOrder(order);
     setCart([]);
+    setEditingDiscountProductId(null);
+    setOrderDiscountInput('');
+    setDiscountNote('');
+    setShowOrderDiscountBox(false);
     if (autoPrintReceipt && paymentMethod !== 'staff_meal') {
       printThermalReceipt(order);
     }
@@ -422,47 +493,248 @@ export const PosView: React.FC = () => {
                 <p className="text-[11px] text-slate-400">انقر فوق أي صنف في القائمة على اليسار لإضافته</p>
               </div>
             ) : (
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {cart.map((item) => (
-                  <div key={item.product.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="font-bold text-slate-900">{item.product.name}</div>
-                      <div className="text-[10px] text-amber-600 font-bold">
-                        {item.product.price.toLocaleString()} x {item.quantity} = {(item.product.price * item.quantity).toLocaleString()} {currentRestaurant.currency}
-                      </div>
-                    </div>
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {cart.map((item) => {
+                  const effectivePrice = item.customUnitPrice !== undefined ? item.customUnitPrice : item.product.price;
+                  const hasItemDiscount = effectivePrice < item.product.price;
+                  const isEditingDisc = editingDiscountProductId === item.product.id;
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold flex items-center justify-center cursor-pointer"
-                      >
-                        -
-                      </button>
-                      <span className="font-black px-2">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-6 h-6 rounded bg-amber-400 text-slate-950 font-bold flex items-center justify-center cursor-pointer"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => removeFromCart(item.product.id)}
-                        className="p-1 text-rose-500 hover:bg-rose-100 rounded mr-1 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                  return (
+                    <div key={item.product.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            <span>{item.product.name}</span>
+                            {hasItemDiscount && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black">
+                                حسم وجبة ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] font-bold mt-0.5">
+                            {hasItemDiscount ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="line-through text-slate-400">{item.product.price.toLocaleString()}</span>
+                                <span className="text-emerald-700 font-black">{effectivePrice.toLocaleString()}</span>
+                                <span className="text-amber-600">
+                                  × {item.quantity} = {(effectivePrice * item.quantity).toLocaleString()} {currentRestaurant.currency}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-amber-600">
+                                {item.product.price.toLocaleString()} × {item.quantity} = {(item.product.price * item.quantity).toLocaleString()} {currentRestaurant.currency}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingDiscountProductId(isEditingDisc ? null : item.product.id)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-1 transition-colors cursor-pointer ${
+                              hasItemDiscount || isEditingDisc
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300'
+                            }`}
+                            title="عمل حسم أو تعديل سعر هذه الوجبة"
+                          >
+                            <Tag className="w-3 h-3" />
+                            <span>حسم</span>
+                          </button>
+                          <button
+                            onClick={() => updateQuantity(item.product.id, -1)}
+                            className="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold flex items-center justify-center cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <span className="font-black px-1.5">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.product.id, 1)}
+                            className="w-6 h-6 rounded bg-amber-400 text-slate-950 font-bold flex items-center justify-center cursor-pointer"
+                          >
+                            +
+                          </button>
+                          <button
+                            onClick={() => removeFromCart(item.product.id)}
+                            className="p-1 text-rose-500 hover:bg-rose-100 rounded mr-0.5 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Per-Meal Discount Controls */}
+                      {isEditingDisc && (
+                        <div className="pt-2 border-t border-slate-200/80 bg-white p-2.5 rounded-lg space-y-2 animate-in fade-in duration-150">
+                          <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-700">
+                            <span>🏷️ تحديد حسم أو سعر جديد للوجبة ({item.product.name}):</span>
+                            {hasItemDiscount && (
+                              <button
+                                type="button"
+                                onClick={() => setItemCustomPrice(item.product.id, undefined)}
+                                className="text-rose-600 hover:underline font-black cursor-pointer"
+                              >
+                                إلغاء الحسم ✕
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Quick percentage chips */}
+                          <div className="flex flex-wrap items-center gap-1">
+                            {[10, 15, 20, 25, 50, 100].map(pct => {
+                              const discounted = Math.round(item.product.price * (1 - pct / 100));
+                              return (
+                                <button
+                                  key={pct}
+                                  type="button"
+                                  onClick={() => setItemCustomPrice(item.product.id, discounted)}
+                                  className={`px-2 py-1 rounded-md text-[10px] font-black transition-all cursor-pointer ${
+                                    effectivePrice === discounted
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-slate-100 hover:bg-amber-100 text-slate-800 border border-slate-200'
+                                  }`}
+                                >
+                                  {pct === 100 ? 'مجاناً 100%' : `حسم ${pct}%`}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Custom price or discount amount inputs */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-slate-500 font-bold mb-0.5">السعر بعد الحسم للقطعة:</label>
+                              <input
+                                type="number"
+                                value={effectivePrice}
+                                onChange={e => setItemCustomPrice(item.product.id, Number(e.target.value))}
+                                className="w-full px-2 py-1 bg-slate-50 border border-slate-300 focus:border-emerald-500 rounded font-mono font-black text-xs text-emerald-700 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-slate-500 font-bold mb-0.5">أو قيمة الحسم للقطعة:</label>
+                              <input
+                                type="number"
+                                value={Math.max(0, item.product.price - effectivePrice)}
+                                onChange={e => {
+                                  const disc = Math.max(0, Number(e.target.value) || 0);
+                                  setItemCustomPrice(item.product.id, Math.max(0, item.product.price - disc));
+                                }}
+                                placeholder="مثال: 5000"
+                                className="w-full px-2 py-1 bg-slate-50 border border-slate-300 focus:border-amber-500 rounded font-mono font-black text-xs text-rose-600 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Checkout Controls */}
           {cart.length > 0 && (
-            <div className="space-y-4 border-t border-slate-100 pt-3">
+            <div className="space-y-3 border-t border-slate-100 pt-3">
               
+              {/* Whole Order / Invoice Discount Toggle & Box */}
+              {paymentMethod !== 'staff_meal' && (
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setShowOrderDiscountBox(!showOrderDiscountBox)}
+                      className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-900 cursor-pointer"
+                    >
+                      <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>🏷️ حسم على الفاتورة / الوجبة</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowOrderDiscountBox(!showOrderDiscountBox)}
+                      className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 cursor-pointer"
+                    >
+                      {showOrderDiscountBox ? 'إخفاء' : '+ إضافة حسم'}
+                    </button>
+                  </div>
+
+                  {showOrderDiscountBox && (
+                    <div className="space-y-2 pt-1.5 border-t border-emerald-200/80 animate-in fade-in duration-150">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setOrderDiscountType('amount')}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-black cursor-pointer ${
+                            orderDiscountType === 'amount'
+                              ? 'bg-slate-900 text-amber-400'
+                              : 'bg-white text-slate-700 border border-slate-200'
+                          }`}
+                        >
+                          مبلغ ثابت ({currentRestaurant.currency})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOrderDiscountType('percent')}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 cursor-pointer ${
+                            orderDiscountType === 'percent'
+                              ? 'bg-slate-900 text-amber-400'
+                              : 'bg-white text-slate-700 border border-slate-200'
+                          }`}
+                        >
+                          <Percent className="w-3 h-3" />
+                          <span>نسبة مئوية (%)</span>
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1">
+                        {(orderDiscountType === 'percent' ? [5, 10, 15, 20, 25, 50] : [2000, 5000, 10000, 15000, 25000]).map(val => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setOrderDiscountInput(String(val))}
+                            className={`px-2 py-0.5 rounded text-[10px] font-black cursor-pointer ${
+                              Number(orderDiscountInput) === val
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-white text-slate-700 border border-emerald-200 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {orderDiscountType === 'percent' ? `${val}%` : `${val.toLocaleString()}`}
+                          </button>
+                        ))}
+                        {orderDiscountInput && (
+                          <button
+                            type="button"
+                            onClick={() => setOrderDiscountInput('')}
+                            className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-100 text-rose-700 cursor-pointer"
+                          >
+                            تصفير ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input
+                          type="number"
+                          value={orderDiscountInput}
+                          onChange={e => setOrderDiscountInput(e.target.value)}
+                          placeholder={orderDiscountType === 'percent' ? 'نسبة الحسم %' : 'قيمة الحسم...'}
+                          className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg font-mono font-black text-xs text-slate-900 outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={discountNote}
+                          onChange={e => setDiscountNote(e.target.value)}
+                          placeholder="سبب الحسم (اختياري)"
+                          className="w-full px-2.5 py-1.5 bg-white border border-emerald-200 rounded-lg text-[11px] font-bold text-slate-800 outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Payment Method Selector */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">طريقة الدفع / التسجيل:</label>
@@ -514,13 +786,27 @@ export const PosView: React.FC = () => {
               )}
 
               {/* Total & Confirm Button */}
-              <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between">
-                <span className="text-xs text-slate-300">
-                  {paymentMethod === 'staff_meal' ? 'قيمة الوجبة (سعر القائمة):' : 'الإجمالي النهائي:'}
-                </span>
-                <span className="text-lg font-black text-amber-400">
-                  {cartTotal.toLocaleString()} {currentRestaurant.currency}
-                </span>
+              <div className="p-3 bg-slate-900 text-white rounded-xl space-y-1.5">
+                {totalDiscountAmount > 0 && paymentMethod !== 'staff_meal' && (
+                  <div className="border-b border-slate-800 pb-1.5 space-y-1 text-[11px]">
+                    <div className="flex items-center justify-between text-slate-400">
+                      <span>المجموع قبل الحسم:</span>
+                      <span className="line-through font-mono">{cartOriginalSubtotal.toLocaleString()} {currentRestaurant.currency}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-emerald-400 font-bold">
+                      <span>إجمالي الحسم الممنوح:</span>
+                      <span className="font-mono">- {totalDiscountAmount.toLocaleString()} {currentRestaurant.currency}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-300">
+                    {paymentMethod === 'staff_meal' ? 'قيمة الوجبة (سعر القائمة):' : 'الصافي النهائي للدفع:'}
+                  </span>
+                  <span className="text-lg font-black text-amber-400">
+                    {cartTotal.toLocaleString()} {currentRestaurant.currency}
+                  </span>
+                </div>
               </div>
 
               <button

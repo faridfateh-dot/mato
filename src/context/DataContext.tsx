@@ -219,7 +219,12 @@ interface DataContextType {
   deleteExpense: (id: string) => void;
   clearAllExpenses: () => void;
   
-  createOrder: (items: { product: Product; quantity: number }[], paymentMethod: 'cash' | 'card') => Order;
+  createOrder: (
+    items: { product: Product; quantity: number; customUnitPrice?: number; itemDiscount?: number }[],
+    paymentMethod: 'cash' | 'card' | 'staff_meal',
+    orderDiscountAmount?: number,
+    discountNote?: string
+  ) => Order;
   
   logActivity: (actionType: string, description: string, details?: string) => void;
   clearAllProductsAndIngredients: () => void;
@@ -1882,17 +1887,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         if (Array.isArray(cloudData.orders)) {
           const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${currentRestId}_orders`, []);
-          const merged = mergeTenantArray(localOrds, cloudData.orders, deletedSet);
-          setOrders(merged);
-          localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_orders`, JSON.stringify(merged));
+          setOrders(prev => {
+            const sameTenantMem = prev.filter(o => !o.restaurantId || o.restaurantId === currentRestId);
+            const combinedLocal = mergeTenantArray(sameTenantMem, localOrds, deletedSet);
+            const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet).sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_orders`, JSON.stringify(merged));
+            return merged;
+          });
         }
         if (Array.isArray(cloudData.expenses)) {
           const localExps = safeStorageArrayParse<Expense>(`${STORAGE_KEY}_${currentRestId}_expenses`, []);
-          const merged = mergeTenantArray(localExps, cloudData.expenses, deletedSet);
-          setExpenses(merged);
-          localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_expenses`, JSON.stringify(merged));
+          setExpenses(prev => {
+            const sameTenantMem = prev.filter(e => !e.restaurantId || e.restaurantId === currentRestId);
+            const combinedLocal = mergeTenantArray(sameTenantMem, localExps, deletedSet);
+            const merged = mergeTenantArray(combinedLocal, cloudData.expenses!, deletedSet);
+            localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_expenses`, JSON.stringify(merged));
+            return merged;
+          });
         }
         if (Array.isArray(cloudData.branches) && cloudData.branches.length > 0) {
           setBranches(cloudData.branches);
@@ -2021,11 +2036,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncCloudNow = async () => {
     if (!restaurant?.id) return;
-    if (isQuotaExhausted()) {
-      setIsCloudSynced(true);
-      return;
-    }
     setIsCloudSynced(false);
+    // Merge current in-memory orders with any local storage orders to guarantee zero data loss before pushing
+    const deletedSet = getTenantDeletedIds(restaurant.id);
+    const localTenantOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${restaurant.id}_orders`, []);
+    const localGlobalOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_orders`, []).filter(
+      o => !o.restaurantId || o.restaurantId === restaurant.id
+    );
+    const allLocalOrders = mergeTenantArray(
+      mergeTenantArray(orders, localTenantOrds, deletedSet),
+      localGlobalOrds,
+      deletedSet
+    );
+    if (allLocalOrders.length > orders.length) {
+      setOrders(allLocalOrders);
+    }
+
     await saveRestaurantAppDataToFirestore(restaurant.id, {
       restaurantId: restaurant.id,
       restaurant,
@@ -2038,13 +2064,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       suppliers,
       purchases,
       stockMovements,
-      orders,
+      orders: allLocalOrders,
       expenses,
       users
     });
     setIsCloudSynced(true);
     setLastCloudSyncTime(new Date().toISOString());
-    logActivity('مزامنة سحابية يدوية', 'تمت المزامنة الفورية لكافة المنتجات والبيانات مع السحابة بنجاح');
+    logActivity('مزامنة سحابية يدوية', 'تمت المزامنة الفورية لكافة الطلبات والمنتجات والبيانات مع السحابة بنجاح');
   };
 
   // Persist data locally on change (both global and tenant-scoped keys)
@@ -2795,23 +2821,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 4. Authenticate User and apply restaurant context if switching tenant
-    if (matchedUser.restaurantId === 'rest_foodbreak' && restaurant.id !== 'rest_foodbreak') {
-      setRestaurant(FOOD_BREAK_RESTAURANT);
-      setBranches(FOOD_BREAK_BRANCHES);
-      setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
-      const localFbIngs = safeStorageArrayParse<Ingredient>(`${STORAGE_KEY}_rest_foodbreak_ingredients`, []);
-      if (localFbIngs.length > 0) {
-        setIngredients(localFbIngs);
-      }
-    } else if (matchedUser.restaurantId && matchedUser.restaurantId !== restaurant.id && matchedUser.restaurantId !== 'rest_01') {
+    if (matchedUser.restaurantId && matchedUser.restaurantId !== 'rest_01') {
       const targetRestId = matchedUser.restaurantId;
-      const tenantRest = fsRestaurants.find(r => r.id === targetRestId) || firestoreRestaurants.find(r => r.id === targetRestId);
-      if (tenantRest) {
-        setRestaurant(prev => ({
-          ...prev,
-          id: tenantRest.id,
-          name: tenantRest.name
-        }));
+      if (targetRestId === 'rest_foodbreak') {
+        setRestaurant(FOOD_BREAK_RESTAURANT);
+        setBranches(FOOD_BREAK_BRANCHES);
+        setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
+      } else {
+        const tenantRest = fsRestaurants.find(r => r.id === targetRestId) || firestoreRestaurants.find(r => r.id === targetRestId);
+        if (tenantRest) {
+          setRestaurant(prev => ({
+            ...prev,
+            id: tenantRest.id,
+            name: tenantRest.name
+          }));
+        }
       }
 
       // Restore tenant data from local tenant cache merged with Firestore Cloud if available
@@ -2856,11 +2880,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           if (cloudData.orders) {
             const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${targetRestId}_orders`, []);
-            setOrders(mergeTenantArray(localOrds, cloudData.orders, deletedSet));
+            setOrders(prev => {
+              const sameTenantMem = prev.filter(o => !o.restaurantId || o.restaurantId === targetRestId);
+              const combinedLocal = mergeTenantArray(sameTenantMem, localOrds, deletedSet);
+              const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet).sort(
+                (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+              );
+              localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
+              localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_orders`, JSON.stringify(merged));
+              return merged;
+            });
           }
           if (cloudData.expenses) {
             const localExps = safeStorageArrayParse<Expense>(`${STORAGE_KEY}_${targetRestId}_expenses`, []);
-            setExpenses(mergeTenantArray(localExps, cloudData.expenses, deletedSet));
+            setExpenses(prev => {
+              const sameTenantMem = prev.filter(e => !e.restaurantId || e.restaurantId === targetRestId);
+              const combinedLocal = mergeTenantArray(sameTenantMem, localExps, deletedSet);
+              const merged = mergeTenantArray(combinedLocal, cloudData.expenses!, deletedSet);
+              localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(merged));
+              localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_expenses`, JSON.stringify(merged));
+              return merged;
+            });
           }
         }
       } catch (cloudErr) {
@@ -4195,8 +4235,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // POS Order Creation & Automatic Recipe Depletion
-  const createOrder = (items: { product: Product; quantity: number }[], paymentMethod: 'cash' | 'card' | 'staff_meal') => {
-    let totalAmount = 0;
+  const createOrder = (
+    items: { product: Product; quantity: number; customUnitPrice?: number; itemDiscount?: number }[],
+    paymentMethod: 'cash' | 'card' | 'staff_meal',
+    orderDiscountAmount: number = 0,
+    discountNote?: string
+  ) => {
+    let subtotalAmount = 0;
+    let itemsAfterItemDiscountTotal = 0;
+    let totalItemLevelDiscount = 0;
     let costAmount = 0;
     const nowIso = new Date().toISOString();
     const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`;
@@ -4306,8 +4353,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const orderItems = items.map(item => {
-      const lineTotal = item.product.price * item.quantity;
-      totalAmount += lineTotal;
+      const origPrice = item.product.price;
+      const effectiveUnitPrice =
+        item.customUnitPrice !== undefined
+          ? Math.max(0, Number(item.customUnitPrice) || 0)
+          : item.itemDiscount !== undefined
+          ? Math.max(0, origPrice - (Number(item.itemDiscount) || 0))
+          : origPrice;
+      const lineOriginalTotal = origPrice * item.quantity;
+      const lineTotal = effectiveUnitPrice * item.quantity;
+      const lineDiscount = Math.max(0, lineOriginalTotal - lineTotal);
+
+      subtotalAmount += lineOriginalTotal;
+      itemsAfterItemDiscountTotal += lineTotal;
+      totalItemLevelDiscount += lineDiscount;
 
       // Locate recipe by productId first, or fallback to matching product name
       const rec =
@@ -4355,7 +4414,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         productId: item.product.id,
         productName: item.product.name,
-        price: item.product.price,
+        price: effectiveUnitPrice,
+        originalPrice: origPrice,
+        discountAmount: lineDiscount > 0 ? lineDiscount : undefined,
         quantity: item.quantity,
         total: lineTotal
       };
@@ -4384,17 +4445,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
 
+    const cleanOrderLevelDiscount = Math.max(0, Number(orderDiscountAmount) || 0);
+    const totalCombinedDiscount = Math.min(subtotalAmount, totalItemLevelDiscount + cleanOrderLevelDiscount);
+    const totalAmount = Math.max(0, subtotalAmount - totalCombinedDiscount);
+
     const isStaffMeal = paymentMethod === 'staff_meal';
     const finalTotalAmount = isStaffMeal ? 0 : totalAmount;
-    const profitAmount = isStaffMeal ? 0 : (totalAmount - costAmount);
+    const profitAmount = isStaffMeal ? 0 : (finalTotalAmount - costAmount);
     const currentShift: ShiftRoleType = activeShiftRole || currentUser.shiftRole || 'owner';
 
     const newOrder: Order = {
-      id: `ord_${Date.now()}`,
+      id: `ord_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       restaurantId: restaurant.id,
       branchId: currentBranch.id,
       orderNumber,
       items: orderItems,
+      subtotalAmount,
+      discountAmount: totalCombinedDiscount > 0 ? totalCombinedDiscount : undefined,
+      discountNote: discountNote?.trim() || undefined,
       totalAmount: finalTotalAmount,
       costAmount: Math.round(costAmount),
       profitAmount: Math.round(profitAmount),
@@ -4456,7 +4524,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logActivity('تسجيل طلب POS', `إتمام الطلب ${newOrder.orderNumber} بقيمة ${totalAmount} ${restaurant.currency}`);
     }
 
-    if (!isQuotaExhausted() && restaurant?.id) {
+    // ALWAYS push POS orders to Firestore immediately (even if quota circuit breaker tripped earlier)
+    if (restaurant?.id) {
       saveRestaurantAppDataToFirestore(restaurant.id, {
         restaurantId: restaurant.id,
         ingredients: nextIngredients,

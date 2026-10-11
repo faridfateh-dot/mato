@@ -55,8 +55,20 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     products,
     currentUser,
     isPlatformOwner,
-    activeShiftRole
+    activeShiftRole,
+    syncCloudNow,
+    isCloudSynced
   } = useData();
+  const [isSyncingOrders, setIsSyncingOrders] = useState(false);
+
+  const handleManualSyncOrders = async () => {
+    setIsSyncingOrders(true);
+    try {
+      await syncCloudNow();
+    } finally {
+      setTimeout(() => setIsSyncingOrders(false), 600);
+    }
+  };
 
   const toLocalDateKey = (isoOrDateStr: string): string => {
     if (!isoOrDateStr) return '';
@@ -132,9 +144,14 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
   // Helper to get or set Owner Manual Final Cash Override/Adjustment for a specific shift
   const getShiftFinalOverrideKey = (shift: 'cashier_morning' | 'cashier_evening') =>
     `mato_final_cash_override_${currentRestaurant.id || 'curr'}_${selectedDate}_${shift}`;
+  const getTotalShopVaultOverrideKey = () =>
+    `mato_total_shop_vault_override_${currentRestaurant.id || 'curr'}`;
 
   const [morningFinalOverride, setMorningFinalOverride] = useState<number | null>(null);
   const [eveningFinalOverride, setEveningFinalOverride] = useState<number | null>(null);
+  const [totalShopVaultOverride, setTotalShopVaultOverride] = useState<number | null>(null);
+  const [isEditingTotalShopVault, setIsEditingTotalShopVault] = useState<boolean>(false);
+  const [tempTotalShopVaultVal, setTempTotalShopVaultVal] = useState<string>('');
   const [editingFinalShift, setEditingFinalShift] = useState<'cashier_morning' | 'cashier_evening' | 'all' | null>(null);
   const [tempFinalCashVal, setTempFinalCashVal] = useState<string>('');
 
@@ -142,13 +159,37 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     try {
       const mFinal = localStorage.getItem(getShiftFinalOverrideKey('cashier_morning'));
       const eFinal = localStorage.getItem(getShiftFinalOverrideKey('cashier_evening'));
+      const vFinal = localStorage.getItem(getTotalShopVaultOverrideKey());
       setMorningFinalOverride(mFinal !== null && mFinal !== '' ? Number(mFinal) : null);
       setEveningFinalOverride(eFinal !== null && eFinal !== '' ? Number(eFinal) : null);
+      setTotalShopVaultOverride(vFinal !== null && vFinal !== '' ? Number(vFinal) : null);
     } catch {
       setMorningFinalOverride(null);
       setEveningFinalOverride(null);
+      setTotalShopVaultOverride(null);
     }
   }, [currentRestaurant.id, selectedDate]);
+
+  const handleSaveTotalShopVaultOverride = () => {
+    if (tempTotalShopVaultVal.trim() === '' || isNaN(Number(tempTotalShopVaultVal))) {
+      setIsEditingTotalShopVault(false);
+      return;
+    }
+    const val = Number(tempTotalShopVaultVal);
+    setTotalShopVaultOverride(val);
+    try {
+      localStorage.setItem(getTotalShopVaultOverrideKey(), val.toString());
+    } catch {}
+    setIsEditingTotalShopVault(false);
+  };
+
+  const handleClearTotalShopVaultOverride = () => {
+    setTotalShopVaultOverride(null);
+    try {
+      localStorage.removeItem(getTotalShopVaultOverrideKey());
+    } catch {}
+    setIsEditingTotalShopVault(false);
+  };
 
   // Period Analytics Mode: 'day' | 'week' | 'month'
   const [reportPeriodMode, setReportPeriodMode] = useState<'day' | 'week' | 'month'>('day');
@@ -438,6 +479,39 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     return { morning, evening };
   }, [allDayOrders, allDayExpenses, allDayPurchases, morningOpeningCash, eveningOpeningCash, morningFinalOverride, eveningFinalOverride]);
 
+  // All-Time / Cumulative Total Shop Cash Vault (كاش المحل الكامل التراكمي عبر كل الأيام والورديات)
+  const cumulativeShopCash = useMemo(() => {
+    const allCompletedOrders = orders.filter(o => o.status === 'completed' && o.paymentMethod !== 'staff_meal');
+    const allCashSales = allCompletedOrders
+      .filter(o => !o.paymentMethod || o.paymentMethod === 'cash')
+      .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    const allCardSales = allCompletedOrders
+      .filter(o => o.paymentMethod === 'card')
+      .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+
+    const allCashExpenses = expenses
+      .filter(e => !e.id.startsWith('exp_staff_') && e.paymentMethod === 'cash')
+      .reduce((acc, e) => acc + (e.amount || 0), 0);
+
+    const allCashPurchases = purchases
+      .filter(p => p.payFromCashDrawer !== false)
+      .reduce((acc, p) => acc + (p.totalAmount || 0), 0);
+
+    const calculatedNetVault = allCashSales - allCashExpenses - allCashPurchases;
+    const finalVaultBalance = totalShopVaultOverride !== null ? totalShopVaultOverride : calculatedNetVault;
+
+    return {
+      allCashSales,
+      allCardSales,
+      allCashExpenses,
+      allCashPurchases,
+      calculatedNetVault,
+      finalVaultBalance,
+      isOverridden: totalShopVaultOverride !== null,
+      totalDayCombinedCash: shiftBreakdown.morning.expectedCashInDrawer + shiftBreakdown.evening.expectedCashInDrawer
+    };
+  }, [orders, expenses, purchases, totalShopVaultOverride, shiftBreakdown]);
+
   const expectedCashInDrawer = useMemo(() => {
     if (selectedShiftFilter === 'cashier_morning') {
       return shiftBreakdown.morning.expectedCashInDrawer;
@@ -617,6 +691,18 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
               اليوم التالي ▶
             </button>
           </div>
+
+          {/* Cloud Sync Orders Button */}
+          <button
+            type="button"
+            onClick={handleManualSyncOrders}
+            disabled={isSyncingOrders}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
+            title="مزامنة وتحديث كافة فواتير وطلبات الصندوق فوراً بين اللابتوب والموبايل"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders || !isCloudSynced ? 'animate-spin' : ''}`} />
+            <span>{isSyncingOrders ? 'جاري مزامنة الطلبات...' : 'مزامنة الطلبات سحابياً ☁️'}</span>
+          </button>
 
           {/* Print Z-Report Modal Button */}
           <button
@@ -993,6 +1079,121 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                   -{shiftBreakdown.evening.cashExpenses.toLocaleString()} {currency}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Shop Cash Banner (كاش المحل كامل: مجموع الورديتين لليوم + الخزنة التراكمية الكاملة للمحل) */}
+        <div className="mt-4 pt-4 border-t border-slate-700/80 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* 1. Full Day Combined Shop Cash (Morning + Evening) */}
+          <div
+            onClick={() => setSelectedShiftFilter('all')}
+            className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+              selectedShiftFilter === 'all'
+                ? 'bg-emerald-950/50 border-emerald-400 shadow-md'
+                : 'bg-slate-800/80 border-slate-700 hover:border-emerald-400/60'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black">
+                  <Store className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-black text-emerald-300">
+                    📊 كاش المحل الكامل لليوم ({selectedDate})
+                  </div>
+                  <div className="text-[10px] text-slate-300">
+                    مجموع صافي كاش الوردية الصباحية + الوردية المسائية معاً
+                  </div>
+                </div>
+              </div>
+              <div className="text-left">
+                <div className={`text-xl sm:text-2xl font-black font-mono ${cumulativeShopCash.totalDayCombinedCash < 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {cumulativeShopCash.totalDayCombinedCash.toLocaleString()} <span className="text-xs text-emerald-200">{currency}</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-700/70 flex flex-wrap items-center justify-between text-[11px] text-slate-300 gap-2">
+              <span>☀️ الصباحي: <strong className="text-amber-300 font-mono">{shiftBreakdown.morning.expectedCashInDrawer.toLocaleString()}</strong></span>
+              <span>+</span>
+              <span>🌙 المسائي: <strong className="text-indigo-300 font-mono">{shiftBreakdown.evening.expectedCashInDrawer.toLocaleString()}</strong></span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
+                انقر لعرض تفاصيل اليوم الكامل
+              </span>
+            </div>
+          </div>
+
+          {/* 2. Cumulative All-Time Total Shop Vault (الخزنة الكلية التراكمية للمحل) */}
+          <div className="p-4 rounded-2xl border-2 border-amber-400/60 bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-black text-amber-400 flex items-center gap-1.5">
+                    <span>🏦 الخزنة الكلية (كاش المحل الكامل التراكمي)</span>
+                  </div>
+                  <div className="text-[10px] text-slate-300">
+                    صافي كل المبيعات النقدية بالمحل مطروحاً منها كل المشتريات والمصاريف النقدية
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-left">
+                {isRestaurantOwner && !isEditingTotalShopVault && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempTotalShopVaultVal(String(cumulativeShopCash.finalVaultBalance));
+                      setIsEditingTotalShopVault(true);
+                    }}
+                    className="mb-1 px-2 py-0.5 rounded bg-amber-400/20 hover:bg-amber-400 text-amber-300 hover:text-slate-950 font-black text-[10px] transition-colors cursor-pointer"
+                  >
+                    ✎ تعديل كاش المحل الكامل
+                  </button>
+                )}
+                {isEditingTotalShopVault ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <input
+                      type="number"
+                      value={tempTotalShopVaultVal}
+                      onChange={e => setTempTotalShopVaultVal(e.target.value)}
+                      className="w-28 px-2 py-1 bg-slate-900 border border-amber-400 rounded text-white font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveTotalShopVaultOverride}
+                      className="px-2 py-1 bg-amber-400 text-slate-950 font-black rounded text-[10px] cursor-pointer"
+                    >
+                      حفظ
+                    </button>
+                    {cumulativeShopCash.isOverridden && (
+                      <button
+                        type="button"
+                        onClick={handleClearTotalShopVaultOverride}
+                        className="px-1.5 py-1 bg-rose-600 text-white font-bold rounded text-[10px] cursor-pointer"
+                      >
+                        تلقائي
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`text-xl sm:text-2xl font-black font-mono ${cumulativeShopCash.finalVaultBalance < 0 ? 'text-rose-400' : 'text-amber-400'}`}>
+                    {cumulativeShopCash.finalVaultBalance.toLocaleString()} <span className="text-xs text-amber-200">{currency}</span>
+                    {cumulativeShopCash.isOverridden && (
+                      <span className="block text-[9px] text-amber-300 font-bold">مُعدّل يدوياً من المالك</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-slate-800 flex flex-wrap items-center justify-between text-[10px] text-slate-300 gap-2">
+              <span>إجمالي مبيعات الكاش: <strong className="text-emerald-400 font-mono">+{cumulativeShopCash.allCashSales.toLocaleString()}</strong></span>
+              <span>مشتريات الكاش: <strong className="text-orange-400 font-mono">-{cumulativeShopCash.allCashPurchases.toLocaleString()}</strong></span>
+              <span>مصاريف الكاش: <strong className="text-rose-400 font-mono">-{cumulativeShopCash.allCashExpenses.toLocaleString()}</strong></span>
             </div>
           </div>
         </div>

@@ -389,50 +389,7 @@ export const INITIAL_LOGS: ActivityLog[] = [
   }
 ];
 
-export const INITIAL_EXPENSES: Expense[] = [
-  {
-    id: 'exp_01',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    title: 'أجور عمال الصالة والمطبخ (يومية)',
-    category: 'wages',
-    amount: 150000,
-    date: new Date().toISOString(),
-    notes: 'توزيع أجور العمال لليوم',
-    recipientOrWorker: 'طاقم الصالة والمطبخ',
-    paymentMethod: 'cash',
-    createdByUserId: 'usr_owner',
-    createdByName: 'فاريد الفاتح'
-  },
-  {
-    id: 'exp_02',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    title: 'تعبئة أسطوانة غاز للمطبخ',
-    category: 'utilities',
-    amount: 85000,
-    date: new Date().toISOString(),
-    notes: 'غاز الفرن الرئيسي',
-    recipientOrWorker: 'شركة الغاز',
-    paymentMethod: 'cash',
-    createdByUserId: 'usr_manager',
-    createdByName: 'سامر العلي'
-  },
-  {
-    id: 'exp_03',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    title: 'شراء محارم وورقيات ومستلزمات صالة',
-    category: 'supplies',
-    amount: 45000,
-    date: new Date().toISOString(),
-    notes: 'علب محارم رول وورق تغليف',
-    recipientOrWorker: 'متجر التجهيزات',
-    paymentMethod: 'cash',
-    createdByUserId: 'usr_owner',
-    createdByName: 'فاريد الفاتح'
-  }
-];
+export const INITIAL_EXPENSES: Expense[] = [];
 
 export const INITIAL_FOOD_BREAK_SUBSCRIPTION: RestaurantSubscriptionRequest = {
   id: 'rest_foodbreak',

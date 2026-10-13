@@ -319,8 +319,13 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
 
   // 2. Filter expenses for selected date AND selected shift drawer (using local date)
   const allDayExpenses = useMemo(() => {
-    return expenses.filter(e => toLocalDateKey(e.date) === selectedDate);
-  }, [expenses, selectedDate]);
+    return expenses.filter(e =>
+      (!e.restaurantId || e.restaurantId === currentRestaurant.id) &&
+      e.id !== 'exp_01' && e.id !== 'exp_02' && e.id !== 'exp_03' &&
+      e.createdByName !== 'سامر العلي' &&
+      toLocalDateKey(e.date) === selectedDate
+    );
+  }, [expenses, selectedDate, currentRestaurant.id]);
 
   const dayExpenses = useMemo(() => {
     if (selectedShiftFilter === 'all') return allDayExpenses;

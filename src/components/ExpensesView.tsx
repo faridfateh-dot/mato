@@ -193,19 +193,26 @@ export const ExpensesView: React.FC = () => {
     });
   };
 
+  // Filter out any potential demo mock expenses or expenses from other restaurants
+  const restaurantExpenses = expenses.filter(e =>
+    (!e.restaurantId || e.restaurantId === currentRestaurant.id) &&
+    e.id !== 'exp_01' && e.id !== 'exp_02' && e.id !== 'exp_03' &&
+    e.createdByName !== 'سامر العلي'
+  );
+
   // Calculations
   const todayStr = getLocalTodayStr();
-  const todayExpenses = expenses.filter(e => toLocalDateKey(e.date) === todayStr);
+  const todayExpenses = restaurantExpenses.filter(e => toLocalDateKey(e.date) === todayStr);
   const todayTotal = todayExpenses.reduce((acc, e) => acc + e.amount, 0);
 
-  const wagesTotal = expenses.filter(e => e.category === 'wages').reduce((acc, e) => acc + e.amount, 0);
-  const utilitiesTotal = expenses.filter(e => e.category === 'utilities').reduce((acc, e) => acc + e.amount, 0);
-  const suppliesTotal = expenses.filter(e => e.category === 'supplies').reduce((acc, e) => acc + e.amount, 0);
-  const staffMealsTotal = expenses.filter(e => e.category === 'staff_meals').reduce((acc, e) => acc + e.amount, 0);
-  const grandTotal = expenses.reduce((acc, e) => acc + e.amount, 0);
+  const wagesTotal = restaurantExpenses.filter(e => e.category === 'wages').reduce((acc, e) => acc + e.amount, 0);
+  const utilitiesTotal = restaurantExpenses.filter(e => e.category === 'utilities').reduce((acc, e) => acc + e.amount, 0);
+  const suppliesTotal = restaurantExpenses.filter(e => e.category === 'supplies').reduce((acc, e) => acc + e.amount, 0);
+  const staffMealsTotal = restaurantExpenses.filter(e => e.category === 'staff_meals').reduce((acc, e) => acc + e.amount, 0);
+  const grandTotal = restaurantExpenses.reduce((acc, e) => acc + e.amount, 0);
 
   // Filtered Expenses List
-  const filteredExpenses = expenses.filter(e => {
+  const filteredExpenses = restaurantExpenses.filter(e => {
     const matchesCategory = selectedCategory === 'all' || e.category === selectedCategory;
     const matchesShift = selectedShiftFilter === 'all' || getExpenseShift(e) === selectedShiftFilter;
     const matchesSearch =
@@ -215,11 +222,11 @@ export const ExpensesView: React.FC = () => {
     return matchesCategory && matchesShift && matchesSearch;
   });
 
-  const morningExpensesTotal = expenses
+  const morningExpensesTotal = restaurantExpenses
     .filter(e => getExpenseShift(e) === 'cashier_morning')
     .reduce((acc, e) => acc + e.amount, 0);
 
-  const eveningExpensesTotal = expenses
+  const eveningExpensesTotal = restaurantExpenses
     .filter(e => getExpenseShift(e) === 'cashier_evening')
     .reduce((acc, e) => acc + e.amount, 0);
 
@@ -642,18 +649,27 @@ export const ExpensesView: React.FC = () => {
                         {item.amount.toLocaleString()} {currentRestaurant.currency}
                       </td>
 
-                      <td className="p-3.5 text-slate-500 text-[11px] whitespace-nowrap">
-                        {getExpenseShift(item) === 'cashier_morning' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
-                            <Sun className="w-3 h-3 text-amber-600" />
-                            <span>☀️ وردية الصباح ({item.createdByName})</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300">
-                            <Moon className="w-3 h-3 text-indigo-600" />
-                            <span>🌙 وردية المساء ({item.createdByName})</span>
-                          </span>
-                        )}
+                      <td className="p-3.5 text-slate-600 text-xs whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          <div>
+                            {getExpenseShift(item) === 'cashier_morning' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                                <Sun className="w-3 h-3 text-amber-600" />
+                                <span>☀️ وردية الصباح</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                                <Moon className="w-3 h-3 text-indigo-600" />
+                                <span>🌙 وردية المساء</span>
+                              </span>
+                            )}
+                          </div>
+                          {item.createdByName && (
+                            <span className="text-[11px] text-slate-500 font-semibold">
+                              المسجّل: <strong className="text-slate-700">{item.createdByName}</strong>
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="p-3.5 text-center whitespace-nowrap">

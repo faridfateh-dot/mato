@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import {
   Truck,
@@ -96,6 +96,31 @@ export const SuppliersView: React.FC = () => {
   const eveningPurchasesTotal = dateFilteredPurchases
     .filter(p => getPurchaseShift(p) === 'cashier_evening')
     .reduce((acc, p) => acc + p.totalAmount, 0);
+
+  const isDemoSupplierItem = (item: Supplier): boolean => {
+    if (!item) return true;
+    if (item.id === 'sup_01' || item.id === 'sup_02' || item.id === 'sup_03') return true;
+    const name = String(item.name || '').trim();
+    const comp = String(item.companyName || '').trim();
+    if (
+      name.includes('أبو أحمد') ||
+      comp.includes('شركة النور') ||
+      comp.includes('المراعي') ||
+      name.includes('مطحنة الشام') ||
+      name.includes('شركة المراعي') ||
+      comp.includes('مؤسسة الشام')
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const restaurantSuppliers = useMemo(() => {
+    return suppliers.filter(s =>
+      (!s.restaurantId || s.restaurantId === currentRestaurant.id) &&
+      !isDemoSupplierItem(s)
+    );
+  }, [suppliers, currentRestaurant.id]);
 
   // Supplier Form
   const [supplierForm, setSupplierForm] = useState({
@@ -274,18 +299,18 @@ export const SuppliersView: React.FC = () => {
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
         <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
           <Building className="w-4 h-4 text-amber-500" />
-          <span>دليل الموردين المعتمدين ({suppliers.length})</span>
+          <span>دليل الموردين المعتمدين ({restaurantSuppliers.length})</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {suppliers.length === 0 ? (
+          {restaurantSuppliers.length === 0 ? (
             <div className="col-span-full p-8 text-center text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
               <Truck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
               <p className="font-bold text-xs">لا يوجد موردون مسجلون بعد</p>
               <p className="text-[11px] mt-0.5">اضغط على زر "إضافة مورد جديد" لإضافة بيانات الموردين وفواتير الشراء.</p>
             </div>
           ) : (
-            suppliers.map(sup => (
+            restaurantSuppliers.map(sup => (
               <div key={sup.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-2 relative group hover:border-slate-300 transition-all">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -731,7 +756,7 @@ export const SuppliersView: React.FC = () => {
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-400 font-bold"
                 >
                   <option value="">🛒 شراء مباشر من السوق / سوبرماركت (بدون مورد محدد)</option>
-                  {suppliers.map(s => (
+                  {restaurantSuppliers.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.companyName || 'مستقل'})</option>
                   ))}
                 </select>

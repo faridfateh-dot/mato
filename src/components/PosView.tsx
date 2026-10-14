@@ -17,9 +17,11 @@ import {
   Clock,
   Tag,
   Percent,
-  X
+  X,
+  Pencil
 } from 'lucide-react';
-import { Product } from '../types';
+import { Product, Order } from '../types';
+import { EditOrderModal } from './EditOrderModal';
 
 export const PosView: React.FC = () => {
   const {
@@ -30,8 +32,18 @@ export const PosView: React.FC = () => {
     currentBranch,
     recipes,
     orders,
-    activeShiftRole
+    activeShiftRole,
+    recordProductWaste
   } = useData();
+
+  const [showPosWasteModal, setShowPosWasteModal] = useState(false);
+  const [posWasteForm, setPosWasteForm] = useState({
+    productId: '',
+    quantity: '1',
+    reason: 'تلف / خربان'
+  });
+  const [posWasteToast, setPosWasteToast] = useState<string | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [cart, setCart] = useState<{ product: Product; quantity: number; customUnitPrice?: number }[]>([]);
@@ -366,6 +378,19 @@ export const PosView: React.FC = () => {
           >
             <Receipt className="w-4 h-4" />
             <span>سجل الطلبات / الفواتير بالوردية ({orders.filter(o => o.status === 'completed').length}) 📋</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPosWasteForm({ productId: products[0]?.id || '', quantity: '1', reason: 'تلف / خربان' });
+              setShowPosWasteModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer active:scale-95"
+            title="تسجيل إتلاف وجبة أو قطعة خربانة (مثل كروسان)"
+          >
+            <Trash2 className="w-4 h-4 text-rose-200" />
+            <span>تسجيل إتلاف وجبة 🗑️</span>
           </button>
 
           <button
@@ -1056,14 +1081,25 @@ export const PosView: React.FC = () => {
                           <div className="font-black text-sm text-slate-900 font-mono">
                             {order.totalAmount.toLocaleString()} {currentRestaurant.currency}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => printThermalReceipt(order)}
-                            className="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 cursor-pointer"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span>طباعة</span>
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setEditingOrder(order)}
+                              className="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-[11px] flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                              title="تعديل الفاتورة وتصحيح الخطأ (للمدير حصراً)"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>تعديل</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => printThermalReceipt(order)}
+                              className="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>طباعة</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1074,6 +1110,131 @@ export const PosView: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Toast Notification */}
+      {posWasteToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-2 font-bold text-xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{posWasteToast}</span>
+        </div>
+      )}
+
+      {/* Quick Waste Registration Modal from POS */}
+      {showPosWasteModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-xs">
+            <div className="p-4 sm:p-5 bg-rose-900 text-white flex items-center justify-between">
+              <h2 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-rose-300" />
+                <span>تسجيل إتلاف / هدر وجبة من الكاشير</span>
+              </h2>
+              <button
+                onClick={() => setShowPosWasteModal(false)}
+                className="w-8 h-8 rounded-full bg-rose-800 hover:bg-rose-700 text-rose-200 hover:text-white flex items-center justify-center font-bold text-sm transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const prod = products.find(p => p.id === posWasteForm.productId);
+                if (!prod) return;
+                const qty = Math.max(1, Number(posWasteForm.quantity) || 1);
+                recordProductWaste(prod.id, qty, posWasteForm.reason);
+                setShowPosWasteModal(false);
+                setPosWasteToast(`تم تسجيل إتلاف ${qty} قطعة من "${prod.name}" بنجاح وخصم المكونات من المستودع!`);
+                setTimeout(() => setPosWasteToast(null), 4000);
+              }}
+              className="p-5 space-y-4"
+            >
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">اختر الوجبة / المنتج التالف *</label>
+                <select
+                  required
+                  value={posWasteForm.productId}
+                  onChange={e => setPosWasteForm({ ...posWasteForm, productId: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                >
+                  <option value="">-- اختر الوجبة (مثلاً: كروسان) --</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.price.toLocaleString()} {currentRestaurant.currency})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">الكمية التالفة *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={posWasteForm.quantity}
+                    onChange={e => setPosWasteForm({ ...posWasteForm, quantity: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">الوحدة</label>
+                  <input
+                    type="text"
+                    disabled
+                    value="قطعة / حبة"
+                    className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">سبب الإتلاف</label>
+                <select
+                  value={posWasteForm.reason}
+                  onChange={e => setPosWasteForm({ ...posWasteForm, reason: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold text-slate-800"
+                >
+                  <option value="تلف / خربان">تلف / خربان أو منتهي الصلاحية</option>
+                  <option value="سقط أرضاً / تلوث">سقط أرضاً أو تلوث</option>
+                  <option value="احتراق / خطأ بالتحضير">احتراق أو خطأ بالتحضير في المطبخ</option>
+                  <option value="إلغاء زبون بعد التحضير">إلغاء الطلب بعد تجهيز الوجبة</option>
+                  <option value="تلف بالعرض">تلف في فاترينة العرض</option>
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] leading-relaxed">
+                ℹ️ <strong>ملاحظة للمحاسب:</strong> سيتم خصم مكونات هذه الوجبة تلقائياً من المستودع وفق بطاقة الوصفة وتسجيلها كخسارة هدر موثقة في تقرير الصندوق والمخزون دون التأثير على كاش الوردية.
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPosWasteModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black shadow-md cursor-pointer"
+                >
+                  تأكيد إتلاف الوجبة
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Order Modal (Manager Only) */}
+      <EditOrderModal
+        isOpen={Boolean(editingOrder)}
+        onClose={() => setEditingOrder(null)}
+        order={editingOrder}
+      />
 
     </div>
   );

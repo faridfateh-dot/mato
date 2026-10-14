@@ -15,6 +15,7 @@ import {
   Purchase,
   StockMovement,
   Order,
+  OrderItem,
   DepletedOrderIngredient,
   ActivityLog,
   AIChatMessage,
@@ -211,6 +212,7 @@ interface DataContextType {
   deletePurchase: (purchaseId: string) => boolean;
   
   recordWaste: (ingredientId: string, quantity: number, unit: string, reason?: string) => StockMovement;
+  recordProductWaste: (productId: string, quantity: number, reason?: string) => void;
   deleteStockMovement: (movementId: string) => void;
   clearWasteMovements: (ingredientName?: string) => void;
   
@@ -225,6 +227,17 @@ interface DataContextType {
     orderDiscountAmount?: number,
     discountNote?: string
   ) => Order;
+
+  updateOrder: (
+    orderId: string,
+    updatedItems: { product: Product; quantity: number; customUnitPrice?: number; itemDiscount?: number }[],
+    paymentMethod: 'cash' | 'card' | 'staff_meal',
+    orderDiscountAmount?: number,
+    discountNote?: string,
+    editReason?: string
+  ) => boolean;
+
+  deleteOrder: (orderId: string, cancelReason?: string) => boolean;
   
   logActivity: (actionType: string, description: string, details?: string) => void;
   clearAllProductsAndIngredients: () => void;
@@ -420,6 +433,24 @@ function isDemoExpense(item: any): boolean {
   if (!item) return true;
   if (item.id === 'exp_01' || item.id === 'exp_02' || item.id === 'exp_03') return true;
   if (item.createdByName === 'سامر العلي' && (item.title?.includes('غاز') || String(item.id).startsWith('exp_0'))) return true;
+  return false;
+}
+
+function isDemoSupplier(item: any): boolean {
+  if (!item) return true;
+  if (item.id === 'sup_01' || item.id === 'sup_02' || item.id === 'sup_03') return true;
+  const name = String(item.name || '').trim();
+  const comp = String(item.companyName || '').trim();
+  if (
+    name.includes('أبو أحمد') ||
+    comp.includes('شركة النور') ||
+    comp.includes('المراعي') ||
+    name.includes('مطحنة الشام') ||
+    name.includes('شركة المراعي') ||
+    comp.includes('مؤسسة الشام')
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -750,10 +781,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const rest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
     const rId = rest?.id || INITIAL_RESTAURANT.id;
     const tenantSaved = safeStorageArrayParse<Supplier | null>(`${STORAGE_KEY}_${rId}_suppliers`, null as any);
-    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return tenantSaved;
+    if (Array.isArray(tenantSaved)) return tenantSaved.filter(s => s && !isDemoSupplier(s));
     const saved = safeStorageArrayParse<Supplier | null>(`${STORAGE_KEY}_suppliers`, null as any);
-    if (Array.isArray(saved)) return saved;
-    return INITIAL_SUPPLIERS;
+    if (Array.isArray(saved)) return saved.filter(s => s && !isDemoSupplier(s));
+    return [];
   });
 
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
@@ -1827,6 +1858,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return mergeTenantArray(localTenantExpenses, sameTenantPrev, deletedSet);
       });
     }
+    const localTenantSuppliers = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${currentRestId}_suppliers`, []).filter(s => !isDemoSupplier(s));
+    if (localTenantSuppliers.length > 0) {
+      setSuppliers(prev => {
+        const sameTenantPrev = prev.filter(s => s.restaurantId === currentRestId && !isDemoSupplier(s));
+        return mergeTenantArray(localTenantSuppliers, sameTenantPrev, deletedSet);
+      });
+    }
 
     hydratedRestIdRef.current = currentRestId;
 
@@ -1872,8 +1910,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_recipes`, JSON.stringify(merged));
         }
         if (Array.isArray(cloudData.suppliers)) {
-          const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${currentRestId}_suppliers`, []);
-          const merged = mergeTenantArray(localSups, cloudData.suppliers, deletedSet);
+          const sanitizedCloud = cloudData.suppliers.filter(s => !isDemoSupplier(s));
+          const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${currentRestId}_suppliers`, []).filter(s => !isDemoSupplier(s));
+          const merged = mergeTenantArray(localSups, sanitizedCloud, deletedSet);
           setSuppliers(merged);
           localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(merged));
           localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_suppliers`, JSON.stringify(merged));
@@ -2875,8 +2914,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setRecipes(mergeTenantArray(localRecs, cloudData.recipes, deletedSet));
           }
           if (cloudData.suppliers) {
-            const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${targetRestId}_suppliers`, []);
-            setSuppliers(mergeTenantArray(localSups, cloudData.suppliers, deletedSet));
+            const sanitizedCloud = cloudData.suppliers.filter(s => !isDemoSupplier(s));
+            const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${targetRestId}_suppliers`, []).filter(s => !isDemoSupplier(s));
+            setSuppliers(mergeTenantArray(localSups, sanitizedCloud, deletedSet));
           }
           if (cloudData.purchases) {
             const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${targetRestId}_purchases`, []);
@@ -3790,7 +3830,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `sup_${Date.now()}`,
       restaurantId: restaurant.id
     };
-    setSuppliers(prev => [...prev, newSup]);
+    const next = [...suppliers.filter(s => !isDemoSupplier(s)), newSup];
+    setSuppliers(next);
+    localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(next));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_suppliers`, JSON.stringify(next));
+    if (!isQuotaExhausted() && restaurant?.id) {
+      saveRestaurantAppDataToFirestore(restaurant.id, {
+        restaurantId: restaurant.id,
+        suppliers: next
+      }).catch(() => {});
+    }
     logActivity('إضافة مورد', `إضافة المورد ${newSup.name} (${newSup.companyName || ''})`);
     return newSup;
   };
@@ -3798,7 +3847,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteSupplier = (id: string) => {
     const sup = suppliers.find(s => s.id === id);
     if (!sup) return false;
-    setSuppliers(prev => prev.filter(s => s.id !== id));
+    addTenantDeletedId(restaurant.id, id);
+    const next = suppliers.filter(s => s.id !== id);
+    setSuppliers(next);
+    localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(next));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_suppliers`, JSON.stringify(next));
+    if (!isQuotaExhausted() && restaurant?.id) {
+      saveRestaurantAppDataToFirestore(restaurant.id, {
+        restaurantId: restaurant.id,
+        suppliers: next
+      }).catch(() => {});
+    }
     logActivity('حذف مورد', `مسح المورد ${sup.name}`);
     return true;
   };
@@ -4115,6 +4174,66 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return movement;
   };
 
+  const recordProductWaste = (productId: string, quantity: number, reason?: string) => {
+    const prod = products.find(p => p.id === productId);
+    if (!prod) return;
+    const cleanQty = parseNumericInput(quantity);
+    if (cleanQty <= 0) return;
+
+    // Check if product has a recipe
+    const rec = recipes.find(r => r.productId === productId && r.items && r.items.length > 0) ||
+      recipes.find(r => {
+        const lp = products.find(p => p.id === r.productId);
+        return lp && lp.name.trim().toLowerCase() === prod.name.trim().toLowerCase() && r.items && r.items.length > 0;
+      });
+
+    if (rec && Array.isArray(rec.items) && rec.items.length > 0) {
+      rec.items.forEach(ri => {
+        const ing = ingredients.find(i => i.id === ri.ingredientId) ||
+          ingredients.find(i => i.name.trim().toLowerCase() === (ri.ingredientName || '').trim().toLowerCase());
+        if (ing) {
+          const wasteQty = ri.quantity * cleanQty;
+          recordWaste(ing.id, wasteQty, ri.unit, `إتلاف وجبة/منتج: ${prod.name} (عدد ${cleanQty}) - السبب: ${reason || 'تلف / خربان'}`);
+        }
+      });
+    } else {
+      // Check if there is an ingredient matching product name (e.g. "كروسان" in raw materials)
+      const matchingIng = ingredients.find(i => i.name.trim().toLowerCase() === prod.name.trim().toLowerCase()) ||
+        ingredients.find(i => i.name.trim().toLowerCase().includes(prod.name.trim().toLowerCase()));
+      if (matchingIng) {
+        recordWaste(matchingIng.id, cleanQty, matchingIng.unit, `إتلاف منتج: ${prod.name} - السبب: ${reason || 'تلف / خربان'}`);
+      } else {
+        // Record standalone waste movement for this product
+        const nowIso = new Date().toISOString();
+        const movement: StockMovement = {
+          id: `sm_${Date.now()}`,
+          restaurantId: restaurant.id,
+          branchId: currentBranch.id,
+          ingredientId: prod.id,
+          ingredientName: `منتج منيو: ${prod.name}`,
+          type: 'waste',
+          quantity: cleanQty,
+          unit: 'قطعة',
+          reason: reason ? `إتلاف وجبة/منتج: ${reason}` : 'تلف / خربان من المنيو',
+          date: nowIso,
+          createdByUserId: currentUser.id,
+          createdByName: currentUser.name
+        };
+        const nextMovements = [movement, ...stockMovements];
+        setStockMovements(nextMovements);
+        localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(nextMovements));
+        localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, JSON.stringify(nextMovements));
+        if (!isQuotaExhausted() && restaurant?.id) {
+          saveRestaurantAppDataToFirestore(restaurant.id, {
+            restaurantId: restaurant.id,
+            stockMovements: nextMovements
+          }).catch(() => {});
+        }
+      }
+    }
+    logActivity('تسجيل هدر', `تسجيل إتلاف ${cleanQty} قطعة من وجبة/منتج "${prod.name}" - السبب: ${reason || 'تلف / خربان'}`);
+  };
+
   const deleteStockMovement = (movementId: string) => {
     const target = stockMovements.find(m => m.id === movementId);
     if (!target) return;
@@ -4234,7 +4353,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteExpense = (id: string) => {
     const exp = expenses.find(e => e.id === id);
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    addTenantDeletedId(restaurant.id, id);
+    const next = expenses.filter(e => e.id !== id);
+    setExpenses(next);
+    localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(next));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_expenses`, JSON.stringify(next));
+    if (!isQuotaExhausted() && restaurant?.id) {
+      saveRestaurantAppDataToFirestore(restaurant.id, {
+        restaurantId: restaurant.id,
+        expenses: next
+      }).catch(() => {});
+    }
     logActivity('حذف مصروف', `تم حذف المصروف "${exp ? exp.title : id}"`);
   };
 
@@ -4547,6 +4676,305 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newOrder;
   };
 
+  const updateOrder = (
+    orderId: string,
+    updatedItems: { product: Product; quantity: number; customUnitPrice?: number; itemDiscount?: number }[],
+    paymentMethod: 'cash' | 'card' | 'staff_meal',
+    orderDiscountAmount: number = 0,
+    discountNote?: string,
+    editReason?: string
+  ): boolean => {
+    const oldOrder = orders.find(o => o.id === orderId);
+    if (!oldOrder) return false;
+
+    const nowIso = new Date().toISOString();
+
+    // 1. Restore the ingredients previously deducted by oldOrder
+    let currentIngs = [...ingredients];
+    if (oldOrder.depletedIngredients && oldOrder.depletedIngredients.length > 0) {
+      const restoreMap = new Map<string, number>();
+      oldOrder.depletedIngredients.forEach(dep => {
+        const ing = currentIngs.find(i => i.id === dep.ingredientId);
+        if (ing) {
+          const baseQty = convertQuantityAdvanced(dep.deductedQty, dep.deductedUnit || ing.unit, ing.unit, ing);
+          restoreMap.set(ing.id, (restoreMap.get(ing.id) || 0) + baseQty);
+        }
+      });
+      currentIngs = currentIngs.map(ing => {
+        const toRestore = restoreMap.get(ing.id);
+        if (toRestore && toRestore > 0) {
+          return {
+            ...ing,
+            currentStock: Number((ing.currentStock + toRestore).toFixed(4)),
+            updatedAt: nowIso
+          };
+        }
+        return ing;
+      });
+    }
+
+    // 2. Compute deductions for the new updatedItems
+    let subtotalAmount = 0;
+    let totalItemLevelDiscount = 0;
+    let costAmount = 0;
+    const deductionsByIngId = new Map<string, number>();
+    const depletedSummaryMap = new Map<string, { ingredientId: string; ingredientName: string; deductedQty: number; deductedUnit: string; baseUnit: string }>();
+
+    const recordIngredientDeduction = (
+      ing: Ingredient,
+      recipeQtyPerUnit: number,
+      recipeUnit: string,
+      orderItemQty: number
+    ) => {
+      const cleanRecipeQty = parseNumericInput(recipeQtyPerUnit);
+      if (cleanRecipeQty <= 0 || orderItemQty <= 0) return;
+
+      const baseQtyPerItem = convertQuantityAdvanced(cleanRecipeQty, recipeUnit || ing.unit, ing.unit, ing);
+      const totalBaseQtyNeeded = Number((baseQtyPerItem * orderItemQty).toFixed(4));
+
+      const currentAvailable = Math.max(0, ing.currentStock - (deductionsByIngId.get(ing.id) || 0));
+      if (ing.isManufactured && currentAvailable < totalBaseQtyNeeded && Array.isArray(ing.subRecipeItems) && ing.subRecipeItems.length > 0) {
+        const directDeduct = currentAvailable;
+        if (directDeduct > 0) {
+          deductionsByIngId.set(ing.id, (deductionsByIngId.get(ing.id) || 0) + directDeduct);
+        }
+        const shortfallBase = totalBaseQtyNeeded - directDeduct;
+        const batchYield = ing.batchYieldQuantity && ing.batchYieldQuantity > 0 ? ing.batchYieldQuantity : 1;
+        const batchFraction = shortfallBase / batchYield;
+
+        ing.subRecipeItems.forEach(subItem => {
+          const rawIng =
+            currentIngs.find(i => i.id === subItem.ingredientId) ||
+            currentIngs.find(i => i.name.trim().toLowerCase() === (subItem.ingredientName || '').trim().toLowerCase());
+          if (rawIng) {
+            const subQtyNeeded = parseNumericInput(subItem.quantity) * batchFraction;
+            const rawBaseNeeded = convertQuantityAdvanced(subQtyNeeded, subItem.unit || rawIng.unit, rawIng.unit, rawIng);
+            deductionsByIngId.set(rawIng.id, (deductionsByIngId.get(rawIng.id) || 0) + rawBaseNeeded);
+
+            const prevEntry = depletedSummaryMap.get(rawIng.id);
+            if (prevEntry && prevEntry.deductedUnit === (subItem.unit || rawIng.unit)) {
+              prevEntry.deductedQty = Number((prevEntry.deductedQty + subQtyNeeded).toFixed(4));
+            } else {
+              depletedSummaryMap.set(rawIng.id, {
+                ingredientId: rawIng.id,
+                ingredientName: rawIng.name,
+                deductedQty: Number(subQtyNeeded.toFixed(4)),
+                deductedUnit: subItem.unit || rawIng.unit,
+                baseUnit: rawIng.unit
+              });
+            }
+          }
+        });
+      } else {
+        deductionsByIngId.set(ing.id, (deductionsByIngId.get(ing.id) || 0) + totalBaseQtyNeeded);
+        const subQtyNeeded = cleanRecipeQty * orderItemQty;
+        const prevEntry = depletedSummaryMap.get(ing.id);
+        if (prevEntry && prevEntry.deductedUnit === (recipeUnit || ing.unit)) {
+          prevEntry.deductedQty = Number((prevEntry.deductedQty + subQtyNeeded).toFixed(4));
+        } else {
+          depletedSummaryMap.set(ing.id, {
+            ingredientId: ing.id,
+            ingredientName: ing.name,
+            deductedQty: Number(subQtyNeeded.toFixed(4)),
+            deductedUnit: recipeUnit || ing.unit,
+            baseUnit: ing.unit
+          });
+        }
+      }
+    };
+
+    const orderItems: OrderItem[] = updatedItems.map(item => {
+      const origPrice = item.product.price;
+      const effectiveUnitPrice = typeof item.customUnitPrice === 'number' && !isNaN(item.customUnitPrice)
+        ? Math.max(0, item.customUnitPrice)
+        : origPrice;
+      const lineOriginalTotal = origPrice * item.quantity;
+      const lineSubtotal = effectiveUnitPrice * item.quantity;
+      const lineDiscount = typeof item.itemDiscount === 'number' && !isNaN(item.itemDiscount)
+        ? Math.max(0, Math.min(lineSubtotal, item.itemDiscount))
+        : 0;
+      const lineTotal = Math.max(0, lineSubtotal - lineDiscount);
+
+      subtotalAmount += lineOriginalTotal;
+      totalItemLevelDiscount += lineDiscount;
+
+      const rec =
+        recipes.find(r => r.productId === item.product.id && r.items && r.items.length > 0) ||
+        recipes.find(r => {
+          const linkedProd = products.find(p => p.id === r.productId);
+          return (
+            linkedProd &&
+            linkedProd.name.trim().toLowerCase() === item.product.name.trim().toLowerCase() &&
+            r.items &&
+            r.items.length > 0
+          );
+        }) ||
+        recipes.find(r => r.productId === item.product.id);
+
+      let itemCost = 0;
+      if (rec && Array.isArray(rec.items) && rec.items.length > 0) {
+        let computedRecipeCost = 0;
+        rec.items.forEach(ri => {
+          const ing =
+            currentIngs.find(i => i.id === ri.ingredientId) ||
+            currentIngs.find(i => i.name.trim().toLowerCase() === (ri.ingredientName || '').trim().toLowerCase());
+          if (ing) {
+            const baseQty = convertQuantityAdvanced(ri.quantity, ri.unit, ing.unit, ing);
+            computedRecipeCost += baseQty * ing.costPerUnit;
+            recordIngredientDeduction(ing, ri.quantity, ri.unit, item.quantity);
+          }
+        });
+        itemCost = computedRecipeCost > 0 ? Math.round(computedRecipeCost) : rec.calculatedCost;
+      } else {
+        const matchingManufactured = currentIngs.find(
+          i => i.isManufactured && i.name.trim().toLowerCase() === item.product.name.trim().toLowerCase()
+        );
+        if (matchingManufactured) {
+          itemCost = matchingManufactured.costPerUnit || item.product.price * 0.5;
+          recordIngredientDeduction(matchingManufactured, 1, matchingManufactured.unit, item.quantity);
+        } else {
+          itemCost = item.product.price * 0.5;
+        }
+      }
+      costAmount += itemCost * item.quantity;
+
+      return {
+        productId: item.product.id,
+        productName: item.product.name,
+        price: effectiveUnitPrice,
+        originalPrice: origPrice,
+        discountAmount: lineDiscount > 0 ? lineDiscount : undefined,
+        quantity: item.quantity,
+        total: lineTotal
+      };
+    });
+
+    const nextIngredients = currentIngs.map(ing => {
+      const toDeduct = deductionsByIngId.get(ing.id);
+      if (toDeduct && toDeduct > 0) {
+        return {
+          ...ing,
+          currentStock: Number((ing.currentStock - toDeduct).toFixed(4)),
+          updatedAt: nowIso
+        };
+      }
+      return ing;
+    });
+
+    const depletedIngredients: DepletedOrderIngredient[] = Array.from(depletedSummaryMap.values()).map(entry => {
+      const updatedIng = nextIngredients.find(i => i.id === entry.ingredientId);
+      return {
+        ...entry,
+        remainingStock: updatedIng ? updatedIng.currentStock : 0
+      };
+    });
+
+    const cleanOrderLevelDiscount = Math.max(0, Number(orderDiscountAmount) || 0);
+    const totalCombinedDiscount = Math.min(subtotalAmount, totalItemLevelDiscount + cleanOrderLevelDiscount);
+    const totalAmount = Math.max(0, subtotalAmount - totalCombinedDiscount);
+    const isStaffMeal = paymentMethod === 'staff_meal';
+    const finalTotalAmount = isStaffMeal ? 0 : totalAmount;
+    const profitAmount = isStaffMeal ? 0 : (finalTotalAmount - costAmount);
+
+    const updatedOrder: Order = {
+      ...oldOrder,
+      items: orderItems,
+      subtotalAmount,
+      discountAmount: totalCombinedDiscount > 0 ? totalCombinedDiscount : undefined,
+      discountNote: discountNote?.trim() || undefined,
+      totalAmount: finalTotalAmount,
+      costAmount: Math.round(costAmount),
+      profitAmount: Math.round(profitAmount),
+      paymentMethod,
+      depletedIngredients,
+      updatedAt: nowIso,
+      lastEditedByName: currentUser.name,
+      editReason: editReason?.trim() || 'تعديل الفاتورة وتصحيح الخطأ'
+    };
+
+    const nextOrders = orders.map(o => o.id === orderId ? updatedOrder : o);
+
+    setIngredients(nextIngredients);
+    setOrders(nextOrders);
+
+    localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(nextIngredients));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(nextIngredients));
+    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(nextOrders));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_orders`, JSON.stringify(nextOrders));
+
+    if (restaurant?.id) {
+      saveRestaurantAppDataToFirestore(restaurant.id, {
+        restaurantId: restaurant.id,
+        ingredients: nextIngredients,
+        orders: nextOrders
+      }).catch(() => {});
+    }
+
+    logActivity(
+      'تعديل فاتورة مبيعات',
+      `تم تعديل الفاتورة #${oldOrder.orderNumber} بواسطة ${currentUser.name} - الإجمالي الجديد: ${finalTotalAmount.toLocaleString()} ${restaurant.currency} - السبب: ${editReason || 'تصحيح طلب'}`
+    );
+
+    return true;
+  };
+
+  const deleteOrder = (orderId: string, cancelReason?: string): boolean => {
+    const oldOrder = orders.find(o => o.id === orderId);
+    if (!oldOrder) return false;
+
+    const nowIso = new Date().toISOString();
+
+    // Restore ingredients
+    let nextIngredients = [...ingredients];
+    if (oldOrder.depletedIngredients && oldOrder.depletedIngredients.length > 0) {
+      const restoreMap = new Map<string, number>();
+      oldOrder.depletedIngredients.forEach(dep => {
+        const ing = nextIngredients.find(i => i.id === dep.ingredientId);
+        if (ing) {
+          const baseQty = convertQuantityAdvanced(dep.deductedQty, dep.deductedUnit || ing.unit, ing.unit, ing);
+          restoreMap.set(ing.id, (restoreMap.get(ing.id) || 0) + baseQty);
+        }
+      });
+      nextIngredients = nextIngredients.map(ing => {
+        const toRestore = restoreMap.get(ing.id);
+        if (toRestore && toRestore > 0) {
+          return {
+            ...ing,
+            currentStock: Number((ing.currentStock + toRestore).toFixed(4)),
+            updatedAt: nowIso
+          };
+        }
+        return ing;
+      });
+    }
+
+    addTenantDeletedId(restaurant.id, orderId);
+    const nextOrders = orders.filter(o => o.id !== orderId);
+
+    setIngredients(nextIngredients);
+    setOrders(nextOrders);
+
+    localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(nextIngredients));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(nextIngredients));
+    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(nextOrders));
+    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_orders`, JSON.stringify(nextOrders));
+
+    if (restaurant?.id) {
+      saveRestaurantAppDataToFirestore(restaurant.id, {
+        restaurantId: restaurant.id,
+        ingredients: nextIngredients,
+        orders: nextOrders
+      }).catch(() => {});
+    }
+
+    logActivity(
+      'إلغاء فاتورة مبيعات',
+      `تم إلغاء وحذف الفاتورة #${oldOrder.orderNumber} وإعادة مكوناتها إلى المخزون - السبب: ${cancelReason || 'إلغاء الطلب'}`
+    );
+
+    return true;
+  };
+
   // Analytics Calculation Helper
   const getDashboardStats = (targetDate?: string): DashboardStats => {
     const toLocalDateKey = (isoOrDateStr: string): string => {
@@ -4624,8 +5052,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const ing =
         ingredients.find(i => i.id === wm.ingredientId) ||
         ingredients.find(i => i.name.trim().toLowerCase() === (wm.ingredientName || '').trim().toLowerCase());
-      const unitCost = ing ? ing.costPerUnit : 0;
-      const baseQty = ing ? convertQuantityAdvanced(wm.quantity, wm.unit || ing.unit, ing.unit, ing) : wm.quantity;
+      let unitCost = ing ? ing.costPerUnit : 0;
+      let baseQty = ing ? convertQuantityAdvanced(wm.quantity, wm.unit || ing.unit, ing.unit, ing) : wm.quantity;
+      if (!ing) {
+        const prod = products.find(p => p.id === wm.ingredientId) ||
+          products.find(p => wm.ingredientName?.includes(p.name));
+        if (prod) {
+          const rec = recipes.find(r => r.productId === prod.id);
+          unitCost = rec ? rec.calculatedCost : prod.price * 0.5;
+        }
+      }
       const cost = Math.round(baseQty * unitCost);
       totalWasteCost += cost;
 
@@ -5239,6 +5675,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatePurchase,
         deletePurchase,
         recordWaste,
+        recordProductWaste,
         deleteStockMovement,
         clearWasteMovements,
         addExpense,
@@ -5246,6 +5683,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteExpense,
         clearAllExpenses,
         createOrder,
+        updateOrder,
+        deleteOrder,
         logActivity,
         clearAllProductsAndIngredients,
         sendChatMessage,

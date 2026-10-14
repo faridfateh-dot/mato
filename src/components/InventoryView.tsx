@@ -37,6 +37,7 @@ import { InvoiceScannerModal } from './InvoiceScannerModal';
 export const InventoryView: React.FC = () => {
   const {
     ingredients,
+    products,
     rawMaterialCategories,
     stockMovements,
     currentRestaurant,
@@ -45,6 +46,7 @@ export const InventoryView: React.FC = () => {
     deleteIngredient,
     updateIngredientStock,
     recordWaste,
+    recordProductWaste,
     deleteStockMovement,
     clearWasteMovements,
     addRawMaterialCategory,
@@ -158,10 +160,12 @@ export const InventoryView: React.FC = () => {
 
   // Waste Form
   const [wasteForm, setWasteForm] = useState({
+    wasteTargetType: 'ingredient' as 'ingredient' | 'product',
     ingredientId: '',
-    quantity: '',
+    productId: '',
+    quantity: '1',
     unit: '',
-    reason: 'تلف صلاحية'
+    reason: 'تلف / خربان'
   });
 
   const triggerNotification = (message: string, type: 'success' | 'error' = 'success') => {
@@ -296,6 +300,16 @@ export const InventoryView: React.FC = () => {
 
   const handleWasteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (wasteForm.wasteTargetType === 'product') {
+      const prod = products.find(p => p.id === wasteForm.productId);
+      if (!prod || !wasteForm.quantity) return;
+      recordProductWaste(prod.id, Number(wasteForm.quantity), wasteForm.reason);
+      triggerNotification(`تم تسجيل إتلاف ${wasteForm.quantity} قطعة من وجبة/منتج "${prod.name}" بنجاح!`);
+      setShowWasteModal(false);
+      setWasteForm({ wasteTargetType: 'ingredient', ingredientId: '', productId: '', quantity: '1', unit: '', reason: 'تلف / خربان' });
+      return;
+    }
+
     const ing = ingredients.find(i => i.id === wasteForm.ingredientId);
     if (!ing || !wasteForm.quantity) return;
 
@@ -303,7 +317,7 @@ export const InventoryView: React.FC = () => {
     recordWaste(ing.id, Number(wasteForm.quantity), chosenUnit, wasteForm.reason);
     triggerNotification(`تم تسجيل هدر ${wasteForm.quantity} ${chosenUnit} من ${ing.name}`);
     setShowWasteModal(false);
-    setWasteForm({ ingredientId: '', quantity: '', unit: '', reason: 'تلف صلاحية' });
+    setWasteForm({ wasteTargetType: 'ingredient', ingredientId: '', productId: '', quantity: '1', unit: '', reason: 'تلف / خربان' });
   };
 
   // Unit category helper
@@ -1514,70 +1528,151 @@ export const InventoryView: React.FC = () => {
             </div>
 
             <form onSubmit={handleWasteSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 pb-24">
+              {/* Type Switcher: Ingredient vs Product */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">المادة الأولية *</label>
-                <select
-                  required
-                  value={wasteForm.ingredientId}
-                  onChange={e => {
-                    const ing = ingredients.find(i => i.id === e.target.value);
-                    setWasteForm({
-                      ...wasteForm,
-                      ingredientId: e.target.value,
-                      unit: ing ? ing.unit : ''
-                    });
-                  }}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
-                >
-                  <option value="">-- اختر المادة --</option>
-                  {ingredients.map(i => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} (المتوفر حالياً: {i.currentStock} {i.unit})
-                    </option>
-                  ))}
-                </select>
+                <label className="block font-bold text-slate-700 mb-2">نوع العنصر المهدور / التالف *</label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                  <button
+                    type="button"
+                    onClick={() => setWasteForm({ ...wasteForm, wasteTargetType: 'ingredient' })}
+                    className={`py-2 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      wasteForm.wasteTargetType === 'ingredient'
+                        ? 'bg-rose-600 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📦 مادة أولية من المستودع</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWasteForm({ ...wasteForm, wasteTargetType: 'product' })}
+                    className={`py-2 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      wasteForm.wasteTargetType === 'product'
+                        ? 'bg-rose-600 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🥐 وجبة / منتج من المنيو (كروسان...)</span>
+                  </button>
+                </div>
               </div>
 
-              {(() => {
-                const selectedIng = ingredients.find(i => i.id === wasteForm.ingredientId);
-                const compatibleUnits = selectedIng ? getCompatibleUnits(selectedIng.unit) : [];
+              {wasteForm.wasteTargetType === 'product' ? (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">الوجبة أو المنتج من المنيو *</label>
+                    <select
+                      required
+                      value={wasteForm.productId}
+                      onChange={e => setWasteForm({ ...wasteForm, productId: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                    >
+                      <option value="">-- اختر الوجبة / المنتج من المنيو (مثلاً: كروسان) --</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.price.toLocaleString()} {currentRestaurant.currency})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1">الكمية المهدورة *</label>
+                      <label className="block font-bold text-slate-700 mb-1">الكمية التالفة *</label>
                       <input
                         type="number"
-                        step="any"
+                        min="1"
+                        step="1"
                         required
-                        placeholder="مثال: 250 أو 1.5"
+                        placeholder="مثال: 1 أو 2"
                         value={wasteForm.quantity}
                         onChange={e => setWasteForm({ ...wasteForm, quantity: e.target.value })}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
                       />
                     </div>
-
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1">وحدة القياس *</label>
-                      <select
-                        value={wasteForm.unit || (selectedIng ? selectedIng.unit : '')}
-                        onChange={e => setWasteForm({ ...wasteForm, unit: e.target.value })}
-                        className="w-full px-3 py-2 bg-rose-50 border border-rose-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold text-rose-950"
-                      >
-                        {compatibleUnits.map(u => (
-                          <option key={u.value} value={u.value}>{u.label}</option>
-                        ))}
-                      </select>
+                      <label className="block font-bold text-slate-700 mb-1">وحدة القياس</label>
+                      <input
+                        type="text"
+                        disabled
+                        value="قطعة / حبة"
+                        className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-600"
+                      />
                     </div>
                   </div>
-                );
-              })()}
+
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-[11px] leading-relaxed">
+                    💡 <strong>معلومة ذكية:</strong> عند تسجيل إتلاف منتج جاهز (مثل كروسان خربان)، سيقوم النظام تلقائياً بخصم المكونات المرتبطة به من المستودع وفق الوصفة وتوثيق التكلفة كخسائر هدر.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">المادة الأولية *</label>
+                    <select
+                      required
+                      value={wasteForm.ingredientId}
+                      onChange={e => {
+                        const ing = ingredients.find(i => i.id === e.target.value);
+                        setWasteForm({
+                          ...wasteForm,
+                          ingredientId: e.target.value,
+                          unit: ing ? ing.unit : ''
+                        });
+                      }}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                    >
+                      <option value="">-- اختر المادة --</option>
+                      {ingredients.map(i => (
+                        <option key={i.id} value={i.id}>
+                          {i.name} (المتوفر حالياً: {i.currentStock} {i.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(() => {
+                    const selectedIng = ingredients.find(i => i.id === wasteForm.ingredientId);
+                    const compatibleUnits = selectedIng ? getCompatibleUnits(selectedIng.unit) : [];
+
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">الكمية المهدورة *</label>
+                          <input
+                            type="number"
+                            step="any"
+                            required
+                            placeholder="مثال: 250 أو 1.5"
+                            value={wasteForm.quantity}
+                            onChange={e => setWasteForm({ ...wasteForm, quantity: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-bold text-slate-700 mb-1">وحدة القياس *</label>
+                          <select
+                            value={wasteForm.unit || (selectedIng ? selectedIng.unit : '')}
+                            onChange={e => setWasteForm({ ...wasteForm, unit: e.target.value })}
+                            className="w-full px-3 py-2 bg-rose-50 border border-rose-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold text-rose-950"
+                          >
+                            {compatibleUnits.map(u => (
+                              <option key={u.value} value={u.value}>{u.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">سبب الهدر</label>
+                <label className="block font-bold text-slate-700 mb-1">سبب التلف أو الهدر</label>
                 <input
                   type="text"
-                  placeholder="مثال: تلف انتهاء صلاحية، كسر أواني..."
+                  placeholder="مثال: خربان، انتهاء صلاحية، كسر أو سقوط..."
                   value={wasteForm.reason}
                   onChange={e => setWasteForm({ ...wasteForm, reason: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400"
@@ -1596,7 +1691,7 @@ export const InventoryView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold shadow-md cursor-pointer"
                 >
-                  تأكيد خصم الهدر
+                  {wasteForm.wasteTargetType === 'product' ? 'تأكيد إتلاف الوجبة' : 'تأكيد خصم الهدر'}
                 </button>
               </div>
             </form>

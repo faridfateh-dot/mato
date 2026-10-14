@@ -320,32 +320,7 @@ export const INITIAL_INGREDIENTS: Ingredient[] = [
 
 export const INITIAL_RECIPES: Recipe[] = [];
 
-export const INITIAL_SUPPLIERS: Supplier[] = [
-  {
-    id: 'sup_01',
-    restaurantId: 'rest_01',
-    name: 'المورد أبو أحمد',
-    companyName: 'شركة النور للحوم والمقبلات',
-    phone: '+963 944 555 666',
-    notes: 'مورد معتمد للحوم والحبش المدخن عالي الجودة'
-  },
-  {
-    id: 'sup_02',
-    restaurantId: 'rest_01',
-    name: 'شركة المراعي',
-    companyName: 'المراعي للألبان والأجبان',
-    phone: '+963 933 777 888',
-    notes: 'توصيل يومي للأجبان والحليب الطازج'
-  },
-  {
-    id: 'sup_03',
-    restaurantId: 'rest_01',
-    name: 'مطحنة الشام للقهوة',
-    companyName: 'مؤسسة الشام للبن الفاخر',
-    phone: '+963 955 888 999',
-    notes: 'توريد البن الكولومبي والبرازيلي المحمص حديثاً'
-  }
-];
+export const INITIAL_SUPPLIERS: Supplier[] = [];
 
 export const INITIAL_PURCHASES: Purchase[] = [];
 
@@ -353,41 +328,7 @@ export const INITIAL_STOCK_MOVEMENTS: StockMovement[] = [];
 
 export const INITIAL_ORDERS: Order[] = [];
 
-export const INITIAL_LOGS: ActivityLog[] = [
-  {
-    id: 'log_01',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    userId: 'usr_owner',
-    userName: 'فاريد الفاتح',
-    userRole: 'Owner',
-    actionType: 'تأسيس النظام',
-    description: 'إنشاء حساب المطعم الرئيسي وإضافة الفروع الأولى',
-    createdAt: '2026-01-01T08:00:00Z'
-  },
-  {
-    id: 'log_02',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    userId: 'usr_inventory',
-    userName: 'أحمد الحموي',
-    userRole: 'Inventory Manager',
-    actionType: 'تسجيل شراء',
-    description: 'تسجيل شراء 10 كغ حبش مدخن من المورد أبو أحمد بقيمة 1,200,000 ل.س',
-    createdAt: '2026-07-25T14:30:00Z'
-  },
-  {
-    id: 'log_03',
-    restaurantId: 'rest_01',
-    branchId: 'br_main',
-    userId: 'usr_manager',
-    userName: 'سامر العلي',
-    userRole: 'Manager',
-    actionType: 'تسجيل هدر',
-    description: 'تسجيل هدر 1.5 كغ خس ورقي بسبب التلف',
-    createdAt: '2026-07-26T16:00:00Z'
-  }
-];
+export const INITIAL_LOGS: ActivityLog[] = [];
 
 export const INITIAL_EXPENSES: Expense[] = [];
 

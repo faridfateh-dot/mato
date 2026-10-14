@@ -215,6 +215,8 @@ export interface Order {
   createdByUserId: string;
   createdByName: string;
   updatedAt?: string;
+  lastEditedByName?: string;
+  editReason?: string;
 }
 
 export interface ActivityLog {

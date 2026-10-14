@@ -28,8 +28,10 @@ import {
   Moon,
   Store,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Pencil
 } from 'lucide-react';
+import { EditOrderModal } from './EditOrderModal';
 
 interface DailySalesReportProps {
   initialDate?: string;
@@ -92,6 +94,7 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
 
   const [internalDate, setInternalDate] = useState<string>(controlledDate || initialDate || todayStr);
   const selectedDate = controlledDate !== undefined ? controlledDate : internalDate;
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const updateSelectedDate = (newDate: string) => {
     setInternalDate(newDate);
@@ -1899,6 +1902,15 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
                         <div className="text-[11px] text-slate-500 font-bold">
                           🕒 {new Date(order.createdAt).toLocaleTimeString('ar-SY', { hour: '2-digit', minute: '2-digit' })}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingOrder(order)}
+                          className="mt-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-[11px] flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                          title="تعديل الفاتورة وتصحيح الخطأ (للمدير حصراً)"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>تعديل الطلب</span>
+                        </button>
                       </div>
                     </div>
                   );
@@ -2059,6 +2071,13 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Order Modal (Manager Protected) */}
+      <EditOrderModal
+        isOpen={Boolean(editingOrder)}
+        onClose={() => setEditingOrder(null)}
+        order={editingOrder}
+      />
 
     </div>
   );

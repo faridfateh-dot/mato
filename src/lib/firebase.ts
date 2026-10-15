@@ -793,33 +793,50 @@ function sanitizeForFirestore(obj: any): any {
   return obj;
 }
 
+export function canonicalizeRestaurantId(id: string): string {
+  if (!id) return id;
+  if (id === 'rest_foodbreak') return 'sub_1790630390550';
+  return id;
+}
+
 // Save Full Restaurant Data to Firestore Cloud for Cross-Device Sync
 export async function saveRestaurantAppDataToFirestore(
-  restaurantId: string,
+  rawRestaurantId: string,
   data: Partial<RestaurantCloudData>
 ): Promise<void> {
+  const restaurantId = canonicalizeRestaurantId(rawRestaurantId);
   if (!db || !restaurantId) return;
   const nowIso = new Date().toISOString();
 
   // 1. CRITICAL: Always save orders to a dedicated lightweight document (/restaurant_orders/{restaurantId})
-  // so POS orders NEVER fail due to the 1MB Firestore document size limit (caused by product images/logs)
-  // and NEVER get silently skipped!
+  // If data.orders is empty array, DO NOT overwrite existing cloud orders (protects cross-device synchronization)
   if (Array.isArray(data.orders)) {
-    try {
-      const ordersDocRef = doc(db, 'restaurant_orders', restaurantId);
-      // Strip heavy optional fields if needed and keep recent 1500 orders so payload stays well under 1MB
-      const compactOrders = sanitizeForFirestore(data.orders.slice(0, 1500));
-      await setDoc(
-        ordersDocRef,
-        {
-          restaurantId,
-          orders: compactOrders,
-          updatedAt: nowIso
-        },
-        { merge: true }
-      );
-    } catch (orderErr: any) {
-      console.warn('Dedicated restaurant_orders sync warning:', orderErr);
+    if (data.orders.length > 0) {
+      try {
+        const ordersDocRef = doc(db, 'restaurant_orders', restaurantId);
+        const compactOrders = sanitizeForFirestore(data.orders.slice(0, 1500));
+        await setDoc(
+          ordersDocRef,
+          {
+            restaurantId,
+            orders: compactOrders,
+            updatedAt: nowIso
+          },
+          { merge: true }
+        );
+
+        // Also mirror to rest_foodbreak for backward compatibility with older client sessions
+        if (restaurantId === 'sub_1790630390550') {
+          const legacyOrdersRef = doc(db, 'restaurant_orders', 'rest_foodbreak');
+          setDoc(legacyOrdersRef, {
+            restaurantId: 'rest_foodbreak',
+            orders: compactOrders,
+            updatedAt: nowIso
+          }, { merge: true }).catch(() => {});
+        }
+      } catch (orderErr: any) {
+        console.warn('Dedicated restaurant_orders sync warning:', orderErr);
+      }
     }
   }
 
@@ -837,11 +854,20 @@ export async function saveRestaurantAppDataToFirestore(
     if (Array.isArray(payloadToSave.activityLogs) && payloadToSave.activityLogs.length > 200) {
       payloadToSave.activityLogs = payloadToSave.activityLogs.slice(0, 200);
     }
-    if (Array.isArray(payloadToSave.orders) && payloadToSave.orders.length > 800) {
-      payloadToSave.orders = payloadToSave.orders.slice(0, 800);
+    if (Array.isArray(payloadToSave.orders)) {
+      if (payloadToSave.orders.length === 0) {
+        delete payloadToSave.orders; // protect from blank overwrite
+      } else if (payloadToSave.orders.length > 800) {
+        payloadToSave.orders = payloadToSave.orders.slice(0, 800);
+      }
     }
     const sanitizedData = sanitizeForFirestore(payloadToSave);
     await setDoc(docRef, sanitizedData, { merge: true });
+
+    if (restaurantId === 'sub_1790630390550') {
+      const legacyDocRef = doc(db, 'restaurant_data', 'rest_foodbreak');
+      setDoc(legacyDocRef, { ...sanitizedData, restaurantId: 'rest_foodbreak' }, { merge: true }).catch(() => {});
+    }
   } catch (err: any) {
     handleFirestoreError('saveRestaurantAppData', err);
   }
@@ -849,8 +875,9 @@ export async function saveRestaurantAppDataToFirestore(
 
 // Fetch Restaurant Cloud Data (merges both main doc and dedicated restaurant_orders doc)
 export async function fetchRestaurantAppDataFromFirestore(
-  restaurantId: string
+  rawRestaurantId: string
 ): Promise<RestaurantCloudData | null> {
+  const restaurantId = canonicalizeRestaurantId(rawRestaurantId);
   if (!db || !restaurantId) return null;
   try {
     const docRef = doc(db, 'restaurant_data', restaurantId);
@@ -891,9 +918,10 @@ export async function fetchRestaurantAppDataFromFirestore(
 
 // Real-Time Subscribe to Restaurant Cloud Data + Dedicated Orders Stream
 export function subscribeRestaurantAppDataRealtime(
-  restaurantId: string,
+  rawRestaurantId: string,
   callback: (data: RestaurantCloudData | null) => void
 ): () => void {
+  const restaurantId = canonicalizeRestaurantId(rawRestaurantId);
   if (!db || !restaurantId) {
     callback(null);
     return () => {};

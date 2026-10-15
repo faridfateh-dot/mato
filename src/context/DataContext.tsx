@@ -81,6 +81,7 @@ import {
   subscribePlatformOwnerContact,
   PLATFORM_OWNER_CONTACT,
   RestaurantCloudData,
+  canonicalizeRestaurantId,
   saveRestaurantAppDataToFirestore,
   fetchRestaurantAppDataFromFirestore,
   subscribeRestaurantAppDataRealtime,
@@ -1987,12 +1988,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Seed initial data to Firestore if quota allows
         if (!hasInitializedRestRef.current[currentRestId]) {
           hasInitializedRestRef.current[currentRestId] = true;
-          const initialProducts = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_PRODUCTS : (products.length > 0 ? products : INITIAL_PRODUCTS);
-          const initialCats = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_CATEGORIES : (categories.length > 0 ? categories : INITIAL_CATEGORIES);
-          const initialBranchesList = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_BRANCHES : (branches.length > 0 ? branches : INITIAL_BRANCHES);
-          const initialRest = currentRestId === 'rest_foodbreak' ? FOOD_BREAK_RESTAURANT : (restaurant.name ? restaurant : INITIAL_RESTAURANT);
+          const isFoodBreak = currentRestId === 'rest_foodbreak' || currentRestId === 'sub_1790630390550';
+          const initialProducts = isFoodBreak ? (products.length > 0 ? products : FOOD_BREAK_PRODUCTS) : (products.length > 0 ? products : INITIAL_PRODUCTS);
+          const initialCats = isFoodBreak ? (categories.length > 0 ? categories : FOOD_BREAK_CATEGORIES) : (categories.length > 0 ? categories : INITIAL_CATEGORIES);
+          const initialBranchesList = isFoodBreak ? FOOD_BREAK_BRANCHES : (branches.length > 0 ? branches : INITIAL_BRANCHES);
+          const initialRest = isFoodBreak ? FOOD_BREAK_RESTAURANT : (restaurant.name ? restaurant : INITIAL_RESTAURANT);
 
-          if (currentRestId === 'rest_foodbreak') {
+          if (isFoodBreak && products.length === 0) {
             setProducts(FOOD_BREAK_PRODUCTS);
             setCategories(FOOD_BREAK_CATEGORIES);
             setBranches(FOOD_BREAK_BRANCHES);
@@ -2012,7 +2014,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               suppliers,
               purchases,
               stockMovements,
-              orders,
+              orders: orders.length > 0 ? orders : undefined,
               expenses,
               users
             }).then(() => {
@@ -2617,9 +2619,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Check if input is for Food Break restaurant owner
-    if (!matchedUser && (cleanInput === 'foodbreak' || cleanInput === 'food break' || cleanInput === 'foodbreak@mato.sy' || cleanInput === '0988776655' || cleanDigits === '0988776655' || cleanDigits.endsWith('88776655'))) {
-      matchedUser = usr_foodbreak_owner;
-      setUsers(prev => prev.some(u => u.id === usr_foodbreak_owner.id) ? prev : [usr_foodbreak_owner, ...prev]);
+    const isFoodBreakInput =
+      cleanInput === 'foodbreak' ||
+      cleanInput === 'food break' ||
+      cleanInput === 'فود بريك' ||
+      cleanInput === 'فودبريك' ||
+      cleanInput === 'foodbreak@mato.sy' ||
+      cleanInput === '0980073917' ||
+      cleanDigits === '0980073917' ||
+      cleanDigits.endsWith('80073917') ||
+      cleanInput === '0988776655' ||
+      cleanDigits === '0988776655' ||
+      cleanDigits.endsWith('88776655');
+
+    if (!matchedUser && isFoodBreakInput) {
+      matchedUser = {
+        ...usr_foodbreak_owner,
+        id: 'usr_sub_1790630390550',
+        restaurantId: 'sub_1790630390550',
+        phone: '0980073917',
+        name: 'farid (مدير مطعم Food Break)',
+        password: '123454321',
+        isActive: true,
+        isPendingApproval: false
+      };
+      setUsers(prev => [matchedUser!, ...prev.filter(u => u.restaurantId !== 'sub_1790630390550')]);
     }
 
     // Check system registrations
@@ -2708,11 +2732,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const rEmail = normalizeArabicNumerals(r.email || '').trim().toLowerCase();
         const rDigits = normalizeArabicNumerals(r.phone || '').replace(/[^0-9]/g, '');
         const rName = (r.name || '').trim().toLowerCase();
+        const isFoodBreakMatch =
+          (cleanInput.includes('food') || cleanInput.includes('فود')) &&
+          (rName.includes('food') || rName.includes('فود') || r.id === 'sub_1790630390550');
         return (
           (rEmail && rEmail === cleanInput) ||
           (cleanDigits.length >= 7 && (rDigits.endsWith(cleanDigits) || cleanDigits.endsWith(rDigits))) ||
           (cleanDigits && rDigits === cleanDigits) ||
-          rName === cleanInput
+          rName === cleanInput ||
+          isFoodBreakMatch
         );
       });
       if (matchedFSRest) {
@@ -2868,21 +2896,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 4. Authenticate User and apply restaurant context if switching tenant
-    if (matchedUser.restaurantId && matchedUser.restaurantId !== 'rest_01') {
-      const targetRestId = matchedUser.restaurantId;
-      if (targetRestId === 'rest_foodbreak') {
+    const targetRestId = canonicalizeRestaurantId(matchedUser.restaurantId || restaurant.id);
+    if (targetRestId && targetRestId !== 'rest_01') {
+      const tenantRest = fsRestaurants.find(r => r.id === targetRestId) || firestoreRestaurants.find(r => r.id === targetRestId);
+      if (tenantRest) {
+        setRestaurant(prev => ({
+          ...prev,
+          id: tenantRest.id,
+          name: tenantRest.name
+        }));
+      } else if (targetRestId === 'sub_1790630390550') {
         setRestaurant(FOOD_BREAK_RESTAURANT);
-        setBranches(FOOD_BREAK_BRANCHES);
-        setCurrentBranchState(FOOD_BREAK_BRANCHES[0]);
-      } else {
-        const tenantRest = fsRestaurants.find(r => r.id === targetRestId) || firestoreRestaurants.find(r => r.id === targetRestId);
-        if (tenantRest) {
-          setRestaurant(prev => ({
-            ...prev,
-            id: tenantRest.id,
-            name: tenantRest.name
-          }));
-        }
       }
 
       // Restore tenant data from local tenant cache merged with Firestore Cloud if available
@@ -2893,38 +2917,63 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const cloudData = await fetchRestaurantAppDataFromFirestore(targetRestId);
         if (cloudData) {
-          if (cloudData.restaurant) setRestaurant(cloudData.restaurant);
+          if (cloudData.restaurant) {
+            setRestaurant(cloudData.restaurant);
+            localStorage.setItem(`${STORAGE_KEY}_restaurant`, JSON.stringify(cloudData.restaurant));
+          }
           if (cloudData.branches && cloudData.branches.length > 0) {
             setBranches(cloudData.branches);
             setCurrentBranchState(cloudData.branches[0]);
+            localStorage.setItem(`${STORAGE_KEY}_branches`, JSON.stringify(cloudData.branches));
           }
           if (cloudData.categories) {
             const localCats = safeStorageArrayParse<Category>(`${STORAGE_KEY}_${targetRestId}_categories`, []);
-            setCategories(mergeTenantArray(localCats, cloudData.categories, deletedSet));
+            const merged = mergeTenantArray(localCats, cloudData.categories, deletedSet);
+            setCategories(merged);
+            localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_categories`, JSON.stringify(merged));
           }
           if (cloudData.products) {
             const localProds = safeStorageArrayParse<Product>(`${STORAGE_KEY}_${targetRestId}_products`, []);
-            setProducts(mergeTenantArray(localProds, cloudData.products, deletedSet));
+            const merged = mergeTenantArray(localProds, cloudData.products, deletedSet);
+            setProducts(merged);
+            localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_products`, JSON.stringify(merged));
           }
           if (cloudData.ingredients) {
-            setIngredients(mergeTenantArray(localIngs, cloudData.ingredients, deletedSet));
+            const merged = mergeTenantArray(localIngs, cloudData.ingredients, deletedSet);
+            setIngredients(merged);
+            localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_ingredients`, JSON.stringify(merged));
           }
           if (cloudData.recipes) {
             const localRecs = safeStorageArrayParse<Recipe>(`${STORAGE_KEY}_${targetRestId}_recipes`, []);
-            setRecipes(mergeTenantArray(localRecs, cloudData.recipes, deletedSet));
+            const merged = mergeTenantArray(localRecs, cloudData.recipes, deletedSet);
+            setRecipes(merged);
+            localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_recipes`, JSON.stringify(merged));
           }
           if (cloudData.suppliers) {
             const sanitizedCloud = cloudData.suppliers.filter(s => !isDemoSupplier(s));
             const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${targetRestId}_suppliers`, []).filter(s => !isDemoSupplier(s));
-            setSuppliers(mergeTenantArray(localSups, sanitizedCloud, deletedSet));
+            const merged = mergeTenantArray(localSups, sanitizedCloud, deletedSet);
+            setSuppliers(merged);
+            localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_suppliers`, JSON.stringify(merged));
           }
           if (cloudData.purchases) {
             const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${targetRestId}_purchases`, []);
-            setPurchases(mergeTenantArray(localPurs, cloudData.purchases, deletedSet));
+            const merged = mergeTenantArray(localPurs, cloudData.purchases, deletedSet);
+            setPurchases(merged);
+            localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_purchases`, JSON.stringify(merged));
           }
           if (cloudData.stockMovements) {
             const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${targetRestId}_stockMovements`, []);
-            setStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
+            const merged = sanitizeStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
+            setStockMovements(merged);
+            localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(merged));
+            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_stockMovements`, JSON.stringify(merged));
           }
           if (cloudData.orders) {
             const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${targetRestId}_orders`, []);
@@ -2966,10 +3015,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Role & Shift handling:
-    // Platform Owner (Farid) automatically has owner shift unlocked
-    // Restaurant accounts will present the 4 Shift & Role options:
-    // 👑 مالك | 👔 مدير | ☀️ كاشير صباحي | 🌙 كاشير مسائي
-    if (matchedUser.isPlatformOwner) {
+    // Platform Owner (Farid) and Restaurant Owner automatically have owner shift unlocked
+    if (matchedUser.isPlatformOwner || matchedUser.role === 'Owner') {
       setIsShiftUnlocked(true);
       setActiveShiftRoleState('owner');
       try {

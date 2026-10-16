@@ -3015,8 +3015,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Role & Shift handling:
-    // Platform Owner (Farid) and Restaurant Owner automatically have owner shift unlocked
-    if (matchedUser.isPlatformOwner || matchedUser.role === 'Owner') {
+    // Platform Owner (Farid) automatically has owner shift unlocked
+    // Restaurant accounts will present the 4 Shift & Role options:
+    // 👑 مالك | 👔 مدير | ☀️ كاشير صباحي | 🌙 كاشير مسائي
+    if (matchedUser.isPlatformOwner) {
       setIsShiftUnlocked(true);
       setActiveShiftRoleState('owner');
       try {

@@ -39,12 +39,12 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
     rolePasswords
   } = useData();
 
+  // Manager or Owner can edit directly. Cashiers (morning/evening) ALWAYS require Manager PIN
   const isManagerOrOwner =
     isPlatformOwner ||
-    currentUser?.role === 'Owner' ||
-    currentUser?.role === 'Manager' ||
     activeShiftRole === 'owner' ||
-    activeShiftRole === 'manager';
+    activeShiftRole === 'manager' ||
+    (!activeShiftRole && (currentUser?.role === 'Owner' || currentUser?.role === 'Manager'));
 
   // Authorization state: if user is not manager/owner, require manager password
   const [isAuthorized, setIsAuthorized] = useState(isManagerOrOwner);

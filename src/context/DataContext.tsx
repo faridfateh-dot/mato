@@ -385,6 +385,44 @@ function safeStorageArrayParse<T>(key: string, fallback: T[]): T[] {
   }
 }
 
+function safeStorageSetItem(key: string, value: any, maxItems?: number): void {
+  try {
+    let payload = value;
+    if (Array.isArray(value)) {
+      // Proactively clamp array sizes for localStorage cache so mobile browsers never hit 5MB quota
+      // Full historical datasets (460+ orders) are safely stored and synced in Firestore cloud!
+      let defaultCap = 60;
+      if (key.includes('orders')) defaultCap = 40;
+      else if (key.includes('stockMovements')) defaultCap = 30;
+      else if (key.includes('activityLogs')) defaultCap = 25;
+      else if (key.includes('purchases')) defaultCap = 30;
+      else if (key.includes('expenses')) defaultCap = 40;
+
+      const effectiveLimit = typeof maxItems === 'number' && maxItems > 0 ? maxItems : defaultCap;
+      if (value.length > effectiveLimit) {
+        payload = value.slice(0, effectiveLimit);
+      }
+    }
+    const str = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    localStorage.setItem(key, str);
+  } catch (err: any) {
+    // Gracefully handle browser quota exhaustion (especially Mobile Safari 5MB limit)
+    console.warn(`safeStorageSetItem handled storage exception for key "${key}":`, err?.message || err);
+    try {
+      // Clear non-essential duplicate/legacy cache keys to immediately relieve storage pressure
+      localStorage.removeItem(`${STORAGE_KEY}_activityLogs`);
+      localStorage.removeItem(`${STORAGE_KEY}_orders`);
+      localStorage.removeItem(`${STORAGE_KEY}_stockMovements`);
+      if (Array.isArray(value)) {
+        const emergencySlice = value.slice(0, 10);
+        localStorage.setItem(key, JSON.stringify(emergencySlice));
+      }
+    } catch {
+      // Never throw QuotaExceededError up to React!
+    }
+  }
+}
+
 function getTenantDeletedIds(restId: string): Set<string> {
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY}_deleted_${restId}`);
@@ -401,7 +439,7 @@ function addTenantDeletedId(restId: string, itemId: string) {
   try {
     const set = getTenantDeletedIds(restId);
     set.add(itemId);
-    localStorage.setItem(`${STORAGE_KEY}_deleted_${restId}`, JSON.stringify(Array.from(set)));
+    safeStorageSetItem(`${STORAGE_KEY}_deleted_${restId}`, Array.from(set));
   } catch {
     // ignore
   }
@@ -934,23 +972,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_subscription_requests`, JSON.stringify(subscriptionRequests));
+    safeStorageSetItem(`${STORAGE_KEY}_subscription_requests`, subscriptionRequests, 30);
   }, [subscriptionRequests]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
-    } catch (e) {
-      console.warn('Failed to save users to localStorage:', e);
-    }
+    safeStorageSetItem(`${STORAGE_KEY}_users`, users, 50);
   }, [users]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(`${STORAGE_KEY}_system_registrations`, JSON.stringify(systemRegistrations));
-    } catch (e) {
-      console.warn('Failed to save systemRegistrations to localStorage:', e);
-    }
+    safeStorageSetItem(`${STORAGE_KEY}_system_registrations`, systemRegistrations, 30);
   }, [systemRegistrations]);
 
   useEffect(() => {
@@ -1879,58 +1909,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const localProds = safeStorageArrayParse<Product>(`${STORAGE_KEY}_${currentRestId}_products`, []);
           const merged = mergeTenantArray(localProds, cloudData.products, deletedSet);
           setProducts(merged);
-          localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_products`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_products`, merged);
         }
         if (Array.isArray(cloudData.categories)) {
           const localCats = safeStorageArrayParse<Category>(`${STORAGE_KEY}_${currentRestId}_categories`, []);
           const merged = mergeTenantArray(localCats, cloudData.categories, deletedSet);
           setCategories(merged);
-          localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_categories`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_categories`, merged);
         }
         if (Array.isArray(cloudData.rawMaterialCategories) && cloudData.rawMaterialCategories.length > 0) {
           const localRawCats = safeStorageArrayParse<RawMaterialCategoryInfo>(`${STORAGE_KEY}_${currentRestId}_rawMaterialCategories`, []);
           const merged = mergeTenantArray(localRawCats, cloudData.rawMaterialCategories, deletedSet);
           setRawMaterialCategories(merged);
-          localStorage.setItem(`${STORAGE_KEY}_rawMaterialCategories`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_rawMaterialCategories`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_rawMaterialCategories`, merged);
         }
         if (Array.isArray(cloudData.ingredients)) {
           const localIngs = safeStorageArrayParse<Ingredient>(`${STORAGE_KEY}_${currentRestId}_ingredients`, []);
           const merged = mergeTenantArray(localIngs, cloudData.ingredients, deletedSet);
           setIngredients(merged);
-          localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_ingredients`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_ingredients`, merged);
         }
         if (Array.isArray(cloudData.recipes)) {
           const localRecs = safeStorageArrayParse<Recipe>(`${STORAGE_KEY}_${currentRestId}_recipes`, []);
           const merged = mergeTenantArray(localRecs, cloudData.recipes, deletedSet);
           setRecipes(merged);
-          localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_recipes`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_recipes`, merged);
         }
         if (Array.isArray(cloudData.suppliers)) {
           const sanitizedCloud = cloudData.suppliers.filter(s => !isDemoSupplier(s));
           const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${currentRestId}_suppliers`, []).filter(s => !isDemoSupplier(s));
           const merged = mergeTenantArray(localSups, sanitizedCloud, deletedSet);
           setSuppliers(merged);
-          localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_suppliers`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_suppliers`, merged);
         }
         if (Array.isArray(cloudData.purchases)) {
           const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${currentRestId}_purchases`, []);
           const merged = mergeTenantArray(localPurs, cloudData.purchases, deletedSet);
           setPurchases(merged);
-          localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_purchases`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_purchases`, merged, 50);
         }
         if (Array.isArray(cloudData.stockMovements)) {
           const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${currentRestId}_stockMovements`, []);
           const merged = sanitizeStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
           setStockMovements(merged);
-          localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(merged));
-          localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_stockMovements`, JSON.stringify(merged));
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_stockMovements`, merged, 100);
         }
         if (Array.isArray(cloudData.orders)) {
           const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${currentRestId}_orders`, []);
@@ -1940,8 +1962,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet).sort(
               (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
             );
-            localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_orders`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_orders`, merged, 100);
             return merged;
           });
         }
@@ -1952,14 +1973,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const sameTenantMem = prev.filter(e => (!e.restaurantId || e.restaurantId === currentRestId) && !isDemoExpense(e));
             const combinedLocal = mergeTenantArray(sameTenantMem, localExps, deletedSet);
             const merged = mergeTenantArray(combinedLocal, sanitizedCloud, deletedSet);
-            localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${currentRestId}_expenses`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_expenses`, merged, 50);
             return merged;
           });
         }
         if (Array.isArray(cloudData.branches) && cloudData.branches.length > 0) {
           setBranches(cloudData.branches);
-          localStorage.setItem(`${STORAGE_KEY}_branches`, JSON.stringify(cloudData.branches));
+          safeStorageSetItem(`${STORAGE_KEY}_branches`, cloudData.branches);
         }
         if (Array.isArray(cloudData.users) && cloudData.users.length > 0) {
           setUsers(prev => {
@@ -1974,7 +1994,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         if (cloudData.restaurant && cloudData.restaurant.name) {
           setRestaurant(prev => ({ ...prev, ...cloudData.restaurant }));
-          localStorage.setItem(`${STORAGE_KEY}_restaurant`, JSON.stringify(cloudData.restaurant));
+          safeStorageSetItem(`${STORAGE_KEY}_restaurant`, cloudData.restaurant);
         }
 
         setIsCloudSynced(true);
@@ -2124,37 +2144,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Persist data locally on change (both global and tenant-scoped keys)
   useEffect(() => {
-    localStorage.removeItem(`${STORAGE_KEY}_is_authenticated`); // Clean up legacy persistent auth key
-    localStorage.setItem(`${STORAGE_KEY}_system_registrations`, JSON.stringify(systemRegistrations));
-    localStorage.setItem(`${STORAGE_KEY}_restaurant`, JSON.stringify(restaurant));
-    localStorage.setItem(`${STORAGE_KEY}_branches`, JSON.stringify(branches));
-    localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
-    localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(categories));
-    localStorage.setItem(`${STORAGE_KEY}_rawMaterialCategories`, JSON.stringify(rawMaterialCategories));
-    localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(products));
-    localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(ingredients));
-    localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(recipes));
-    localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(suppliers));
-    localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(purchases));
-    localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(stockMovements));
-    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(orders));
-    localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(expenses));
-    localStorage.setItem(`${STORAGE_KEY}_activityLogs`, JSON.stringify(activityLogs));
-    localStorage.setItem(`${STORAGE_KEY}_licenseInfo`, JSON.stringify(licenseInfo));
-    localStorage.setItem(`${STORAGE_KEY}_licenseKeys`, JSON.stringify(licenseKeys));
+    try {
+      localStorage.removeItem(`${STORAGE_KEY}_is_authenticated`); // Clean up legacy persistent auth key
+      safeStorageSetItem(`${STORAGE_KEY}_system_registrations`, systemRegistrations);
+      safeStorageSetItem(`${STORAGE_KEY}_restaurant`, restaurant);
+      safeStorageSetItem(`${STORAGE_KEY}_branches`, branches);
+      safeStorageSetItem(`${STORAGE_KEY}_users`, users);
+      safeStorageSetItem(`${STORAGE_KEY}_categories`, categories);
+      safeStorageSetItem(`${STORAGE_KEY}_rawMaterialCategories`, rawMaterialCategories);
+      safeStorageSetItem(`${STORAGE_KEY}_products`, products);
+      safeStorageSetItem(`${STORAGE_KEY}_ingredients`, ingredients);
+      safeStorageSetItem(`${STORAGE_KEY}_recipes`, recipes);
+      safeStorageSetItem(`${STORAGE_KEY}_suppliers`, suppliers);
+      safeStorageSetItem(`${STORAGE_KEY}_purchases`, purchases, 30);
+      safeStorageSetItem(`${STORAGE_KEY}_stockMovements`, stockMovements, 30);
+      safeStorageSetItem(`${STORAGE_KEY}_orders`, orders, 40);
+      safeStorageSetItem(`${STORAGE_KEY}_expenses`, expenses, 40);
+      safeStorageSetItem(`${STORAGE_KEY}_activityLogs`, activityLogs, 20);
+      safeStorageSetItem(`${STORAGE_KEY}_licenseInfo`, licenseInfo);
+      safeStorageSetItem(`${STORAGE_KEY}_licenseKeys`, licenseKeys);
 
-    if (restaurant?.id && hydratedRestIdRef.current === restaurant.id) {
-      const rId = restaurant.id;
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_categories`, JSON.stringify(categories));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_rawMaterialCategories`, JSON.stringify(rawMaterialCategories));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_products`, JSON.stringify(products));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_ingredients`, JSON.stringify(ingredients));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_recipes`, JSON.stringify(recipes));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_suppliers`, JSON.stringify(suppliers));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_purchases`, JSON.stringify(purchases));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_stockMovements`, JSON.stringify(stockMovements));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_orders`, JSON.stringify(orders));
-      localStorage.setItem(`${STORAGE_KEY}_${rId}_expenses`, JSON.stringify(expenses));
+      if (restaurant?.id && hydratedRestIdRef.current === restaurant.id) {
+        const rId = restaurant.id;
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_categories`, categories);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_rawMaterialCategories`, rawMaterialCategories);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_products`, products);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_ingredients`, ingredients);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_recipes`, recipes);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_suppliers`, suppliers);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_purchases`, purchases, 30);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_stockMovements`, stockMovements, 30);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_orders`, orders, 40);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_expenses`, expenses, 40);
+      }
+    } catch (persistErr) {
+      console.warn('Silent caught persist error:', persistErr);
     }
   }, [systemRegistrations, restaurant, branches, users, categories, rawMaterialCategories, products, ingredients, recipes, suppliers, purchases, stockMovements, orders, expenses, activityLogs, licenseInfo, licenseKeys]);
 
@@ -2568,6 +2592,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch {
           // ignore
         }
+
+        // Shift & Role gate handling: platform owner Farid has lifetime owner bypass, restaurant accounts always select role/shift
+        if (activeUser.isPlatformOwner) {
+          setIsShiftUnlocked(true);
+          setActiveShiftRoleState('owner');
+          try {
+            sessionStorage.setItem(`${STORAGE_KEY}_active_shift_role`, 'owner');
+          } catch {}
+        } else {
+          setIsShiftUnlocked(false);
+          setActiveShiftRoleState(null);
+          try {
+            sessionStorage.removeItem(`${STORAGE_KEY}_active_shift_role`);
+          } catch {}
+        }
+
         logActivity('تسجيل دخول سحابي ناجح', `تم تسجيل الدخول عبر Firebase Auth لحساب ${activeUser.name} (${activeUser.role})`);
 
         return {
@@ -2924,56 +2964,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (cloudData.branches && cloudData.branches.length > 0) {
             setBranches(cloudData.branches);
             setCurrentBranchState(cloudData.branches[0]);
-            localStorage.setItem(`${STORAGE_KEY}_branches`, JSON.stringify(cloudData.branches));
+            safeStorageSetItem(`${STORAGE_KEY}_branches`, cloudData.branches);
           }
           if (cloudData.categories) {
             const localCats = safeStorageArrayParse<Category>(`${STORAGE_KEY}_${targetRestId}_categories`, []);
             const merged = mergeTenantArray(localCats, cloudData.categories, deletedSet);
             setCategories(merged);
-            localStorage.setItem(`${STORAGE_KEY}_categories`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_categories`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_categories`, merged);
           }
           if (cloudData.products) {
             const localProds = safeStorageArrayParse<Product>(`${STORAGE_KEY}_${targetRestId}_products`, []);
             const merged = mergeTenantArray(localProds, cloudData.products, deletedSet);
             setProducts(merged);
-            localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_products`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_products`, merged);
           }
           if (cloudData.ingredients) {
             const merged = mergeTenantArray(localIngs, cloudData.ingredients, deletedSet);
             setIngredients(merged);
-            localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_ingredients`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_ingredients`, merged);
           }
           if (cloudData.recipes) {
             const localRecs = safeStorageArrayParse<Recipe>(`${STORAGE_KEY}_${targetRestId}_recipes`, []);
             const merged = mergeTenantArray(localRecs, cloudData.recipes, deletedSet);
             setRecipes(merged);
-            localStorage.setItem(`${STORAGE_KEY}_recipes`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_recipes`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_recipes`, merged);
           }
           if (cloudData.suppliers) {
             const sanitizedCloud = cloudData.suppliers.filter(s => !isDemoSupplier(s));
             const localSups = safeStorageArrayParse<Supplier>(`${STORAGE_KEY}_${targetRestId}_suppliers`, []).filter(s => !isDemoSupplier(s));
             const merged = mergeTenantArray(localSups, sanitizedCloud, deletedSet);
             setSuppliers(merged);
-            localStorage.setItem(`${STORAGE_KEY}_suppliers`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_suppliers`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_suppliers`, merged);
           }
           if (cloudData.purchases) {
             const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${targetRestId}_purchases`, []);
             const merged = mergeTenantArray(localPurs, cloudData.purchases, deletedSet);
             setPurchases(merged);
-            localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_purchases`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_purchases`, merged, 50);
           }
           if (cloudData.stockMovements) {
             const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${targetRestId}_stockMovements`, []);
             const merged = sanitizeStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
             setStockMovements(merged);
-            localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(merged));
-            localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_stockMovements`, JSON.stringify(merged));
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_stockMovements`, merged, 100);
           }
           if (cloudData.orders) {
             const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${targetRestId}_orders`, []);
@@ -2983,8 +3016,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet).sort(
                 (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
               );
-              localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
-              localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_orders`, JSON.stringify(merged));
+              safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_orders`, merged, 100);
               return merged;
             });
           }
@@ -2995,8 +3027,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const sameTenantMem = prev.filter(e => (!e.restaurantId || e.restaurantId === targetRestId) && !isDemoExpense(e));
               const combinedLocal = mergeTenantArray(sameTenantMem, localExps, deletedSet);
               const merged = mergeTenantArray(combinedLocal, sanitizedCloud, deletedSet);
-              localStorage.setItem(`${STORAGE_KEY}_expenses`, JSON.stringify(merged));
-              localStorage.setItem(`${STORAGE_KEY}_${targetRestId}_expenses`, JSON.stringify(merged));
+              safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_expenses`, merged, 50);
               return merged;
             });
           }
@@ -4672,13 +4703,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setStockMovements(nextMovements);
     }
 
-    localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(nextIngredients));
-    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(nextIngredients));
-    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(nextOrders));
-    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_orders`, JSON.stringify(nextOrders));
+    safeStorageSetItem(`${STORAGE_KEY}_ingredients`, nextIngredients);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, nextIngredients);
+    safeStorageSetItem(`${STORAGE_KEY}_orders`, nextOrders, 40);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_orders`, nextOrders, 40);
     if (saleMovements.length > 0) {
-      localStorage.setItem(`${STORAGE_KEY}_stockMovements`, JSON.stringify(nextMovements));
-      localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, JSON.stringify(nextMovements));
+      safeStorageSetItem(`${STORAGE_KEY}_stockMovements`, nextMovements, 30);
+      safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, nextMovements, 30);
     }
 
     let nextExpenses = expenses;
@@ -4946,10 +4977,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIngredients(nextIngredients);
     setOrders(nextOrders);
 
-    localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(nextIngredients));
-    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(nextIngredients));
-    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(nextOrders));
-    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_orders`, JSON.stringify(nextOrders));
+    safeStorageSetItem(`${STORAGE_KEY}_ingredients`, nextIngredients);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, nextIngredients);
+    safeStorageSetItem(`${STORAGE_KEY}_orders`, nextOrders, 40);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_orders`, nextOrders, 40);
 
     if (restaurant?.id) {
       saveRestaurantAppDataToFirestore(restaurant.id, {
@@ -5003,10 +5034,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIngredients(nextIngredients);
     setOrders(nextOrders);
 
-    localStorage.setItem(`${STORAGE_KEY}_ingredients`, JSON.stringify(nextIngredients));
-    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, JSON.stringify(nextIngredients));
-    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(nextOrders));
-    localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_orders`, JSON.stringify(nextOrders));
+    safeStorageSetItem(`${STORAGE_KEY}_ingredients`, nextIngredients);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, nextIngredients);
+    safeStorageSetItem(`${STORAGE_KEY}_orders`, nextOrders, 40);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_orders`, nextOrders, 40);
 
     if (restaurant?.id) {
       saveRestaurantAppDataToFirestore(restaurant.id, {

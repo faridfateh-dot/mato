@@ -389,34 +389,26 @@ function safeStorageSetItem(key: string, value: any, maxItems?: number): void {
   try {
     let payload = value;
     if (Array.isArray(value)) {
-      // Proactively clamp array sizes for localStorage cache so mobile browsers never hit 5MB quota
-      // Full historical datasets (460+ orders) are safely stored and synced in Firestore cloud!
-      let defaultCap = 60;
-      if (key.includes('orders')) defaultCap = 40;
-      else if (key.includes('stockMovements')) defaultCap = 30;
-      else if (key.includes('activityLogs')) defaultCap = 25;
-      else if (key.includes('purchases')) defaultCap = 30;
-      else if (key.includes('expenses')) defaultCap = 40;
-
-      const effectiveLimit = typeof maxItems === 'number' && maxItems > 0 ? maxItems : defaultCap;
-      if (value.length > effectiveLimit) {
-        payload = value.slice(0, effectiveLimit);
+      // High-capacity safety limit (2,500+ items) - ensure newest records (today, yesterday) are always preserved!
+      const safeLimit = typeof maxItems === 'number' && maxItems > 0 ? maxItems : 2500;
+      if (value.length > safeLimit) {
+        const sorted = [...value].sort((a: any, b: any) => {
+          const tA = new Date(a?.updatedAt || a?.createdAt || a?.date || 0).getTime();
+          const tB = new Date(b?.updatedAt || b?.createdAt || b?.date || 0).getTime();
+          return tB - tA;
+        });
+        payload = sorted.slice(0, safeLimit);
       }
     }
     const str = typeof payload === 'string' ? payload : JSON.stringify(payload);
     localStorage.setItem(key, str);
   } catch (err: any) {
-    // Gracefully handle browser quota exhaustion (especially Mobile Safari 5MB limit)
     console.warn(`safeStorageSetItem handled storage exception for key "${key}":`, err?.message || err);
     try {
-      // Clear non-essential duplicate/legacy cache keys to immediately relieve storage pressure
+      // Relieve storage pressure using non-essential logs only - NEVER drop orders, expenses, or purchases!
       localStorage.removeItem(`${STORAGE_KEY}_activityLogs`);
-      localStorage.removeItem(`${STORAGE_KEY}_orders`);
-      localStorage.removeItem(`${STORAGE_KEY}_stockMovements`);
-      if (Array.isArray(value)) {
-        const emergencySlice = value.slice(0, 10);
-        localStorage.setItem(key, JSON.stringify(emergencySlice));
-      }
+      const str = typeof value === 'string' ? value : JSON.stringify(value);
+      localStorage.setItem(key, str);
     } catch {
       // Never throw QuotaExceededError up to React!
     }
@@ -515,39 +507,38 @@ function mergeTenantArray<T extends { id: string; updatedAt?: string; createdAt?
     return item.id;
   };
 
-  if (Array.isArray(cloudArr)) {
-    cloudArr.forEach(item => {
+  // 1. Insert local records first so local changes are prioritized
+  if (Array.isArray(localArr)) {
+    localArr.forEach(item => {
       if (item && item.id && !deletedSet.has(item.id)) {
         map.set(getKey(item), item);
       }
     });
   }
-  if (Array.isArray(localArr)) {
-    localArr.forEach(item => {
+
+  // 2. Merge cloud records only if cloud record is strictly newer or not present locally
+  if (Array.isArray(cloudArr)) {
+    cloudArr.forEach(item => {
       if (item && item.id && !deletedSet.has(item.id)) {
         const key = getKey(item);
-        const existingCloud = map.get(key);
-        if (!existingCloud) {
+        const existingLocal = map.get(key);
+        if (!existingLocal) {
           map.set(key, item);
         } else {
-          const localTime = getItemTimestamp(item);
-          const cloudTime = getItemTimestamp(existingCloud);
-          if (localTime > 0 && cloudTime === 0) {
-            // Local item was explicitly edited, cloud item is un-edited seed data
+          const localTime = getItemTimestamp(existingLocal);
+          const cloudTime = getItemTimestamp(item);
+          if (cloudTime > localTime) {
             map.set(key, item);
-          } else if (cloudTime > 0 && localTime === 0) {
-            // Cloud item was explicitly edited, local item is un-edited seed data
-            map.set(key, existingCloud);
-          } else if (localTime >= cloudTime) {
-            map.set(key, item);
-          } else {
-            map.set(key, existingCloud);
           }
         }
       }
     });
   }
-  return Array.from(map.values());
+
+  // 3. Always sort descending by date/time so latest items (today, yesterday) are ALWAYS at the top!
+  const result = Array.from(map.values());
+  result.sort((a, b) => getItemTimestamp(b) - getItemTimestamp(a));
+  return result;
 }
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -829,40 +820,91 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [purchases, setPurchases] = useState<Purchase[]>(() => {
     const rest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
     const rId = rest?.id || INITIAL_RESTAURANT.id;
+    const isFoodBreak = rId === 'sub_1790630390550' || rId === 'rest_foodbreak';
+    const altId = isFoodBreak ? (rId === 'sub_1790630390550' ? 'rest_foodbreak' : 'sub_1790630390550') : '';
     const tenantSaved = safeStorageArrayParse<Purchase | null>(`${STORAGE_KEY}_${rId}_purchases`, null as any);
-    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return tenantSaved;
-    const saved = safeStorageArrayParse<Purchase | null>(`${STORAGE_KEY}_purchases`, null as any);
-    if (Array.isArray(saved)) return saved;
+    const altSaved = altId ? safeStorageArrayParse<Purchase | null>(`${STORAGE_KEY}_${altId}_purchases`, null as any) : [];
+    const backupSaved = safeStorageArrayParse<Purchase | null>(`${STORAGE_KEY}_${rId}_backup_purchases`, null as any);
+    const globalSaved = safeStorageArrayParse<Purchase | null>(`${STORAGE_KEY}_purchases`, null as any);
+    const deletedSet = getTenantDeletedIds(rId);
+    let combined = mergeTenantArray(
+      Array.isArray(backupSaved) ? backupSaved : [],
+      Array.isArray(tenantSaved) ? tenantSaved : [],
+      deletedSet
+    );
+    if (Array.isArray(altSaved) && altSaved.length > 0) {
+      combined = mergeTenantArray(combined, altSaved, deletedSet);
+    }
+    if (Array.isArray(globalSaved) && globalSaved.length > 0) {
+      combined = mergeTenantArray(combined, globalSaved, deletedSet);
+    }
+    if (combined.length > 0) return combined.filter(p => p && !isDemoSupplier(p as any));
     return INITIAL_PURCHASES;
   });
 
   const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => {
     const rest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
     const rId = rest?.id || INITIAL_RESTAURANT.id;
+    const isFoodBreak = rId === 'sub_1790630390550' || rId === 'rest_foodbreak';
+    const altId = isFoodBreak ? (rId === 'sub_1790630390550' ? 'rest_foodbreak' : 'sub_1790630390550') : '';
     const tenantSaved = safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_${rId}_stockMovements`, null as any);
-    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return sanitizeStockMovements(tenantSaved as StockMovement[]);
-    const saved = safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_stockMovements`, null as any);
-    if (Array.isArray(saved)) return sanitizeStockMovements(saved as StockMovement[]);
+    const altSaved = altId ? safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_${altId}_stockMovements`, null as any) : [];
+    const globalSaved = safeStorageArrayParse<StockMovement | null>(`${STORAGE_KEY}_stockMovements`, null as any);
+    const deletedSet = getTenantDeletedIds(rId);
+    let combined = Array.isArray(tenantSaved) ? tenantSaved : [];
+    if (Array.isArray(altSaved) && altSaved.length > 0) combined = mergeTenantArray(combined, altSaved, deletedSet);
+    if (Array.isArray(globalSaved) && globalSaved.length > 0) combined = mergeTenantArray(combined, globalSaved, deletedSet);
+    if (combined.length > 0) return sanitizeStockMovements(combined as StockMovement[]);
     return INITIAL_STOCK_MOVEMENTS;
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
     const rest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
     const rId = rest?.id || INITIAL_RESTAURANT.id;
+    const isFoodBreak = rId === 'sub_1790630390550' || rId === 'rest_foodbreak';
+    const altId = isFoodBreak ? (rId === 'sub_1790630390550' ? 'rest_foodbreak' : 'sub_1790630390550') : '';
     const tenantSaved = safeStorageArrayParse<Order | null>(`${STORAGE_KEY}_${rId}_orders`, null as any);
-    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return tenantSaved;
-    const saved = safeStorageArrayParse<Order | null>(`${STORAGE_KEY}_orders`, null as any);
-    if (Array.isArray(saved)) return saved;
+    const altSaved = altId ? safeStorageArrayParse<Order | null>(`${STORAGE_KEY}_${altId}_orders`, null as any) : [];
+    const backupSaved = safeStorageArrayParse<Order | null>(`${STORAGE_KEY}_${rId}_backup_orders`, null as any);
+    const globalSaved = safeStorageArrayParse<Order | null>(`${STORAGE_KEY}_orders`, null as any);
+    const deletedSet = getTenantDeletedIds(rId);
+    let combined = mergeTenantArray(
+      Array.isArray(backupSaved) ? backupSaved : [],
+      Array.isArray(tenantSaved) ? tenantSaved : [],
+      deletedSet
+    );
+    if (Array.isArray(altSaved) && altSaved.length > 0) {
+      combined = mergeTenantArray(combined, altSaved, deletedSet);
+    }
+    if (Array.isArray(globalSaved) && globalSaved.length > 0) {
+      combined = mergeTenantArray(combined, globalSaved, deletedSet);
+    }
+    if (combined.length > 0) return combined;
     return INITIAL_ORDERS;
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const rest = safeStorageParse<Restaurant | null>(`${STORAGE_KEY}_restaurant`, null);
     const rId = rest?.id || INITIAL_RESTAURANT.id;
+    const isFoodBreak = rId === 'sub_1790630390550' || rId === 'rest_foodbreak';
+    const altId = isFoodBreak ? (rId === 'sub_1790630390550' ? 'rest_foodbreak' : 'sub_1790630390550') : '';
     const tenantSaved = safeStorageArrayParse<Expense | null>(`${STORAGE_KEY}_${rId}_expenses`, null as any);
-    if (Array.isArray(tenantSaved) && tenantSaved.length > 0) return tenantSaved.filter(e => !isDemoExpense(e));
-    const saved = safeStorageArrayParse<Expense | null>(`${STORAGE_KEY}_expenses`, null as any);
-    if (Array.isArray(saved)) return saved.filter(e => !isDemoExpense(e));
+    const altSaved = altId ? safeStorageArrayParse<Expense | null>(`${STORAGE_KEY}_${altId}_expenses`, null as any) : [];
+    const backupSaved = safeStorageArrayParse<Expense | null>(`${STORAGE_KEY}_${rId}_backup_expenses`, null as any);
+    const globalSaved = safeStorageArrayParse<Expense | null>(`${STORAGE_KEY}_expenses`, null as any);
+    const deletedSet = getTenantDeletedIds(rId);
+    let combined = mergeTenantArray(
+      Array.isArray(backupSaved) ? backupSaved : [],
+      Array.isArray(tenantSaved) ? tenantSaved : [],
+      deletedSet
+    );
+    if (Array.isArray(altSaved) && altSaved.length > 0) {
+      combined = mergeTenantArray(combined, altSaved, deletedSet);
+    }
+    if (Array.isArray(globalSaved) && globalSaved.length > 0) {
+      combined = mergeTenantArray(combined, globalSaved, deletedSet);
+    }
+    if (combined.length > 0) return combined.filter(e => !isDemoExpense(e));
     return [];
   });
 
@@ -1946,23 +1988,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${currentRestId}_purchases`, []);
           const merged = mergeTenantArray(localPurs, cloudData.purchases, deletedSet);
           setPurchases(merged);
-          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_purchases`, merged, 50);
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_purchases`, merged);
         }
         if (Array.isArray(cloudData.stockMovements)) {
           const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${currentRestId}_stockMovements`, []);
           const merged = sanitizeStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
           setStockMovements(merged);
-          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_stockMovements`, merged, 100);
+          safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_stockMovements`, merged);
         }
         if (Array.isArray(cloudData.orders)) {
           const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${currentRestId}_orders`, []);
           setOrders(prev => {
             const sameTenantMem = prev.filter(o => !o.restaurantId || o.restaurantId === currentRestId);
             const combinedLocal = mergeTenantArray(sameTenantMem, localOrds, deletedSet);
-            const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet).sort(
-              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-            );
-            safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_orders`, merged, 100);
+            const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet);
+            safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_orders`, merged);
             return merged;
           });
         }
@@ -1973,7 +2013,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const sameTenantMem = prev.filter(e => (!e.restaurantId || e.restaurantId === currentRestId) && !isDemoExpense(e));
             const combinedLocal = mergeTenantArray(sameTenantMem, localExps, deletedSet);
             const merged = mergeTenantArray(combinedLocal, sanitizedCloud, deletedSet);
-            safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_expenses`, merged, 50);
+            safeStorageSetItem(`${STORAGE_KEY}_${currentRestId}_expenses`, merged);
             return merged;
           });
         }
@@ -2084,7 +2124,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(err => {
         console.warn('Auto cloud sync warning:', err);
       });
-    }, 2500);
+    }, 15000);
 
     return () => clearTimeout(timer);
   }, [
@@ -2156,11 +2196,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       safeStorageSetItem(`${STORAGE_KEY}_ingredients`, ingredients);
       safeStorageSetItem(`${STORAGE_KEY}_recipes`, recipes);
       safeStorageSetItem(`${STORAGE_KEY}_suppliers`, suppliers);
-      safeStorageSetItem(`${STORAGE_KEY}_purchases`, purchases, 30);
-      safeStorageSetItem(`${STORAGE_KEY}_stockMovements`, stockMovements, 30);
-      safeStorageSetItem(`${STORAGE_KEY}_orders`, orders, 40);
-      safeStorageSetItem(`${STORAGE_KEY}_expenses`, expenses, 40);
-      safeStorageSetItem(`${STORAGE_KEY}_activityLogs`, activityLogs, 20);
+      safeStorageSetItem(`${STORAGE_KEY}_purchases`, purchases);
+      safeStorageSetItem(`${STORAGE_KEY}_stockMovements`, stockMovements);
+      safeStorageSetItem(`${STORAGE_KEY}_orders`, orders);
+      safeStorageSetItem(`${STORAGE_KEY}_expenses`, expenses);
+      safeStorageSetItem(`${STORAGE_KEY}_activityLogs`, activityLogs, 100);
       safeStorageSetItem(`${STORAGE_KEY}_licenseInfo`, licenseInfo);
       safeStorageSetItem(`${STORAGE_KEY}_licenseKeys`, licenseKeys);
 
@@ -2172,10 +2212,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         safeStorageSetItem(`${STORAGE_KEY}_${rId}_ingredients`, ingredients);
         safeStorageSetItem(`${STORAGE_KEY}_${rId}_recipes`, recipes);
         safeStorageSetItem(`${STORAGE_KEY}_${rId}_suppliers`, suppliers);
-        safeStorageSetItem(`${STORAGE_KEY}_${rId}_purchases`, purchases, 30);
-        safeStorageSetItem(`${STORAGE_KEY}_${rId}_stockMovements`, stockMovements, 30);
-        safeStorageSetItem(`${STORAGE_KEY}_${rId}_orders`, orders, 40);
-        safeStorageSetItem(`${STORAGE_KEY}_${rId}_expenses`, expenses, 40);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_purchases`, purchases);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_stockMovements`, stockMovements);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_orders`, orders);
+        safeStorageSetItem(`${STORAGE_KEY}_${rId}_expenses`, expenses);
+        
+        // Permanent Local Safety Backup (Protected against any remote wipe or browser reload)
+        if (purchases.length > 0) safeStorageSetItem(`${STORAGE_KEY}_${rId}_backup_purchases`, purchases);
+        if (orders.length > 0) safeStorageSetItem(`${STORAGE_KEY}_${rId}_backup_orders`, orders);
+        if (expenses.length > 0) safeStorageSetItem(`${STORAGE_KEY}_${rId}_backup_expenses`, expenses);
       }
     } catch (persistErr) {
       console.warn('Silent caught persist error:', persistErr);
@@ -3000,23 +3045,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const localPurs = safeStorageArrayParse<Purchase>(`${STORAGE_KEY}_${targetRestId}_purchases`, []);
             const merged = mergeTenantArray(localPurs, cloudData.purchases, deletedSet);
             setPurchases(merged);
-            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_purchases`, merged, 50);
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_purchases`, merged);
           }
           if (cloudData.stockMovements) {
             const localMovs = safeStorageArrayParse<StockMovement>(`${STORAGE_KEY}_${targetRestId}_stockMovements`, []);
             const merged = sanitizeStockMovements(mergeTenantArray(localMovs, cloudData.stockMovements, deletedSet));
             setStockMovements(merged);
-            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_stockMovements`, merged, 100);
+            safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_stockMovements`, merged);
           }
           if (cloudData.orders) {
             const localOrds = safeStorageArrayParse<Order>(`${STORAGE_KEY}_${targetRestId}_orders`, []);
             setOrders(prev => {
               const sameTenantMem = prev.filter(o => !o.restaurantId || o.restaurantId === targetRestId);
               const combinedLocal = mergeTenantArray(sameTenantMem, localOrds, deletedSet);
-              const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet).sort(
-                (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-              );
-              safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_orders`, merged, 100);
+              const merged = mergeTenantArray(combinedLocal, cloudData.orders!, deletedSet);
+              safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_orders`, merged);
               return merged;
             });
           }
@@ -3027,7 +3070,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const sameTenantMem = prev.filter(e => (!e.restaurantId || e.restaurantId === targetRestId) && !isDemoExpense(e));
               const combinedLocal = mergeTenantArray(sameTenantMem, localExps, deletedSet);
               const merged = mergeTenantArray(combinedLocal, sanitizedCloud, deletedSet);
-              safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_expenses`, merged, 50);
+              safeStorageSetItem(`${STORAGE_KEY}_${targetRestId}_expenses`, merged);
               return merged;
             });
           }
@@ -4005,6 +4048,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPurchases(nextPurchases);
     localStorage.setItem(`${STORAGE_KEY}_purchases`, JSON.stringify(nextPurchases));
     localStorage.setItem(`${STORAGE_KEY}_${restaurant.id}_purchases`, JSON.stringify(nextPurchases));
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_backup_purchases`, nextPurchases);
 
     const newMovements: StockMovement[] = items.map(item => ({
       id: `sm_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -4401,7 +4445,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdByName: shiftLabelName
     };
 
-    setExpenses(prev => [newExpense, ...prev]);
+    const nextExpenses = [newExpense, ...expenses];
+    setExpenses(nextExpenses);
+    safeStorageSetItem(`${STORAGE_KEY}_expenses`, nextExpenses);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_expenses`, nextExpenses);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_backup_expenses`, nextExpenses);
 
     const categoryLabels: Record<ExpenseCategory, string> = {
       wages: 'أجور ورواتب عمال',
@@ -4705,11 +4753,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     safeStorageSetItem(`${STORAGE_KEY}_ingredients`, nextIngredients);
     safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_ingredients`, nextIngredients);
-    safeStorageSetItem(`${STORAGE_KEY}_orders`, nextOrders, 40);
-    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_orders`, nextOrders, 40);
+    safeStorageSetItem(`${STORAGE_KEY}_orders`, nextOrders);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_orders`, nextOrders);
+    safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_backup_orders`, nextOrders);
     if (saleMovements.length > 0) {
-      safeStorageSetItem(`${STORAGE_KEY}_stockMovements`, nextMovements, 30);
-      safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, nextMovements, 30);
+      safeStorageSetItem(`${STORAGE_KEY}_stockMovements`, nextMovements);
+      safeStorageSetItem(`${STORAGE_KEY}_${restaurant.id}_stockMovements`, nextMovements);
     }
 
     let nextExpenses = expenses;

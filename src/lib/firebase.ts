@@ -43,14 +43,31 @@ export const db = dbInstance;
 export const auth = authInstance;
 
 // Quota & Rate-Limit Circuit Breaker
-let isFirestoreQuotaExhausted = false;
-let quotaExhaustedTimestamp = 0;
+const QUOTA_STORAGE_KEY = 'mato_firestore_quota_exhausted';
+let isFirestoreQuotaExhausted = (() => {
+  try {
+    const stored = sessionStorage.getItem(QUOTA_STORAGE_KEY) || localStorage.getItem(QUOTA_STORAGE_KEY);
+    if (stored) {
+      const ts = Number(stored);
+      // Quota resets daily; check if recorded within 6 hours
+      if (!isNaN(ts) && Date.now() - ts < 6 * 60 * 60 * 1000) {
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+})();
+let quotaExhaustedTimestamp = isFirestoreQuotaExhausted ? Date.now() : 0;
 
 export function isQuotaExhausted(): boolean {
   if (!isFirestoreQuotaExhausted) return false;
-  // Automatically test retry after 10 minutes
-  if (Date.now() - quotaExhaustedTimestamp > 10 * 60 * 1000) {
+  // Automatically test retry after 30 minutes
+  if (Date.now() - quotaExhaustedTimestamp > 30 * 60 * 1000) {
     isFirestoreQuotaExhausted = false;
+    try {
+      sessionStorage.removeItem(QUOTA_STORAGE_KEY);
+      localStorage.removeItem(QUOTA_STORAGE_KEY);
+    } catch {}
     return false;
   }
   return true;
@@ -68,7 +85,11 @@ export function handleFirestoreError(actionName: string, err: any): void {
     if (!isFirestoreQuotaExhausted) {
       isFirestoreQuotaExhausted = true;
       quotaExhaustedTimestamp = Date.now();
-      console.warn(`[Firestore Offline-First Mode] تم تفعيل الحماية والوضع المحلي (Local-First) لاستهلاك حصة الكتابة المجانية اليومية. التطبيق يعمل بكفاءة وسرعة عبر التخزين المحلي.`);
+      try {
+        sessionStorage.setItem(QUOTA_STORAGE_KEY, String(Date.now()));
+        localStorage.setItem(QUOTA_STORAGE_KEY, String(Date.now()));
+      } catch {}
+      console.warn(`[Firestore Offline-First Mode] تم تفعيل الحماية والوضع المحلي (Local-First) لاستهلاك حصة الكتابة المجانية اليومية. التطبيق يعمل بكفاءة وسرعة عبر التخزين المحلي الآمن.`);
     }
     return;
   }
@@ -805,7 +826,7 @@ export async function saveRestaurantAppDataToFirestore(
   data: Partial<RestaurantCloudData>
 ): Promise<void> {
   const restaurantId = canonicalizeRestaurantId(rawRestaurantId);
-  if (!db || !restaurantId) return;
+  if (!db || !restaurantId || isQuotaExhausted()) return;
   const nowIso = new Date().toISOString();
 
   // 1. CRITICAL: Always save orders to a dedicated lightweight document (/restaurant_orders/{restaurantId})
@@ -824,23 +845,15 @@ export async function saveRestaurantAppDataToFirestore(
           },
           { merge: true }
         );
-
-        // Also mirror to rest_foodbreak for backward compatibility with older client sessions
-        if (restaurantId === 'sub_1790630390550') {
-          const legacyOrdersRef = doc(db, 'restaurant_orders', 'rest_foodbreak');
-          setDoc(legacyOrdersRef, {
-            restaurantId: 'rest_foodbreak',
-            orders: compactOrders,
-            updatedAt: nowIso
-          }, { merge: true }).catch(() => {});
-        }
       } catch (orderErr: any) {
-        console.warn('Dedicated restaurant_orders sync warning:', orderErr);
+        handleFirestoreError('saveRestaurantOrders', orderErr);
+        if (isQuotaExhausted()) return;
       }
     }
   }
 
   // 2. Also save full restaurant operational data (limiting activityLogs & stockMovements to prevent 1MB overflow)
+  if (isQuotaExhausted()) return;
   try {
     const docRef = doc(db, 'restaurant_data', restaurantId);
     const payloadToSave: any = {
@@ -863,11 +876,6 @@ export async function saveRestaurantAppDataToFirestore(
     }
     const sanitizedData = sanitizeForFirestore(payloadToSave);
     await setDoc(docRef, sanitizedData, { merge: true });
-
-    if (restaurantId === 'sub_1790630390550') {
-      const legacyDocRef = doc(db, 'restaurant_data', 'rest_foodbreak');
-      setDoc(legacyDocRef, { ...sanitizedData, restaurantId: 'rest_foodbreak' }, { merge: true }).catch(() => {});
-    }
   } catch (err: any) {
     handleFirestoreError('saveRestaurantAppData', err);
   }

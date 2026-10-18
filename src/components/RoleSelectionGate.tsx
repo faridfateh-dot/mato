@@ -178,11 +178,11 @@ export const RoleSelectionGate: React.FC<RoleSelectionGateProps> = ({ onSuccess 
 
         <button
           onClick={() => logoutUser()}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors text-xs font-bold cursor-pointer"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors text-xs font-bold cursor-pointer"
           title="تسجيل الخروج من حساب المنشأة بالكامل"
         >
           <LogOut className="w-4 h-4" />
-          <span className="hidden sm:inline">تسجيل خروج المنشأة</span>
+          <span className="hidden sm:inline">تسجيل خروج</span>
         </button>
       </header>
 

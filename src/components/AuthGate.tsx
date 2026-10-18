@@ -53,7 +53,8 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
     branches,
     currentRestaurant,
     requireOwnerApproval,
-    ownerContact
+    ownerContact,
+    switchToFoodBreakAccount
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'login' | 'register_restaurant' | 'activate_code'>('login');
@@ -342,7 +343,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ onClose, isModalMode = false
         {/* ================= TAB 1: LOGIN ================= */}
         {activeTab === 'login' && (
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            
+
             {loginStatusNotice && (
               <div
                 className={`p-4 rounded-2xl border text-xs font-bold leading-relaxed space-y-2 ${

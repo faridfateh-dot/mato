@@ -41,9 +41,8 @@ const AppMainContent: React.FC = () => {
         : ['dashboard', 'pos', 'products', 'inventory', 'suppliers', 'expenses', 'recipes', 'ai']
       );
 
-  const defaultView: ViewType = isPlatformOwner 
-    ? 'sales' 
-    : (currentUser?.role === 'Cashier' ? 'pos' : 'dashboard');
+  // Always default to restaurant operational dashboard (Food Break), with sales accessible in nav
+  const defaultView: ViewType = currentUser?.role === 'Cashier' ? 'pos' : 'dashboard';
   
   const currentView: ViewType = allowedViews.includes(pathSegment as ViewType) 
     ? (pathSegment as ViewType) 

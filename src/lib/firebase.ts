@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
+  initializeFirestore,
   collection,
   doc,
   setDoc,
@@ -24,7 +25,7 @@ import {
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Initialize Firebase App safely
+// Initialize Firebase App safely with auto-detect long polling for maximum reliability
 let app: any = null;
 let dbInstance: any = null;
 let authInstance: any = null;
@@ -32,7 +33,13 @@ let authInstance: any = null;
 try {
   if (firebaseConfig && (firebaseConfig as any).apiKey) {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+    try {
+      dbInstance = initializeFirestore(app, {
+        experimentalAutoDetectLongPolling: true,
+      }, firebaseConfig.firestoreDatabaseId || undefined);
+    } catch {
+      dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId || undefined);
+    }
     authInstance = getAuth(app);
   }
 } catch (err) {
@@ -91,6 +98,14 @@ export function handleFirestoreError(actionName: string, err: any): void {
       } catch {}
       console.warn(`[Firestore Offline-First Mode] تم تفعيل الحماية والوضع المحلي (Local-First) لاستهلاك حصة الكتابة المجانية اليومية. التطبيق يعمل بكفاءة وسرعة عبر التخزين المحلي الآمن.`);
     }
+    return;
+  }
+  if (
+    errMsg.includes('Could not reach Cloud Firestore backend') ||
+    errMsg.includes('client will operate in offline mode') ||
+    errMsg.includes('the client is offline')
+  ) {
+    console.info(`[Firestore] ${actionName}: تعمل المنظومة بسلاسة في الوضع المحلي والذاكرة المؤقتة (Offline-First Mode) بأمان تام.`);
     return;
   }
   console.warn(`[Firestore] ${actionName} warning:`, err);
@@ -264,9 +279,9 @@ export async function firebaseUserSignUp(params: {
       // ignore
     }
 
-    // Generate unique restaurant ID for this owner
-    const restaurantId = isSuperAdmin ? 'rest_01' : `rest_${user.uid.substring(0, 10)}_${Date.now().toString(36)}`;
-    const branchId = `br_main_${restaurantId}`;
+    // Generate unique restaurant ID for this owner (SuperAdmin Farid is owner of Food Break)
+    const restaurantId = isSuperAdmin ? 'sub_1790630390550' : `rest_${user.uid.substring(0, 10)}_${Date.now().toString(36)}`;
+    const branchId = isSuperAdmin ? 'br_main_sub_1790630390550' : `br_main_${restaurantId}`;
 
     const profile: FirestoreUserProfile = {
       uid: user.uid,

@@ -96,7 +96,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
     dismissRealtimeAlert,
     activeShiftRole,
     lockToShiftSelection,
-    rolePasswords
+    rolePasswords,
+    switchToFoodBreakAccount
   } = useData();
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
@@ -215,34 +216,40 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
           {/* Left / Brand Section */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 sm:gap-4">
             <div
               className="flex items-center gap-2.5 cursor-pointer"
-              onClick={() => onNavigate && onNavigate(isOwner ? 'sales' : 'dashboard')}
+              onClick={() => onNavigate && onNavigate('dashboard')}
             >
               <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xl tracking-wider shadow-lg shadow-amber-400/20">
                 M
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-xl text-white tracking-tight">MATO</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 border border-amber-400/30">
-                    {isOwner ? 'لوحة المالك العام' : 'SaaS'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 truncate max-w-[150px] sm:max-w-xs">
-                  {isOwner ? 'إدارة حسابات وتراخيص المطاعم المسجلة' : currentRestaurant.name}
+                <span className="font-extrabold text-xl text-white tracking-tight">MATO POS</span>
+                <p className="text-[11px] text-slate-300 font-medium truncate max-w-[150px] sm:max-w-xs">
+                  {currentRestaurant.name || 'food break'} • دمشق
                 </p>
               </div>
             </div>
 
-            {/* Branch Switcher (Only shown for restaurant internal staff/managers, NOT for Platform Owner) */}
-            {!isOwner && (
-              <div className="relative hidden md:block">
-                <button
-                  onClick={() => setShowBranchMenu(!showBranchMenu)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
-                >
+            {/* Platform Owner Exclusive Quick Access to Software Licenses */}
+            {isPlatformOwner && (
+              <button
+                onClick={() => onNavigate && onNavigate('sales')}
+                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 text-xs font-semibold cursor-pointer"
+                title="لوحة بيع وتراخيص المنظومة والمطاعم المشتركة"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>إدارة التراخيص المركزية</span>
+              </button>
+            )}
+
+            {/* Branch Switcher (Always available for restaurant) */}
+            <div className="relative hidden md:block">
+              <button
+                onClick={() => setShowBranchMenu(!showBranchMenu)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-xs text-slate-200 transition-colors"
+              >
                   <Store className="w-3.5 h-3.5 text-amber-400" />
                   <span className="font-medium truncate max-w-[130px]">{currentBranch.name}</span>
                   <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -296,8 +303,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAuth, onOpenAiChat, onOpen
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
 
           {/* Right / Actions & Profile */}
           <div className="flex items-center gap-3">

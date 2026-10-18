@@ -1,0 +1,6253 @@
+{
+  "categories": [
+    {
+      "restaurantId": "sub_1790630390550",
+      "name": "كروسان لحومات",
+      "id": "cat_1790672652985",
+      "icon": "Utensils"
+    },
+    {
+      "name": "كروسان البان واجبان",
+      "restaurantId": "sub_1790630390550",
+      "id": "cat_1790672687171",
+      "icon": "Utensils"
+    },
+    {
+      "icon": "Utensils",
+      "name": "كروسان مسخن",
+      "restaurantId": "sub_1790630390550",
+      "id": "cat_1790672697438"
+    },
+    {
+      "icon": "Utensils",
+      "restaurantId": "sub_1790630390550",
+      "name": "كروسان حلويات",
+      "id": "cat_1790672707881"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "icon": "Utensils",
+      "id": "cat_1790672723254",
+      "name": "سمون البان واجبان"
+    },
+    {
+      "id": "cat_1790672729899",
+      "restaurantId": "sub_1790630390550",
+      "icon": "Utensils",
+      "name": "سمون لحومات"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "cat_1790672746175",
+      "icon": "Utensils",
+      "name": "سمون مسخن"
+    },
+    {
+      "icon": "Utensils",
+      "name": "نقرشات",
+      "id": "cat_1790672757893",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "icon": "Utensils",
+      "name": "مشاريب",
+      "restaurantId": "sub_1790630390550",
+      "id": "cat_1790672891643"
+    },
+    {
+      "id": "cat_1790673229455",
+      "name": "وجبات",
+      "restaurantId": "sub_1790630390550",
+      "icon": "Utensils"
+    },
+    {
+      "id": "cat_1790712070065",
+      "restaurantId": "sub_1790630390550",
+      "icon": "Utensils",
+      "name": "اكسترا"
+    },
+    {
+      "icon": "Utensils",
+      "name": "سندويشات دجاج",
+      "restaurantId": "sub_1790630390550",
+      "id": "cat_1790712317363"
+    },
+    {
+      "id": "cat_1790712618901",
+      "restaurantId": "sub_1790630390550",
+      "name": "خبز راب",
+      "icon": "Utensils"
+    }
+  ],
+  "products": [
+    {
+      "price": 12000,
+      "name": "كروسان سادة",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "categoryName": "كروسان حلويات",
+      "description": "",
+      "categoryId": "cat_1790672707881",
+      "id": "prod_1791365047609",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790712758145",
+      "isAvailable": true,
+      "name": "جبنة راب",
+      "categoryName": "خبز راب",
+      "price": 10000,
+      "categoryId": "cat_1790712618901",
+      "description": "",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "categoryName": "خبز راب",
+      "categoryId": "cat_1790712618901",
+      "id": "prod_1790712701827",
+      "price": 15000,
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "name": "ميكس راب",
+      "isAvailable": true
+    },
+    {
+      "categoryName": "خبز راب",
+      "description": "",
+      "id": "prod_1790712684258",
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790712618901",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "price": 15000,
+      "name": "روستو راب"
+    },
+    {
+      "price": 15000,
+      "categoryName": "خبز راب",
+      "name": "سلامي راب",
+      "description": "",
+      "id": "prod_1790712652384",
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "categoryId": "cat_1790712618901"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "price": 15000,
+      "categoryName": "خبز راب",
+      "name": "حبش راب",
+      "description": "",
+      "id": "prod_1790712633806",
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "categoryId": "cat_1790712618901"
+    },
+    {
+      "name": "كروسان 3 اجبان",
+      "isAvailable": true,
+      "price": 23000,
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672687171",
+      "id": "prod_1790712577257",
+      "description": "",
+      "categoryName": "كروسان البان واجبان",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "description": "",
+      "id": "prod_1790712403782",
+      "price": 30000,
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790712317363",
+      "categoryName": "سندويشات دجاج",
+      "name": "سندويش تونا"
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "price": 35000,
+      "name": "سندويش فاهيتا",
+      "description": "",
+      "categoryId": "cat_1790712317363",
+      "id": "prod_1790712356781",
+      "categoryName": "سندويشات دجاج",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "name": "سندويش جريليد تشكن",
+      "id": "prod_1790712336561",
+      "price": 35000,
+      "categoryName": "سندويشات دجاج",
+      "description": "",
+      "categoryId": "cat_1790712317363",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790712070065",
+      "id": "prod_1790712222089",
+      "isAvailable": true,
+      "categoryName": "اكسترا",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "price": 7000,
+      "name": "اكسترا 50g جاج"
+    },
+    {
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "اكسترا فواكي",
+      "categoryId": "cat_1790712070065",
+      "isAvailable": true,
+      "categoryName": "اكسترا",
+      "price": 12000,
+      "id": "prod_1790712177071",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "categoryId": "cat_1790712070065",
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "name": "اكسترا نوتيلا",
+      "categoryName": "اكسترا",
+      "id": "prod_1790712152367",
+      "branchId": "br_main_rest_1789946329251",
+      "price": 10000,
+      "description": ""
+    },
+    {
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790712132031",
+      "categoryId": "cat_1790712070065",
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "اكسترا",
+      "name": "اكسترا مكسرات",
+      "description": "",
+      "price": 7000
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "price": 5000,
+      "categoryId": "cat_1790712070065",
+      "id": "prod_1790712116209",
+      "description": "",
+      "categoryName": "اكسترا",
+      "name": "اكسترا جبنة",
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "description": "",
+      "price": 5000,
+      "categoryId": "cat_1790712070065",
+      "isAvailable": true,
+      "name": "شرحة حبش",
+      "id": "prod_1790712098895",
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "اكسترا",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "id": "prod_1790712084205",
+      "price": 3000,
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "علبة صوص صغيرة",
+      "categoryId": "cat_1790712070065",
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "اكسترا"
+    },
+    {
+      "isAvailable": true,
+      "categoryName": "وجبات",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790712035879",
+      "description": "",
+      "name": "سلطة تونا",
+      "categoryId": "cat_1790673229455",
+      "branchId": "br_main_rest_1789946329251",
+      "price": 32000
+    },
+    {
+      "name": "جرانولا ",
+      "categoryName": "وجبات",
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "description": "",
+      "price": 25000,
+      "categoryId": "cat_1790673229455",
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790712001438"
+    },
+    {
+      "name": "علبة رز 250g",
+      "price": 12000,
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790673229455",
+      "isAvailable": true,
+      "id": "prod_1790711988536",
+      "categoryName": "وجبات",
+      "description": "",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "categoryName": "وجبات",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "price": 30000,
+      "isAvailable": true,
+      "id": "prod_1790711957553",
+      "categoryId": "cat_1790673229455",
+      "description": "",
+      "name": "سلطة جاج 160g"
+    },
+    {
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryName": "وجبات",
+      "price": 45000,
+      "categoryId": "cat_1790673229455",
+      "id": "prod_1790711928721",
+      "description": "",
+      "name": "سلطة جاج 300g"
+    },
+    {
+      "description": "",
+      "price": 35000,
+      "name": "سلطة جاج 200g",
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "categoryName": "وجبات",
+      "id": "prod_1790711897126",
+      "categoryId": "cat_1790673229455",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "name": "ميلو",
+      "description": "",
+      "price": 7500,
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672891643",
+      "categoryName": "مشاريب",
+      "isAvailable": true,
+      "id": "prod_1790711849640",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "categoryName": "مشاريب",
+      "id": "prod_1790711830040",
+      "price": 5000,
+      "isAvailable": true,
+      "categoryId": "cat_1790672891643",
+      "restaurantId": "sub_1790630390550",
+      "name": "مياه ",
+      "branchId": "br_main_rest_1789946329251",
+      "description": ""
+    },
+    {
+      "isAvailable": true,
+      "price": 7500,
+      "name": "راني حبيبات",
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "categoryId": "cat_1790672891643",
+      "id": "prod_1790711812272",
+      "categoryName": "مشاريب",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "price": 8000,
+      "id": "prod_1790711791030",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672891643",
+      "categoryName": "مشاريب",
+      "name": "كولا كبيرة",
+      "description": ""
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "price": 7000,
+      "id": "prod_1790711767836",
+      "isAvailable": true,
+      "categoryId": "cat_1790672891643",
+      "restaurantId": "sub_1790630390550",
+      "name": "كولا وسط",
+      "categoryName": "مشاريب",
+      "description": ""
+    },
+    {
+      "isAvailable": true,
+      "price": 5000,
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672891643",
+      "name": "كولا ميني",
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790711652058",
+      "categoryName": "مشاريب"
+    },
+    {
+      "description": "",
+      "id": "prod_1790711559311",
+      "isAvailable": true,
+      "categoryName": "نقرشات",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672757893",
+      "price": 15000,
+      "name": "نوتيلا ميني",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "description": "",
+      "price": 5000,
+      "categoryId": "cat_1790672757893",
+      "isAvailable": true,
+      "categoryName": "نقرشات",
+      "name": "مصاصات شباشيبس",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790711528448",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "categoryId": "cat_1790672757893",
+      "price": 5000,
+      "id": "prod_1790711496356",
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "categoryName": "نقرشات",
+      "name": "ريماس زرقاء",
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "price": 5000,
+      "name": "شيبس ليز",
+      "categoryId": "cat_1790672757893",
+      "description": "",
+      "categoryName": "نقرشات",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790711433833"
+    },
+    {
+      "name": "كروسان ميكس كلشي مسخنة",
+      "price": 31000,
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790711411238",
+      "categoryId": "cat_1790672697438",
+      "categoryName": "كروسان مسخن",
+      "isAvailable": true
+    },
+    {
+      "description": "",
+      "categoryId": "cat_1790672697438",
+      "price": 26000,
+      "name": "كروسان ميكس مسخنة",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790711380476",
+      "categoryName": "كروسان مسخن"
+    },
+    {
+      "id": "prod_1790711352886",
+      "price": 27000,
+      "name": "كروسان روستو مسخنة",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "categoryId": "cat_1790672697438",
+      "categoryName": "كروسان مسخن",
+      "description": "",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "categoryId": "cat_1790672697438",
+      "price": 26000,
+      "description": "",
+      "categoryName": "كروسان مسخن",
+      "id": "prod_1790711326240",
+      "name": "كروسان سلامي مسخنة ",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "name": "كروسان حبش مسخنة",
+      "categoryId": "cat_1790672697438",
+      "id": "prod_1790711304655",
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "price": 26000,
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "categoryName": "كروسان مسخن"
+    },
+    {
+      "categoryName": "سمون مسخن",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "description": "",
+      "price": 31000,
+      "name": "سندويش ميكس كلشي مسخنة",
+      "id": "prod_1790711284785",
+      "categoryId": "cat_1790672746175",
+      "isAvailable": true
+    },
+    {
+      "categoryName": "سمون مسخن",
+      "name": "سندويش ميكس مسخنة",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "description": "",
+      "price": 30000,
+      "categoryId": "cat_1790672746175",
+      "id": "prod_1790711261185",
+      "isAvailable": true
+    },
+    {
+      "categoryId": "cat_1790672746175",
+      "price": 26000,
+      "name": "سندويش هوت دوغ مسخنة",
+      "description": "",
+      "isAvailable": true,
+      "categoryName": "سمون مسخن",
+      "id": "prod_1790711245149",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "description": "",
+      "id": "prod_1790711222538",
+      "name": "سندويش روستو مسخنة",
+      "categoryId": "cat_1790672746175",
+      "price": 26000,
+      "isAvailable": true,
+      "categoryName": "سمون مسخن",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "id": "prod_1790711201003",
+      "categoryId": "cat_1790672746175",
+      "description": "",
+      "categoryName": "سمون مسخن",
+      "name": "سندويش سلامي مسخنة",
+      "price": 26000,
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "categoryId": "cat_1790672746175",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790711172947",
+      "name": "سندويش حبش مسخنة",
+      "categoryName": "سمون مسخن",
+      "price": 26000
+    },
+    {
+      "price": 30000,
+      "description": "",
+      "name": "سندويش 3اجبان مع ميكس ",
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "سمون مسخن",
+      "id": "prod_1790711144728",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672746175"
+    },
+    {
+      "description": "",
+      "id": "prod_1790711052560",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "سمون مسخن",
+      "categoryId": "cat_1790672746175",
+      "isAvailable": true,
+      "price": 22000,
+      "name": "سندويش 3 اجبان مع مرتديل"
+    },
+    {
+      "isAvailable": true,
+      "description": "",
+      "categoryName": "سمون مسخن",
+      "name": "سندويش 3 اجبان مع حبش",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790710995088",
+      "categoryId": "cat_1790672746175",
+      "price": 30000
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790710972649",
+      "price": 33000,
+      "categoryName": "سمون مسخن",
+      "categoryId": "cat_1790672746175",
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "سندويش سجق",
+      "isAvailable": true
+    },
+    {
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672729899",
+      "id": "prod_1790710940923",
+      "price": 30000,
+      "description": "",
+      "categoryName": "سمون لحومات",
+      "restaurantId": "sub_1790630390550",
+      "name": "سندويش ميكس كلشي "
+    },
+    {
+      "isAvailable": true,
+      "name": "سندويش ميكس",
+      "price": 25000,
+      "categoryId": "cat_1790672729899",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryName": "سمون لحومات",
+      "description": "",
+      "id": "prod_1790710903298",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "price": 25000,
+      "id": "prod_1790710766279",
+      "name": "سندويش هوت دوغ",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672729899",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "categoryName": "سمون لحومات"
+    },
+    {
+      "id": "prod_1790710743042",
+      "isAvailable": true,
+      "categoryId": "cat_1790672729899",
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "name": "سندويش روستو",
+      "restaurantId": "sub_1790630390550",
+      "price": 25000,
+      "categoryName": "سمون لحومات"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "id": "prod_1790710731305",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672729899",
+      "categoryName": "سمون لحومات",
+      "description": "",
+      "name": "سندويش سلامي",
+      "price": 25000
+    },
+    {
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672729899",
+      "categoryName": "سمون لحومات",
+      "price": 25000,
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "سندويش حبش",
+      "id": "prod_1790710719369"
+    },
+    {
+      "name": "سندويش بيض مع حبش",
+      "price": 26000,
+      "categoryId": "cat_1790672723254",
+      "description": "",
+      "categoryName": "سمون البان واجبان",
+      "id": "prod_1790710675916",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true
+    },
+    {
+      "isAvailable": true,
+      "categoryName": "سمون البان واجبان",
+      "branchId": "br_main_rest_1789946329251",
+      "price": 18000,
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672723254",
+      "id": "prod_1790710649668",
+      "description": "",
+      "name": "سندويش بيض"
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790710627607",
+      "name": "سندويش زعتر",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "سمون البان واجبان",
+      "price": 15000,
+      "isAvailable": true,
+      "categoryId": "cat_1790672723254"
+    },
+    {
+      "isAvailable": true,
+      "categoryName": "سمون البان واجبان",
+      "id": "prod_1790710577787",
+      "restaurantId": "sub_1790630390550",
+      "name": "سندويش 3 اجبان",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672723254",
+      "description": "",
+      "price": 20000
+    },
+    {
+      "categoryName": "سمون البان واجبان",
+      "isAvailable": true,
+      "restaurantId": "sub_1790630390550",
+      "name": "سندويش جبنتين",
+      "description": "",
+      "categoryId": "cat_1790672723254",
+      "price": 20000,
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790710511846"
+    },
+    {
+      "name": "سندويش لبنة",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "categoryName": "سمون البان واجبان",
+      "id": "prod_1790710495776",
+      "description": "",
+      "price": 15000,
+      "categoryId": "cat_1790672723254",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "isAvailable": true,
+      "price": 20000,
+      "id": "prod_1790710483302",
+      "name": "سندويش قشقوان",
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672723254",
+      "description": "",
+      "categoryName": "سمون البان واجبان"
+    },
+    {
+      "categoryName": "سمون البان واجبان",
+      "isAvailable": true,
+      "id": "prod_1790710467496",
+      "restaurantId": "sub_1790630390550",
+      "description": "",
+      "categoryId": "cat_1790672723254",
+      "price": 20000,
+      "branchId": "br_main_rest_1789946329251",
+      "name": "سندويش جبنة مسنرة"
+    },
+    {
+      "name": "كروسان قشقوان",
+      "categoryName": "كروسان البان واجبان",
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672687171",
+      "description": "",
+      "price": 22000,
+      "id": "prod_1790710445462",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "description": "",
+      "name": "كروسان مربى",
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790710392414",
+      "categoryId": "cat_1790672707881",
+      "categoryName": "كروسان حلويات",
+      "price": 17000,
+      "isAvailable": true
+    },
+    {
+      "id": "prod_1790710377371",
+      "description": "",
+      "name": "كروسان لوتس مع نوتيلا",
+      "categoryId": "cat_1790672707881",
+      "restaurantId": "sub_1790630390550",
+      "price": 33000,
+      "categoryName": "كروسان حلويات",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "price": 30000,
+      "name": "كروسان لوتس",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790710355815",
+      "categoryName": "كروسان حلويات",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672707881"
+    },
+    {
+      "description": "",
+      "price": 33000,
+      "id": "prod_1790710334684",
+      "categoryId": "cat_1790672707881",
+      "restaurantId": "sub_1790630390550",
+      "isAvailable": true,
+      "name": "كروسان نوتيلا",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryName": "كروسان حلويات"
+    },
+    {
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251",
+      "price": 22000,
+      "id": "prod_1790710141885",
+      "name": "كروسان جبنتين ومرتديل",
+      "description": "",
+      "categoryName": "كروسان مسخن",
+      "categoryId": "cat_1790672697438",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "categoryId": "cat_1790672697438",
+      "isAvailable": true,
+      "price": 25000,
+      "categoryName": "كروسان مسخن",
+      "id": "prod_1790710118950",
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "كروسان 3 اجبان مع مرتديل",
+      "description": ""
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790710093524",
+      "categoryId": "cat_1790672697438",
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "price": 30000,
+      "categoryName": "كروسان مسخن",
+      "name": "كروسان 3اجبان مع ميكس",
+      "isAvailable": true
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "name": "كروسان زعتر",
+      "description": "",
+      "id": "prod_1790690629188",
+      "restaurantId": "sub_1790630390550",
+      "price": 18000,
+      "categoryId": "cat_1790672687171",
+      "categoryName": "كروسان البان واجبان"
+    },
+    {
+      "categoryName": "كروسان مسخن",
+      "categoryId": "cat_1790672697438",
+      "restaurantId": "sub_1790630390550",
+      "description": "",
+      "price": 35000,
+      "name": "كروسان سجق",
+      "branchId": "br_main_rest_1789946329251",
+      "id": "prod_1790690555905",
+      "isAvailable": true
+    },
+    {
+      "name": "كروسان لبنة ومرتديل",
+      "isAvailable": true,
+      "description": "",
+      "id": "prod_1790690460956",
+      "branchId": "br_main_rest_1789946329251",
+      "price": 23000,
+      "categoryName": "كروسان البان واجبان",
+      "categoryId": "cat_1790672687171",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672687171",
+      "price": 30000,
+      "description": "",
+      "id": "prod_1790690427150",
+      "categoryName": "كروسان البان واجبان",
+      "name": "كروسان 3اجبان مع حبش",
+      "isAvailable": true
+    },
+    {
+      "description": "",
+      "name": "كروسان بيض مع حبش",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790690400651",
+      "categoryName": "كروسان البان واجبان",
+      "price": 32000,
+      "categoryId": "cat_1790672687171",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "id": "prod_1790690380952",
+      "branchId": "br_main_rest_1789946329251",
+      "description": "",
+      "isAvailable": true,
+      "name": "كروسان بيض",
+      "categoryName": "كروسان البان واجبان",
+      "price": 23000,
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672687171"
+    },
+    {
+      "description": "",
+      "price": 22000,
+      "id": "prod_1790690358197",
+      "name": "جبنة ومرتديل ",
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "categoryName": "كروسان البان واجبان",
+      "categoryId": "cat_1790672687171",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "id": "prod_1790690318671",
+      "description": "",
+      "price": 16000,
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672687171",
+      "name": "كروسان لبنة ",
+      "categoryName": "كروسان البان واجبان",
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "branchId": "br_main_rest_1789946329251",
+      "categoryId": "cat_1790672687171",
+      "name": "كروسان جبنتين",
+      "isAvailable": true,
+      "categoryName": "كروسان البان واجبان",
+      "id": "prod_1790690282614",
+      "price": 22000,
+      "description": ""
+    },
+    {
+      "price": 22000,
+      "id": "prod_1790690266572",
+      "description": "",
+      "name": "كروسان جبنة ",
+      "categoryName": "كروسان البان واجبان",
+      "branchId": "br_main_rest_1789946329251",
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672687171",
+      "isAvailable": true
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790690242272",
+      "categoryName": "كروسان لحومات",
+      "price": 16000,
+      "description": "",
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "categoryId": "cat_1790672652985",
+      "name": "كروسان مرتديل"
+    },
+    {
+      "description": "",
+      "price": 32000,
+      "restaurantId": "sub_1790630390550",
+      "categoryId": "cat_1790672652985",
+      "id": "prod_1790690217081",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "كروسان ميكس كلشي",
+      "categoryName": "كروسان لحومات",
+      "isAvailable": true
+    },
+    {
+      "branchId": "br_main_rest_1789946329251",
+      "isAvailable": true,
+      "id": "prod_1790673353552",
+      "price": 30000,
+      "description": "",
+      "categoryId": "cat_1790672652985",
+      "categoryName": "كروسان لحومات",
+      "restaurantId": "sub_1790630390550",
+      "name": "كروسان هوت دوغ"
+    },
+    {
+      "categoryId": "cat_1790672652985",
+      "branchId": "br_main_rest_1789946329251",
+      "name": "كروسان ميكس ",
+      "isAvailable": true,
+      "id": "prod_1790673324496",
+      "categoryName": "كروسان لحومات",
+      "price": 25000,
+      "restaurantId": "sub_1790630390550",
+      "description": ""
+    },
+    {
+      "categoryId": "cat_1790672652985",
+      "branchId": "br_main_rest_1789946329251",
+      "price": 25000,
+      "name": "كروسان روستو",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790673310904",
+      "categoryName": "كروسان لحومات",
+      "isAvailable": true
+    },
+    {
+      "name": "كروسان سلامي",
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "categoryName": "كروسان لحومات",
+      "isAvailable": true,
+      "id": "prod_1790673296246",
+      "price": 25000,
+      "categoryId": "cat_1790672652985",
+      "branchId": "br_main_rest_1789946329251"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "prod_1790673264056",
+      "price": 25000,
+      "categoryName": "كروسان لحومات",
+      "name": "كروسان حبش",
+      "isAvailable": true,
+      "categoryId": "cat_1790672652985",
+      "branchId": "br_main_rest_1789946329251",
+      "description": ""
+    },
+    {
+      "price": 40000,
+      "description": "",
+      "restaurantId": "sub_1790630390550",
+      "name": "سلطة 250  غ",
+      "id": "prod_1791817644533",
+      "categoryName": "وجبات",
+      "categoryId": "cat_1790673229455",
+      "isAvailable": true,
+      "branchId": "br_main_rest_1789946329251"
+    }
+  ],
+  "ingredients": [
+    {
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": 5,
+      "costPerUnit": 101500,
+      "name": "حبش",
+      "unit": "كيلوغرام (كغ)",
+      "currentStock": 21.05,
+      "id": "ing_1790762470262",
+      "category": "meats"
+    },
+    {
+      "minStockThreshold": 5,
+      "id": "ing_1790762759235",
+      "costPerUnit": 132478,
+      "currentStock": 1.35,
+      "name": "روستو",
+      "unit": "كيلوغرام (كغ)",
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "category": "meats"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "category": "meats",
+      "costPerUnit": 155826,
+      "minStockThreshold": 5,
+      "id": "ing_1790762800482",
+      "currentStock": 1,
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "name": "سلامي",
+      "unit": "كيلوغرام (كغ)"
+    },
+    {
+      "pieceUnitName": "رأس",
+      "id": "ing_1790762923965",
+      "pieceWeight": 15,
+      "updatedAt": "2026-10-14T13:02:21.557Z",
+      "name": "هوت دوغ",
+      "unit": "كيس 15 قطعة",
+      "category": "meats",
+      "restaurantId": "sub_1790630390550",
+      "pieceWeightUnit": "غرام (غ)",
+      "costPerUnit": 55000,
+      "minStockThreshold": 5,
+      "currentStock": 5.999
+    },
+    {
+      "updatedAt": "2026-10-12T09:21:15.055Z",
+      "costPerUnit": 45000,
+      "currentStock": -0.485,
+      "minStockThreshold": 5,
+      "name": "مرتديلا",
+      "unit": "كيلوغرام (كغ)",
+      "restaurantId": "sub_1790630390550",
+      "category": "meats",
+      "id": "ing_1790762973858"
+    },
+    {
+      "id": "ing_1790763115440",
+      "minStockThreshold": 0.5,
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "category": "produce",
+      "unit": "كيلوغرام (كغ)",
+      "name": "زيتون مقطع",
+      "currentStock": -4.528,
+      "costPerUnit": 45000,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "updatedAt": "2026-10-12T09:47:56.275Z",
+      "currentStock": 1.5,
+      "unit": "كيلوغرام (كغ)",
+      "name": "زيتون محشي",
+      "id": "ing_1790763153319",
+      "costPerUnit": 50000,
+      "minStockThreshold": 5,
+      "category": "produce",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "unit": "كيلوغرام (كغ)",
+      "name": "جبنة مسنرة",
+      "currentStock": -0.925,
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "category": "cheeses",
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": 1,
+      "id": "ing_1790763205027",
+      "costPerUnit": 85000
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1790763259311",
+      "costPerUnit": 7200,
+      "currentStock": 179,
+      "updatedAt": "2026-10-14T14:52:07.214Z",
+      "category": "other",
+      "minStockThreshold": 5,
+      "unit": "قطعة",
+      "name": "كروسان فارغ"
+    },
+    {
+      "unit": "لتر",
+      "name": "حليب",
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1790763330028",
+      "updatedAt": "2026-10-12T14:39:26.299Z",
+      "category": "cheeses",
+      "minStockThreshold": 5,
+      "costPerUnit": 15000,
+      "currentStock": 1
+    },
+    {
+      "name": "ورق لف",
+      "unit": "كيلوغرام (كغ)",
+      "currentStock": -2.423,
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "id": "ing_1790763480080",
+      "category": "packaging",
+      "minStockThreshold": 5,
+      "restaurantId": "sub_1790630390550",
+      "costPerUnit": 33750
+    },
+    {
+      "minStockThreshold": 5,
+      "category": "packaging",
+      "currentStock": 43.209,
+      "costPerUnit": 33750,
+      "id": "ing_1790763507252",
+      "updatedAt": "2026-10-12T07:08:05.277Z",
+      "unit": "كيلوغرام (كغ)",
+      "name": "كياس ورق كبار",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "currentStock": 150.46,
+      "category": "packaging",
+      "minStockThreshold": 5,
+      "id": "ing_1790763540244",
+      "unit": "كيلوغرام (كغ)",
+      "name": "كياس ورق وسط",
+      "costPerUnit": 33750,
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-14T14:39:14.162Z"
+    },
+    {
+      "currentStock": 16.315,
+      "restaurantId": "sub_1790630390550",
+      "category": "packaging",
+      "name": "كياس ورق صغار",
+      "unit": "كيلوغرام (كغ)",
+      "costPerUnit": 33750,
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "minStockThreshold": 5,
+      "id": "ing_1790763567127"
+    },
+    {
+      "currentStock": 14.24,
+      "category": "cheeses",
+      "costPerUnit": 82000,
+      "unit": "كيلوغرام (كغ)",
+      "name": "جبنة قشقوان",
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1790766207257",
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "minStockThreshold": 5
+    },
+    {
+      "name": "مايونيز",
+      "unit": "كيلوغرام (كغ)",
+      "updatedAt": "2026-10-14T14:50:05.430Z",
+      "currentStock": -11.8,
+      "costPerUnit": 140000,
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1790766309874",
+      "minStockThreshold": 5,
+      "category": "produce"
+    },
+    {
+      "unit": "كيلوغرام (كغ)",
+      "name": "بندورة",
+      "category": "produce",
+      "minStockThreshold": 5,
+      "updatedAt": "2026-10-14T14:50:05.430Z",
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1790850877882",
+      "currentStock": 1.44,
+      "costPerUnit": 10000
+    },
+    {
+      "id": "ing_1790850910846",
+      "unit": "كيلوغرام (كغ)",
+      "name": "خيار كبيس",
+      "restaurantId": "sub_1790630390550",
+      "costPerUnit": 20000,
+      "category": "produce",
+      "updatedAt": "2026-10-14T14:39:14.162Z",
+      "currentStock": -0.284,
+      "minStockThreshold": 5
+    },
+    {
+      "currentStock": 1.192,
+      "minStockThreshold": 5,
+      "category": "produce",
+      "id": "ing_1790851010333",
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "costPerUnit": 10000,
+      "restaurantId": "sub_1790630390550",
+      "name": "خيار اخضر",
+      "unit": "كيلوغرام (كغ)"
+    },
+    {
+      "name": "خس",
+      "unit": "قطعة",
+      "category": "produce",
+      "updatedAt": "2026-10-14T14:50:05.430Z",
+      "costPerUnit": 7000,
+      "currentStock": 5.962,
+      "pieceUnitName": "رأس",
+      "pieceWeight": 800,
+      "minStockThreshold": 5,
+      "pieceWeightUnit": "غرام (غ)",
+      "id": "ing_1790851042258",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "minStockThreshold": 5,
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "id": "ing_1790882886534",
+      "category": "cheeses",
+      "currentStock": 1.2,
+      "name": "لبنة",
+      "unit": "كيلوغرام (كغ)",
+      "costPerUnit": 19000
+    },
+    {
+      "costPerUnit": 1500,
+      "updatedAt": "2026-10-14T09:00:54.097Z",
+      "id": "ing_1790883805657",
+      "minStockThreshold": 5,
+      "restaurantId": "sub_1790630390550",
+      "category": "cheeses",
+      "unit": "قطعة",
+      "name": "بيض",
+      "currentStock": 18
+    },
+    {
+      "costPerUnit": 60000,
+      "minStockThreshold": 5,
+      "updatedAt": "2026-10-14T14:50:05.430Z",
+      "restaurantId": "sub_1790630390550",
+      "category": "meats",
+      "name": "دجاج",
+      "unit": "كيلوغرام (كغ)",
+      "currentStock": 7.724,
+      "id": "ing_1790970953051"
+    },
+    {
+      "id": "ing_1790970995175",
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "costPerUnit": 200000,
+      "restaurantId": "sub_1790630390550",
+      "category": "meats",
+      "name": "لحمة سجق",
+      "unit": "كيلوغرام (كغ)",
+      "minStockThreshold": 5,
+      "currentStock": 1.13
+    },
+    {
+      "pieceWeight": 750,
+      "restaurantId": "sub_1790630390550",
+      "pieceWeightUnit": "غرام (غ)",
+      "unit": "كيلوغرام (كغ)",
+      "name": "نوتيلا",
+      "id": "ing_1790971426144",
+      "currentStock": -0.6,
+      "category": "canned",
+      "pieceUnitName": "رأس",
+      "updatedAt": "2026-10-14T11:44:09.354Z",
+      "minStockThreshold": 5,
+      "costPerUnit": 93000
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "unit": "قطعة",
+      "name": "شيدر",
+      "pieceWeightUnit": "غرام (غ)",
+      "minStockThreshold": 5,
+      "costPerUnit": 25000,
+      "id": "ing_1791040368179",
+      "currentStock": 7.6675,
+      "pieceUnitName": "رأس",
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "pieceWeight": 12,
+      "category": "cheeses"
+    },
+    {
+      "costPerUnit": 26000,
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": 5,
+      "updatedAt": "2026-10-14T09:11:01.852Z",
+      "category": "produce",
+      "id": "ing_1791040398703",
+      "unit": "كيلوغرام (كغ)",
+      "name": "دراق",
+      "currentStock": 1.723
+    },
+    {
+      "costPerUnit": 36000,
+      "minStockThreshold": 5,
+      "name": "موز",
+      "unit": "كيلوغرام (كغ)",
+      "updatedAt": "2026-10-13T09:34:46.270Z",
+      "currentStock": 1.332,
+      "id": "ing_1791040443889",
+      "restaurantId": "sub_1790630390550",
+      "category": "produce"
+    },
+    {
+      "currentStock": 1.38,
+      "category": "produce",
+      "minStockThreshold": 5,
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1791040471681",
+      "updatedAt": "2026-10-14T09:10:33.491Z",
+      "name": "تفاح",
+      "unit": "كيلوغرام (كغ)",
+      "costPerUnit": 14000
+    },
+    {
+      "minStockThreshold": 5,
+      "unit": "كيلوغرام (كغ)",
+      "name": "فليفلة",
+      "currentStock": -0.06,
+      "costPerUnit": 20000,
+      "updatedAt": "2026-10-14T14:50:05.430Z",
+      "category": "produce",
+      "id": "ing_1791040512249",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "costPerUnit": 27000,
+      "id": "ing_1791040582674",
+      "category": "canned",
+      "unit": "كيلوغرام (كغ)",
+      "name": "رز",
+      "currentStock": -1.75,
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "minStockThreshold": 5,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "id": "ing_1791040617370",
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "currentStock": 1,
+      "unit": "قطعة",
+      "name": "تونا",
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": 5,
+      "category": "canned",
+      "costPerUnit": 16500
+    },
+    {
+      "category": "packaging",
+      "id": "ing_1791054588709",
+      "currentStock": -78,
+      "costPerUnit": 1100,
+      "unit": "قطعة",
+      "name": "علب كرتون",
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": 5,
+      "updatedAt": "2026-10-14T14:50:05.430Z"
+    },
+    {
+      "unit": "قطعة",
+      "name": "خبز",
+      "id": "ing_1791064580941",
+      "currentStock": 31,
+      "minStockThreshold": 5,
+      "category": "other",
+      "updatedAt": "2026-10-14T13:54:25.328Z",
+      "restaurantId": "sub_1790630390550",
+      "costPerUnit": 3800
+    },
+    {
+      "category": "canned",
+      "name": "ذرة",
+      "unit": "كيلوغرام (كغ)",
+      "pieceUnitName": "رأس",
+      "pieceWeight": 860,
+      "currentStock": 5.45,
+      "pieceWeightUnit": "غرام (غ)",
+      "minStockThreshold": 5,
+      "costPerUnit": 27300,
+      "updatedAt": "2026-10-14T14:48:48.388Z",
+      "id": "ing_1791195094545",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "updatedAt": "2026-10-14T15:01:33.021Z",
+      "id": "ing_1791330036272",
+      "minStockThreshold": 20,
+      "costPerUnit": 3002,
+      "restaurantId": "sub_1790630390550",
+      "category": "produce",
+      "unit": "قطعة",
+      "name": "تنك ميني",
+      "currentStock": 133
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-14T11:21:32.400Z",
+      "minStockThreshold": 5,
+      "id": "ing_1791330107036",
+      "category": "canned",
+      "costPerUnit": 3861,
+      "currentStock": 55,
+      "unit": "قطعة",
+      "name": "تنك كبير"
+    },
+    {
+      "updatedAt": "2026-10-11T09:05:13.155Z",
+      "minStockThreshold": 10,
+      "category": "canned",
+      "id": "ing_1791330145880",
+      "currentStock": 107,
+      "unit": "قطعة",
+      "name": "ميلو",
+      "costPerUnit": 0,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "updatedAt": "2026-10-14T09:45:30.691Z",
+      "minStockThreshold": 20,
+      "category": "canned",
+      "restaurantId": "sub_1790630390550",
+      "costPerUnit": 3300,
+      "id": "ing_1791330189302",
+      "name": "مي",
+      "unit": "قطعة",
+      "currentStock": 131
+    },
+    {
+      "currentStock": 54,
+      "updatedAt": "2026-10-14T11:44:09.354Z",
+      "name": "راني",
+      "unit": "قطعة",
+      "category": "canned",
+      "minStockThreshold": 15,
+      "restaurantId": "sub_1790630390550",
+      "costPerUnit": 0,
+      "id": "ing_1791330337263"
+    },
+    {
+      "category": "produce",
+      "name": "جبنة بيضا",
+      "unit": "كيلوغرام (كغ)",
+      "id": "ing_1791407644763",
+      "minStockThreshold": 0,
+      "restaurantId": "sub_1790630390550",
+      "costPerUnit": 75000,
+      "currentStock": 0.2
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-10T09:16:00.164Z",
+      "id": "ing_1791454817306",
+      "currentStock": 1.0700000000000003,
+      "category": "canned",
+      "name": "جرانولا",
+      "unit": "كيلوغرام (كغ)",
+      "minStockThreshold": 0,
+      "costPerUnit": 72000
+    },
+    {
+      "minStockThreshold": 0,
+      "unit": "كيلوغرام (كغ)",
+      "name": "فليفلة",
+      "id": "ing_1791542204699",
+      "updatedAt": "2026-10-14T10:58:46.847Z",
+      "restaurantId": "sub_1790630390550",
+      "category": "produce",
+      "costPerUnit": 20000,
+      "currentStock": 5.96
+    },
+    {
+      "pieceWeight": 7,
+      "updatedAt": "2026-10-14T09:14:54.557Z",
+      "pieceUnitName": "رأس",
+      "restaurantId": "sub_1790630390550",
+      "pieceWeightUnit": "غرام (غ)",
+      "minStockThreshold": 0,
+      "costPerUnit": 8000,
+      "unit": "قطعة",
+      "name": "خبز شوفان",
+      "category": "other",
+      "id": "ing_1791542283186",
+      "currentStock": 9
+    },
+    {
+      "updatedAt": "2026-10-14T14:50:05.430Z",
+      "name": "كيك ريماس",
+      "currentStock": 76,
+      "unit": "قطعة",
+      "costPerUnit": 3191,
+      "category": "canned",
+      "minStockThreshold": 5,
+      "restaurantId": "sub_1790630390550",
+      "id": "ing_1791542523465"
+    },
+    {
+      "category": "canned",
+      "minStockThreshold": 5,
+      "name": "تنك 330",
+      "unit": "قطعة",
+      "currentStock": 81,
+      "updatedAt": "2026-10-14T15:00:28.132Z",
+      "costPerUnit": 5305,
+      "id": "ing_1791543729689",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "updatedAt": "2026-10-13T13:16:38.190Z",
+      "currentStock": 127,
+      "minStockThreshold": 5,
+      "costPerUnit": 10500,
+      "id": "ing_1791897285607",
+      "restaurantId": "sub_1790630390550",
+      "name": "نوتيلا ميني",
+      "unit": "قطعة",
+      "category": "canned"
+    },
+    {
+      "unit": "قطعة",
+      "name": "لوتس",
+      "currentStock": 0.7,
+      "id": "ing_1791970229358",
+      "updatedAt": "2026-10-14T09:30:29.358Z",
+      "pieceWeight": 400,
+      "category": "canned",
+      "costPerUnit": 57000,
+      "minStockThreshold": 0,
+      "restaurantId": "sub_1790630390550",
+      "pieceWeightUnit": "غرام (غ)",
+      "pieceUnitName": "رأس"
+    },
+    {
+      "pieceWeightUnit": "غرام (غ)",
+      "id": "ing_1791970309507",
+      "pieceWeight": 17,
+      "minStockThreshold": 5,
+      "currentStock": 0,
+      "pieceUnitName": "رأس",
+      "category": "other",
+      "updatedAt": "2026-10-14T09:31:49.507Z",
+      "restaurantId": "sub_1790630390550",
+      "unit": "قطعة",
+      "name": "توست",
+      "costPerUnit": 19000
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": -3,
+      "id": "ing_1791970367076",
+      "currentStock": 0,
+      "category": "cheeses",
+      "updatedAt": "2026-10-14T09:32:47.076Z",
+      "unit": "كيلوغرام (كغ)",
+      "costPerUnit": 50000,
+      "name": "زعتر"
+    },
+    {
+      "id": "ing_1791970483067",
+      "pieceUnitName": "رأس",
+      "pieceWeightUnit": "غرام (غ)",
+      "restaurantId": "sub_1790630390550",
+      "minStockThreshold": 5,
+      "costPerUnit": 27000,
+      "category": "canned",
+      "updatedAt": "2026-10-14T09:34:43.067Z",
+      "pieceWeight": 500,
+      "name": "مربى",
+      "unit": "قطعة",
+      "currentStock": 0
+    },
+    {
+      "costPerUnit": 5011,
+      "updatedAt": "2026-10-14T15:04:54.988Z",
+      "minStockThreshold": 5,
+      "id": "ing_1791990294988",
+      "currentStock": 0,
+      "name": "ريماس احمر",
+      "unit": "قطعة",
+      "category": "canned",
+      "restaurantId": "sub_1790630390550"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "rec_1790851481049",
+      "profitMargin": 38.3,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 23000,
+      "items": [
+        {
+          "ingredientName": "كروسان فارغ",
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "quantity": "30",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "20"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850910846",
+          "quantity": "12",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)",
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "quantity": "9",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط"
+        }
+      ],
+      "calculatedCost": 15426,
+      "productId": "prod_1790673264056"
+    },
+    {
+      "calculatedCost": 16355,
+      "suggestedPrice": 25000,
+      "productId": "prod_1790673310904",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 34.6,
+      "id": "rec_1790853634929",
+      "items": [
+        {
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "ingredientName": "جبنة قشقوان",
+          "ingredientId": "ing_1790766207257",
+          "quantity": "20",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "quantity": "12"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "quantity": "45"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "quantity": "9"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        }
+      ]
+    },
+    {
+      "calculatedCost": 17294,
+      "suggestedPrice": 26000,
+      "productId": "prod_1790673324496",
+      "profitMargin": 30.8,
+      "restaurantId": "sub_1790630390550",
+      "id": "rec_1790854610596",
+      "items": [
+        {
+          "ingredientId": "ing_1790762470262",
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientName": "حبش"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "10",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "quantity": "10",
+          "ingredientName": "سلامي",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762800482"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "quantity": "45",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف",
+          "quantity": "9",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "كروسان فارغ",
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة",
+          "quantity": "1"
+        }
+      ]
+    },
+    {
+      "profitMargin": 19.3,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 39000,
+      "calculatedCost": 25827,
+      "productId": "prod_1790690217081",
+      "id": "rec_1790854835532",
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "quantity": 20,
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235",
+          "quantity": 10
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "سلامي",
+          "ingredientId": "ing_1790762800482",
+          "quantity": 10
+        },
+        {
+          "ingredientName": "هوت دوغ",
+          "unit": "غرام (غ)",
+          "quantity": 1,
+          "ingredientId": "ing_1790762923965"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "quantity": 20,
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة",
+          "quantity": 1,
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "quantity": 7,
+          "ingredientName": "خس"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": 12
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": 12
+        },
+        {
+          "quantity": 12,
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "quantity": 45,
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": 9,
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف",
+          "quantity": 9,
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "quantity": 7,
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        }
+      ],
+      "updatedAt": "2026-10-10T10:20:39.694Z"
+    },
+    {
+      "id": "rec_1790854968099",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": -4.8,
+      "calculatedCost": 20951,
+      "productId": "prod_1790690242272",
+      "suggestedPrice": 31000,
+      "items": [
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790762973858",
+          "unit": "غرام (غ)",
+          "ingredientName": "مرتديلا"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار اخضر",
+          "ingredientId": "ing_1790851010333"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "9",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762470262",
+          "quantity": 100,
+          "ingredientName": "حبش"
+        }
+      ]
+    },
+    {
+      "items": [
+        {
+          "ingredientName": "جبنة مسنرة",
+          "unit": "غرام (غ)",
+          "quantity": "70",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "خيار اخضر",
+          "ingredientId": "ing_1790851010333"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ",
+          "unit": "قطعة"
+        },
+        {
+          "quantity": "9",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ],
+      "calculatedCost": 14658,
+      "id": "rec_1790855421541",
+      "suggestedPrice": 22000,
+      "productId": "prod_1790690266572",
+      "profitMargin": 26.7,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "suggestedPrice": 21000,
+      "productId": "prod_1790690282614",
+      "items": [
+        {
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763205027",
+          "quantity": "40",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "ingredientName": "خيار اخضر",
+          "quantity": "12",
+          "ingredientId": "ing_1790851010333",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        }
+      ],
+      "calculatedCost": 13776,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 31.1,
+      "id": "rec_1790855671784"
+    },
+    {
+      "productId": "prod_1790690318671",
+      "id": "rec_1790938986999",
+      "items": [
+        {
+          "ingredientName": "كروسان فارغ",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة"
+        },
+        {
+          "ingredientName": "لبنة",
+          "unit": "غرام (غ)",
+          "quantity": "200",
+          "ingredientId": "ing_1790882886534"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790851010333",
+          "ingredientName": "خيار اخضر",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "بندورة",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع"
+        }
+      ],
+      "suggestedPrice": 18000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 25.4,
+      "calculatedCost": 11932
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 32.3,
+      "id": "rec_1790939361968",
+      "suggestedPrice": 22000,
+      "productId": "prod_1790690358197",
+      "items": [
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "quantity": "50",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "ingredientName": "مرتديلا",
+          "ingredientId": "ing_1790762973858",
+          "quantity": "40",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "9",
+          "ingredientName": "كياس ورق وسط"
+        }
+      ],
+      "calculatedCost": 14902
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.4,
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "unit": "قطعة",
+          "ingredientName": "بيض",
+          "ingredientId": "ing_1790883805657",
+          "quantity": "2"
+        },
+        {
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "quantity": "45"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "quantity": "20"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7"
+        }
+      ],
+      "suggestedPrice": 23000,
+      "productId": "prod_1790690380952",
+      "calculatedCost": 15314,
+      "id": "rec_1790955116010"
+    },
+    {
+      "suggestedPrice": 32000,
+      "items": [
+        {
+          "quantity": "2",
+          "ingredientName": "بيض",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790883805657"
+        },
+        {
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "quantity": "7",
+          "ingredientName": "خس"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790850910846",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientId": "ing_1790763259311",
+          "quantity": "1",
+          "ingredientName": "كروسان فارغ",
+          "unit": "قطعة"
+        },
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)",
+          "ingredientName": "حبش"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار"
+        },
+        {
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262",
+          "quantity": "30",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "calculatedCost": 21404,
+      "profitMargin": 33.1,
+      "restaurantId": "sub_1790630390550",
+      "id": "rec_1790955379922",
+      "productId": "prod_1790690400651"
+    },
+    {
+      "id": "rec_1790956078713",
+      "suggestedPrice": 23000,
+      "profitMargin": 34,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 15177,
+      "items": [
+        {
+          "quantity": "200",
+          "ingredientId": "ing_1790882886534",
+          "ingredientName": "لبنة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790762973858",
+          "ingredientName": "مرتديلا",
+          "quantity": "45",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ],
+      "productId": "prod_1790690460956"
+    },
+    {
+      "calculatedCost": 47506,
+      "suggestedPrice": 71000,
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "ingredientName": "سلامي",
+          "ingredientId": "ing_1790762800482",
+          "unit": "غرام (غ)",
+          "quantity": "30"
+        },
+        {
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": 100
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "quantity": 100
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262",
+          "quantity": 100
+        }
+      ],
+      "id": "rec_1790853471434",
+      "productId": "prod_1790673296246",
+      "profitMargin": -82.7,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "calculatedCost": 9627,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 35.8,
+      "suggestedPrice": 14000,
+      "productId": "prod_1790712701827",
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "quantity": "20",
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "quantity": "10",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790762800482",
+          "quantity": "10",
+          "ingredientName": "سلامي",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "quantity": "35",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ],
+      "id": "rec_1790975294251"
+    },
+    {
+      "productId": "prod_1790712684258",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 42.1,
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762759235",
+          "ingredientName": "روستو",
+          "quantity": "30"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "quantity": "20",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "quantity": "35"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "id": "rec_1790975445581",
+      "suggestedPrice": 13000,
+      "calculatedCost": 8688
+    },
+    {
+      "calculatedCost": 19538,
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "سلامي",
+          "ingredientId": "ing_1790762800482",
+          "quantity": "30"
+        },
+        {
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "quantity": "7"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "quantity": "35",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        },
+        {
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": 100,
+          "ingredientId": "ing_1790762470262"
+        }
+      ],
+      "suggestedPrice": 29000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": -30.3,
+      "productId": "prod_1790712652384",
+      "id": "rec_1790975627502"
+    },
+    {
+      "items": [
+        {
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientName": "حبش"
+        },
+        {
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "quantity": "7"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "quantity": "35",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق صغار"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف",
+          "quantity": "9"
+        }
+      ],
+      "profitMargin": 47.8,
+      "restaurantId": "sub_1790630390550",
+      "productId": "prod_1790712633806",
+      "suggestedPrice": 12000,
+      "calculatedCost": 7826,
+      "id": "rec_1790975752058"
+    },
+    {
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "quantity": "60"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "خيار اخضر",
+          "ingredientId": "ing_1790851010333"
+        },
+        {
+          "ingredientId": "ing_1790763507252",
+          "ingredientName": "كياس ورق كبار",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع"
+        }
+      ],
+      "productId": "prod_1790712758145",
+      "profitMargin": 33.9,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 10000,
+      "id": "rec_1791026231292",
+      "calculatedCost": 6608
+    },
+    {
+      "profitMargin": 33.5,
+      "restaurantId": "sub_1790630390550",
+      "productId": "prod_1790690555905",
+      "items": [
+        {
+          "ingredientId": "ing_1790970995175",
+          "ingredientName": "لحمة سجق",
+          "unit": "غرام (غ)",
+          "quantity": "60"
+        },
+        {
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة",
+          "unit": "غرام (غ)",
+          "quantity": "35"
+        },
+        {
+          "ingredientName": "كروسان فارغ",
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        }
+      ],
+      "suggestedPrice": 35000,
+      "id": "rec_1791026482817",
+      "calculatedCost": 23287
+    },
+    {
+      "id": "rec_1791026615560",
+      "suggestedPrice": 21000,
+      "profitMargin": 37.7,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 13708,
+      "productId": "prod_1790710141885",
+      "items": [
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة",
+          "quantity": "40"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "20"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "خيار اخضر",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851010333"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        }
+      ]
+    },
+    {
+      "suggestedPrice": 33000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.6,
+      "id": "rec_1791026757042",
+      "calculatedCost": 21926,
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "quantity": "150",
+          "ingredientName": "نوتيلا",
+          "ingredientId": "ing_1790971426144"
+        },
+        {
+          "quantity": "1",
+          "ingredientName": "كروسان فارغ",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "quantity": "9"
+        }
+      ],
+      "productId": "prod_1790710334684"
+    },
+    {
+      "calculatedCost": 14352,
+      "suggestedPrice": 22000,
+      "id": "rec_1791027105442",
+      "productId": "prod_1790710445462",
+      "items": [
+        {
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "65",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كروسان فارغ",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790763259311",
+          "quantity": "1"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851010333",
+          "ingredientName": "خيار اخضر"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        }
+      ],
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 34.8
+    },
+    {
+      "updatedAt": "2026-10-10T10:12:31.206Z",
+      "suggestedPrice": 34000,
+      "profitMargin": 8.2,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 22944,
+      "id": "rec_1790854603127",
+      "items": [
+        {
+          "quantity": 7,
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة",
+          "quantity": 12,
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": 12,
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": 12,
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)",
+          "quantity": 20
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": 20,
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": 1,
+          "ingredientId": "ing_1790762923965",
+          "ingredientName": "هوت دوغ"
+        },
+        {
+          "quantity": 45,
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": 9,
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "quantity": 9,
+          "ingredientName": "ورق لف"
+        },
+        {
+          "quantity": 7,
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كروسان فارغ",
+          "quantity": 1,
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة"
+        }
+      ],
+      "productId": "prod_1790673353552"
+    },
+    {
+      "profitMargin": 39.7,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 27000,
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "quantity": "40",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "20",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "ingredientName": "حبش",
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1791040368179",
+          "ingredientName": "شيدر",
+          "quantity": "1",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "id": "rec_1791063314330",
+      "calculatedCost": 18105,
+      "productId": "prod_1790690427150"
+    },
+    {
+      "suggestedPrice": 30000,
+      "calculatedCost": 19973,
+      "items": [
+        {
+          "ingredientId": "ing_1790763205027",
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "ingredientId": "ing_1791040368179",
+          "quantity": "1",
+          "unit": "غرام (غ)",
+          "ingredientName": "شيدر"
+        },
+        {
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)",
+          "ingredientName": "حبش",
+          "quantity": "20"
+        },
+        {
+          "quantity": "10",
+          "unit": "غرام (غ)",
+          "ingredientName": "سلامي",
+          "ingredientId": "ing_1790762800482"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "10",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كروسان فارغ",
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790763259311"
+        }
+      ],
+      "productId": "prod_1790710093524",
+      "profitMargin": 33.4,
+      "id": "rec_1791063636639",
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 32.6,
+      "id": "rec_1791063917095",
+      "productId": "prod_1790710118950",
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "ingredientName": "شيدر",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1791040368179",
+          "quantity": "1"
+        },
+        {
+          "ingredientId": "ing_1790762973858",
+          "ingredientName": "مرتديلا",
+          "unit": "غرام (غ)",
+          "quantity": "40"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "9"
+        }
+      ],
+      "suggestedPrice": 25000,
+      "calculatedCost": 16860
+    },
+    {
+      "items": [
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1790763259311",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766207257",
+          "quantity": "20",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "شيدر",
+          "quantity": "1",
+          "ingredientId": "ing_1791040368179"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "productId": "prod_1790712577257",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 34.5,
+      "id": "rec_1791064259938",
+      "calculatedCost": 15060,
+      "suggestedPrice": 23000
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.1,
+      "id": "rec_1791064964951",
+      "suggestedPrice": 7000,
+      "calculatedCost": 4680,
+      "items": [
+        {
+          "ingredientId": "ing_1790970953051",
+          "ingredientName": "دجاج",
+          "unit": "غرام (غ)",
+          "quantity": "78"
+        }
+      ],
+      "productId": "prod_1790712222089"
+    },
+    {
+      "productId": "prod_1790712177071",
+      "suggestedPrice": 12000,
+      "items": [
+        {
+          "quantity": 100,
+          "unit": "غرام (غ)",
+          "ingredientName": "تفاح",
+          "ingredientId": "ing_1791040471681"
+        },
+        {
+          "ingredientName": "دراق",
+          "ingredientId": "ing_1791040398703",
+          "unit": "غرام (غ)",
+          "quantity": 100
+        },
+        {
+          "quantity": 100,
+          "ingredientName": "موز",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1791040443889"
+        }
+      ],
+      "profitMargin": 33.3,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 8000,
+      "id": "rec_1791065012618"
+    },
+    {
+      "id": "rec_1791065074033",
+      "suggestedPrice": 5000,
+      "profitMargin": 32,
+      "restaurantId": "sub_1790630390550",
+      "items": [
+        {
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027"
+        }
+      ],
+      "productId": "prod_1790712116209",
+      "calculatedCost": 3400
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.3,
+      "suggestedPrice": 3000,
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "quantity": "50"
+        }
+      ],
+      "calculatedCost": 2000,
+      "id": "rec_1791065200192",
+      "productId": "prod_1790712084205"
+    },
+    {
+      "id": "rec_1791065255249",
+      "productId": "prod_1790711988536",
+      "profitMargin": 34.6,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 12000,
+      "items": [
+        {
+          "ingredientId": "ing_1791040582674",
+          "quantity": "250",
+          "unit": "غرام (غ)",
+          "ingredientName": "رز"
+        },
+        {
+          "unit": "قطعة",
+          "ingredientName": "علب كرتون",
+          "ingredientId": "ing_1791054588709",
+          "quantity": "1"
+        }
+      ],
+      "calculatedCost": 7850
+    },
+    {
+      "suggestedPrice": 35000,
+      "id": "rec_1791065279774",
+      "calculatedCost": 23534,
+      "productId": "prod_1790712403782",
+      "profitMargin": 21.6,
+      "restaurantId": "sub_1790630390550",
+      "items": [
+        {
+          "unit": "قطعة",
+          "ingredientId": "ing_1791040617370",
+          "quantity": "1",
+          "ingredientName": "تونا"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "quantity": "7",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "quantity": "45",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7"
+        },
+        {
+          "ingredientId": "ing_1791064580941",
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "quantity": "1"
+        }
+      ]
+    },
+    {
+      "profitMargin": 62.4,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 20000,
+      "calculatedCost": 13160,
+      "items": [
+        {
+          "quantity": "120",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790970953051",
+          "ingredientName": "دجاج"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "فليفلة",
+          "quantity": "15",
+          "ingredientId": "ing_1791040512249"
+        },
+        {
+          "ingredientId": "ing_1791040368179",
+          "ingredientName": "شيدر",
+          "unit": "غرام (غ)",
+          "quantity": "1"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "20",
+          "ingredientName": "جبنة قشقوان",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "quantity": "30",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "productId": "prod_1790712356781",
+      "id": "rec_1791065307123"
+    },
+    {
+      "suggestedPrice": 31000,
+      "productId": "prod_1790712336561",
+      "calculatedCost": 20419,
+      "profitMargin": 41.7,
+      "restaurantId": "sub_1790630390550",
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "دجاج",
+          "ingredientId": "ing_1790970953051",
+          "quantity": "150"
+        },
+        {
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "1",
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941"
+        }
+      ],
+      "id": "rec_1791065340059"
+    },
+    {
+      "calculatedCost": 21520,
+      "productId": "prod_1790712035879",
+      "suggestedPrice": 32000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 32.8,
+      "id": "rec_1791065532525",
+      "items": [
+        {
+          "ingredientName": "تونا",
+          "quantity": "1",
+          "ingredientId": "ing_1791040617370",
+          "unit": "قطعة"
+        },
+        {
+          "ingredientId": "ing_1791054588709",
+          "ingredientName": "علب كرتون",
+          "unit": "قطعة",
+          "quantity": "1"
+        },
+        {
+          "ingredientName": "فليفلة",
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1791040512249"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "quantity": "80"
+        },
+        {
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "40",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "quantity": "50",
+          "unit": "غرام (غ)"
+        }
+      ]
+    },
+    {
+      "items": [
+        {
+          "ingredientId": "ing_1790970953051",
+          "unit": "غرام (غ)",
+          "ingredientName": "دجاج",
+          "quantity": "160"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "فليفلة",
+          "quantity": "20",
+          "ingredientId": "ing_1791040512249"
+        },
+        {
+          "ingredientName": "خس",
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "quantity": "40",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة"
+        },
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791054588709",
+          "ingredientName": "علب كرتون"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "quantity": "50",
+          "ingredientName": "مايونيز"
+        }
+      ],
+      "id": "rec_1791066493464",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 54.1,
+      "calculatedCost": 13770,
+      "suggestedPrice": 21000,
+      "productId": "prod_1790711957553"
+    },
+    {
+      "id": "rec_1791066687626",
+      "items": [
+        {
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "quantity": "50",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "بندورة",
+          "quantity": "20",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "فليفلة",
+          "quantity": "20",
+          "ingredientId": "ing_1791040512249"
+        },
+        {
+          "ingredientName": "خس",
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientId": "ing_1790970953051",
+          "ingredientName": "دجاج",
+          "quantity": "300",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "علب كرتون",
+          "quantity": "1",
+          "ingredientId": "ing_1791054588709",
+          "unit": "قطعة"
+        }
+      ],
+      "productId": "prod_1790711928721",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 51.1,
+      "calculatedCost": 22010,
+      "suggestedPrice": 33000
+    },
+    {
+      "calculatedCost": 16010,
+      "suggestedPrice": 24000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 54.3,
+      "id": "rec_1791066793355",
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790970953051",
+          "quantity": "200",
+          "ingredientName": "دجاج"
+        },
+        {
+          "ingredientId": "ing_1791040512249",
+          "quantity": "20",
+          "ingredientName": "فليفلة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "quantity": "20"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "40",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "quantity": "50",
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "قطعة",
+          "ingredientName": "علب كرتون",
+          "ingredientId": "ing_1791054588709",
+          "quantity": "1"
+        }
+      ],
+      "productId": "prod_1790711897126"
+    },
+    {
+      "id": "rec_1791067092488",
+      "productId": "prod_1790711411238",
+      "calculatedCost": 24527,
+      "suggestedPrice": 37000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 20.9,
+      "items": [
+        {
+          "ingredientId": "ing_1790762470262",
+          "quantity": "20",
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235",
+          "quantity": "10",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "10",
+          "ingredientName": "سلامي",
+          "ingredientId": "ing_1790762800482",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "0.1",
+          "unit": "كيس 15 قطعة",
+          "ingredientName": "هوت دوغ",
+          "ingredientId": "ing_1790762923965"
+        },
+        {
+          "quantity": "40",
+          "ingredientName": "جبنة مسنرة",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9"
+        }
+      ]
+    },
+    {
+      "calculatedCost": 19027,
+      "suggestedPrice": 29000,
+      "items": [
+        {
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "quantity": "20",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "روستو",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762759235",
+          "quantity": "10"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "سلامي",
+          "quantity": "10",
+          "ingredientId": "ing_1790762800482"
+        },
+        {
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)",
+          "quantity": "40"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "quantity": "7",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850910846",
+          "quantity": "12",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientName": "كروسان فارغ",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "quantity": "45",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 26.8,
+      "id": "rec_1791067223665",
+      "productId": "prod_1790711380476"
+    },
+    {
+      "items": [
+        {
+          "quantity": "70",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1"
+        },
+        {
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientName": "خيار اخضر",
+          "quantity": "12",
+          "ingredientId": "ing_1790851010333",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "profitMargin": 43.7,
+      "restaurantId": "sub_1790630390550",
+      "id": "rec_1791127014676",
+      "calculatedCost": 11258,
+      "suggestedPrice": 17000,
+      "productId": "prod_1790710467496"
+    },
+    {
+      "calculatedCost": 10908,
+      "suggestedPrice": 16000,
+      "productId": "prod_1790710483302",
+      "items": [
+        {
+          "quantity": "70",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "quantity": "1",
+          "ingredientId": "ing_1791064580941",
+          "ingredientName": "خبز",
+          "unit": "قطعة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة"
+        },
+        {
+          "ingredientId": "ing_1790851010333",
+          "ingredientName": "خيار اخضر",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "id": "rec_1791127138952",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 45.5
+    },
+    {
+      "calculatedCost": 9752,
+      "id": "rec_1791127270986",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 35,
+      "productId": "prod_1790710495776",
+      "suggestedPrice": 15000,
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "quantity": "200",
+          "ingredientId": "ing_1790882886534",
+          "ingredientName": "لبنة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        },
+        {
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة",
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        }
+      ]
+    },
+    {
+      "calculatedCost": 11958,
+      "items": [
+        {
+          "ingredientId": "ing_1791064580941",
+          "unit": "قطعة",
+          "ingredientName": "خبز",
+          "quantity": "1"
+        },
+        {
+          "quantity": "30",
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "50",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "خيار اخضر",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851010333"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "quantity": "9"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "productId": "prod_1790710511846",
+      "suggestedPrice": 18000,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 40.2,
+      "id": "rec_1791127447345"
+    },
+    {
+      "productId": "prod_1790710577787",
+      "suggestedPrice": 19000,
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "quantity": "40",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "quantity": "30",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "quantity": "1",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1791040368179",
+          "ingredientName": "شيدر"
+        },
+        {
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "ingredientName": "خبز",
+          "quantity": "1"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        }
+      ],
+      "calculatedCost": 12460,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 37.7,
+      "id": "rec_1791127578235"
+    },
+    {
+      "suggestedPrice": 27000,
+      "id": "rec_1791133591081",
+      "productId": "prod_1790711352886",
+      "calculatedCost": 18035,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.2,
+      "items": [
+        {
+          "ingredientId": "ing_1790763259311",
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "ingredientName": "روستو",
+          "quantity": "30",
+          "ingredientId": "ing_1790762759235",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)",
+          "quantity": "40",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "quantity": "1"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "45",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ]
+    },
+    {
+      "productId": "prod_1790711326240",
+      "profitMargin": 26.1,
+      "restaurantId": "sub_1790630390550",
+      "items": [
+        {
+          "ingredientId": "ing_1790763259311",
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762800482",
+          "ingredientName": "سلامي",
+          "quantity": "30"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة",
+          "quantity": "45"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "quantity": "7",
+          "ingredientName": "خس"
+        },
+        {
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "quantity": "45"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "quantity": "9"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        }
+      ],
+      "calculatedCost": 19213,
+      "suggestedPrice": 29000,
+      "id": "rec_1791133728233"
+    },
+    {
+      "items": [
+        {
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ",
+          "quantity": "1",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)",
+          "quantity": "45"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "quantity": "7"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "quantity": "45"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 32.4,
+      "productId": "prod_1790711304655",
+      "id": "rec_1791133889345",
+      "calculatedCost": 17584,
+      "suggestedPrice": 26000
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.9,
+      "calculatedCost": 19842,
+      "productId": "prod_1790711261185",
+      "items": [
+        {
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262",
+          "quantity": "30",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "سلامي",
+          "quantity": "10",
+          "ingredientId": "ing_1790762800482",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "روستو",
+          "quantity": "10",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)",
+          "quantity": "40",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس",
+          "quantity": "7"
+        },
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientName": "كروسان فارغ",
+          "ingredientId": "ing_1790763259311"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)",
+          "quantity": "40",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ],
+      "id": "rec_1791135755674",
+      "suggestedPrice": 30000
+    },
+    {
+      "id": "rec_1791135776288",
+      "suggestedPrice": 27000,
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941"
+        },
+        {
+          "ingredientName": "حبش",
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)",
+          "quantity": "30"
+        },
+        {
+          "quantity": "10",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "سلامي",
+          "quantity": "10",
+          "ingredientId": "ing_1790762800482",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة",
+          "unit": "غرام (غ)",
+          "quantity": "50"
+        },
+        {
+          "ingredientName": "هوت دوغ",
+          "quantity": "0.01",
+          "ingredientId": "ing_1790762923965",
+          "unit": "كيس 15 قطعة"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "quantity": "9"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874"
+        }
+      ],
+      "profitMargin": 41.8,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 18042,
+      "productId": "prod_1790711284785"
+    },
+    {
+      "productId": "prod_1790711245149",
+      "calculatedCost": 17373,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 33.2,
+      "suggestedPrice": 26000,
+      "id": "rec_1791136025991",
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "quantity": "30"
+        },
+        {
+          "ingredientId": "ing_1790762923965",
+          "quantity": "1",
+          "ingredientName": "هوت دوغ",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "1",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "quantity": "45",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)",
+          "quantity": "40"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        }
+      ]
+    },
+    {
+      "productId": "prod_1790711222538",
+      "id": "rec_1791136481671",
+      "suggestedPrice": 22000,
+      "items": [
+        {
+          "ingredientId": "ing_1790762759235",
+          "unit": "غرام (غ)",
+          "ingredientName": "روستو",
+          "quantity": "30"
+        },
+        {
+          "quantity": "40",
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941",
+          "unit": "قطعة",
+          "quantity": "1"
+        },
+        {
+          "ingredientName": "خس",
+          "quantity": "1",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "quantity": "12"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "45",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 43.7,
+      "calculatedCost": 14635
+    },
+    {
+      "items": [
+        {
+          "ingredientId": "ing_1790762800482",
+          "quantity": "30",
+          "ingredientName": "سلامي",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790763205027",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1",
+          "ingredientName": "خبز",
+          "unit": "قطعة"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "quantity": "12",
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "45",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "productId": "prod_1790711201003",
+      "id": "rec_1791136678155",
+      "suggestedPrice": 24000,
+      "calculatedCost": 15813,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 39.2
+    },
+    {
+      "suggestedPrice": 21000,
+      "profitMargin": 45.4,
+      "calculatedCost": 14184,
+      "restaurantId": "sub_1790630390550",
+      "items": [
+        {
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1"
+        },
+        {
+          "quantity": "45",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "quantity": "12",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ],
+      "productId": "prod_1790711172947",
+      "id": "rec_1791141534664"
+    },
+    {
+      "items": [
+        {
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1"
+        },
+        {
+          "quantity": "40",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763205027",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "1",
+          "ingredientName": "شيدر",
+          "ingredientId": "ing_1791040368179"
+        },
+        {
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762470262",
+          "quantity": "30"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "10",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "ingredientName": "سلامي",
+          "quantity": "10",
+          "ingredientId": "ing_1790762800482",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ],
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 38.7,
+      "id": "rec_1791141691318",
+      "calculatedCost": 18388,
+      "productId": "prod_1790711144728",
+      "suggestedPrice": 28000
+    },
+    {
+      "calculatedCost": 14460,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 34.3,
+      "id": "rec_1791141860091",
+      "productId": "prod_1790711052560",
+      "items": [
+        {
+          "ingredientName": "خبز",
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941"
+        },
+        {
+          "ingredientName": "شيدر",
+          "quantity": "1",
+          "ingredientId": "ing_1791040368179",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "جبنة قشقوان",
+          "quantity": "30",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "ingredientId": "ing_1790763205027",
+          "quantity": "45",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار"
+        },
+        {
+          "quantity": "35",
+          "ingredientId": "ing_1790762973858",
+          "ingredientName": "مرتديلا",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "suggestedPrice": 22000
+    },
+    {
+      "id": "rec_1791142715653",
+      "items": [
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "quantity": "30"
+        },
+        {
+          "quantity": "10",
+          "unit": "غرام (غ)",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "quantity": "10",
+          "ingredientId": "ing_1790762759235",
+          "ingredientName": "روستو",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "هوت دوغ",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762923965",
+          "quantity": "1"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "quantity": "20",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941",
+          "unit": "قطعة",
+          "quantity": "1"
+        },
+        {
+          "ingredientName": "خس",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        },
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "quantity": "9"
+        }
+      ],
+      "productId": "prod_1790710940923",
+      "suggestedPrice": 27000,
+      "calculatedCost": 18275,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 39.1
+    },
+    {
+      "suggestedPrice": 26000,
+      "id": "rec_1791143463527",
+      "items": [
+        {
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "quantity": "10",
+          "unit": "غرام (غ)",
+          "ingredientName": "روستو",
+          "ingredientId": "ing_1790762759235"
+        },
+        {
+          "ingredientName": "سلامي",
+          "ingredientId": "ing_1790762800482",
+          "quantity": "10",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)",
+          "quantity": 100
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1791064580941",
+          "ingredientName": "خبز"
+        }
+      ],
+      "calculatedCost": 17042,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 31.8,
+      "productId": "prod_1790710903298"
+    },
+    {
+      "profitMargin": 37.5,
+      "restaurantId": "sub_1790630390550",
+      "productId": "prod_1790710766279",
+      "items": [
+        {
+          "unit": "قطعة",
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "حبش",
+          "quantity": "30",
+          "ingredientId": "ing_1790762470262"
+        },
+        {
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "ingredientName": "هوت دوغ",
+          "quantity": "1",
+          "ingredientId": "ing_1790762923965",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس"
+        },
+        {
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "quantity": "45",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "quantity": "9",
+          "ingredientId": "ing_1790763567127"
+        }
+      ],
+      "suggestedPrice": 23000,
+      "calculatedCost": 15625,
+      "id": "rec_1791143610126"
+    },
+    {
+      "items": [
+        {
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "unit": "غرام (غ)",
+          "quantity": "40"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان",
+          "unit": "غرام (غ)",
+          "quantity": "20"
+        },
+        {
+          "ingredientName": "خس",
+          "quantity": "7",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)",
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "7"
+        },
+        {
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9"
+        },
+        {
+          "ingredientId": "ing_1791064580941",
+          "unit": "قطعة",
+          "ingredientName": "خبز",
+          "quantity": "1"
+        }
+      ],
+      "suggestedPrice": 19000,
+      "calculatedCost": 12974,
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 48.1,
+      "productId": "prod_1790710719369",
+      "id": "rec_1791144129006"
+    },
+    {
+      "calculatedCost": 15147,
+      "productId": "prod_1790710731305",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 39.4,
+      "items": [
+        {
+          "ingredientName": "سلامي",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762800482",
+          "quantity": "40"
+        },
+        {
+          "ingredientName": "جبنة قشقوان",
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "ingredientName": "خبز"
+        },
+        {
+          "quantity": "7",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)",
+          "ingredientName": "خس"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "ingredientName": "زيتون مقطع",
+          "quantity": "12"
+        },
+        {
+          "quantity": "45",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        }
+      ],
+      "suggestedPrice": 23000,
+      "id": "rec_1791144139206"
+    },
+    {
+      "calculatedCost": 14160,
+      "productId": "prod_1790710743042",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 43.4,
+      "suggestedPrice": 21000,
+      "id": "rec_1791144147118",
+      "items": [
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791064580941",
+          "ingredientName": "خبز"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "40",
+          "ingredientId": "ing_1790762759235",
+          "ingredientName": "روستو"
+        },
+        {
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "1",
+          "ingredientName": "خس",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة",
+          "quantity": "12",
+          "ingredientId": "ing_1790850877882"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850910846",
+          "ingredientName": "خيار كبيس"
+        },
+        {
+          "ingredientName": "زيتون مقطع",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766309874",
+          "ingredientName": "مايونيز",
+          "quantity": "45"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "quantity": "7",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "9",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار"
+        }
+      ]
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 43.5,
+      "suggestedPrice": 25000,
+      "id": "rec_1791144383921",
+      "productId": "prod_1790710995088",
+      "items": [
+        {
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientName": "خبز"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة مسنرة",
+          "ingredientId": "ing_1790763205027",
+          "quantity": "45"
+        },
+        {
+          "quantity": "1",
+          "unit": "غرام (غ)",
+          "ingredientName": "شيدر",
+          "ingredientId": "ing_1791040368179"
+        },
+        {
+          "ingredientId": "ing_1790766207257",
+          "unit": "غرام (غ)",
+          "quantity": "30",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "quantity": "40",
+          "ingredientId": "ing_1790762470262",
+          "unit": "غرام (غ)",
+          "ingredientName": "حبش"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "ingredientName": "ورق لف",
+          "unit": "غرام (غ)",
+          "quantity": "7"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        }
+      ],
+      "calculatedCost": 16945
+    },
+    {
+      "id": "rec_1791144544781",
+      "profitMargin": 42.7,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 14906,
+      "productId": "prod_1790710675916",
+      "items": [
+        {
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941"
+        },
+        {
+          "ingredientId": "ing_1790883805657",
+          "unit": "قطعة",
+          "ingredientName": "بيض",
+          "quantity": "2"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790762470262",
+          "ingredientName": "حبش",
+          "quantity": "30"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "جبنة قشقوان",
+          "quantity": "20",
+          "ingredientId": "ing_1790766207257"
+        },
+        {
+          "ingredientId": "ing_1790851042258",
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "quantity": "1"
+        },
+        {
+          "ingredientName": "بندورة",
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "ingredientId": "ing_1790763115440",
+          "unit": "غرام (غ)",
+          "quantity": "12",
+          "ingredientName": "زيتون مقطع"
+        },
+        {
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)",
+          "quantity": "12"
+        },
+        {
+          "quantity": "45",
+          "ingredientId": "ing_1790766309874",
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز"
+        },
+        {
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "ورق لف"
+        },
+        {
+          "ingredientName": "كياس ورق وسط",
+          "quantity": "7",
+          "ingredientId": "ing_1790763540244",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763567127",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        }
+      ],
+      "suggestedPrice": 22000
+    },
+    {
+      "items": [
+        {
+          "ingredientId": "ing_1790883805657",
+          "unit": "قطعة",
+          "quantity": "2",
+          "ingredientName": "بيض"
+        },
+        {
+          "quantity": "20",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766207257",
+          "ingredientName": "جبنة قشقوان"
+        },
+        {
+          "ingredientName": "خبز",
+          "ingredientId": "ing_1791064580941",
+          "quantity": "1",
+          "unit": "قطعة"
+        },
+        {
+          "ingredientName": "خس",
+          "quantity": "7",
+          "ingredientId": "ing_1790851042258",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790850877882",
+          "ingredientName": "بندورة"
+        },
+        {
+          "quantity": "12",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846",
+          "unit": "غرام (غ)"
+        },
+        {
+          "unit": "غرام (غ)",
+          "ingredientName": "زيتون مقطع",
+          "ingredientId": "ing_1790763115440",
+          "quantity": "12"
+        },
+        {
+          "quantity": "45",
+          "ingredientName": "مايونيز",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "quantity": "7",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790763540244",
+          "quantity": "7",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق وسط"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "quantity": "9",
+          "ingredientName": "كياس ورق صغار",
+          "unit": "غرام (غ)"
+        }
+      ],
+      "suggestedPrice": 18000,
+      "calculatedCost": 11914,
+      "productId": "prod_1790710649668",
+      "id": "rec_1791145885571",
+      "profitMargin": 33.8,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "suggestedPrice": 33000,
+      "calculatedCost": 22312,
+      "profitMargin": 32.4,
+      "restaurantId": "sub_1790630390550",
+      "productId": "prod_1790710972649",
+      "items": [
+        {
+          "ingredientName": "خبز",
+          "unit": "قطعة",
+          "quantity": "1",
+          "ingredientId": "ing_1791064580941"
+        },
+        {
+          "unit": "غرام (غ)",
+          "quantity": "70",
+          "ingredientName": "لحمة سجق",
+          "ingredientId": "ing_1790970995175"
+        },
+        {
+          "ingredientId": "ing_1790763205027",
+          "quantity": "40",
+          "ingredientName": "جبنة مسنرة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "quantity": "12",
+          "ingredientName": "بندورة",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "12",
+          "unit": "غرام (غ)",
+          "ingredientName": "خيار كبيس",
+          "ingredientId": "ing_1790850910846"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "ورق لف",
+          "ingredientId": "ing_1790763480080",
+          "unit": "غرام (غ)"
+        },
+        {
+          "quantity": "7",
+          "ingredientName": "كياس ورق وسط",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790763540244"
+        },
+        {
+          "ingredientId": "ing_1790763567127",
+          "unit": "غرام (غ)",
+          "ingredientName": "كياس ورق صغار",
+          "quantity": "9"
+        }
+      ],
+      "id": "rec_1791146038399"
+    },
+    {
+      "calculatedCost": 3300,
+      "id": "rec_1791330227200",
+      "productId": "prod_1790711830040",
+      "suggestedPrice": 5000,
+      "profitMargin": 34,
+      "restaurantId": "sub_1790630390550",
+      "items": [
+        {
+          "ingredientName": "مي",
+          "ingredientId": "ing_1791330189302",
+          "quantity": "1",
+          "unit": "قطعة"
+        }
+      ]
+    },
+    {
+      "calculatedCost": 0,
+      "items": [
+        {
+          "ingredientName": "ميلو",
+          "ingredientId": "ing_1791330145880",
+          "quantity": "1",
+          "unit": "قطعة"
+        }
+      ],
+      "id": "rec_1791330264911",
+      "profitMargin": 100,
+      "restaurantId": "sub_1790630390550",
+      "productId": "prod_1790711849640",
+      "suggestedPrice": 0
+    },
+    {
+      "id": "rec_1791330364607",
+      "productId": "prod_1790711812272",
+      "calculatedCost": 0,
+      "suggestedPrice": 0,
+      "items": [
+        {
+          "ingredientName": "راني",
+          "ingredientId": "ing_1791330337263",
+          "quantity": "1",
+          "unit": "قطعة"
+        }
+      ],
+      "profitMargin": 100,
+      "restaurantId": "sub_1790630390550"
+    },
+    {
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 54,
+      "items": [
+        {
+          "quantity": "1",
+          "unit": "قطعة",
+          "ingredientName": "تنك ميني",
+          "ingredientId": "ing_1791330036272"
+        }
+      ],
+      "suggestedPrice": 3000,
+      "productId": "prod_1790711652058",
+      "id": "rec_1791330405865",
+      "calculatedCost": 2300
+    },
+    {
+      "calculatedCost": 4200,
+      "id": "rec_1791330458757",
+      "profitMargin": 40,
+      "restaurantId": "sub_1790630390550",
+      "suggestedPrice": 6000,
+      "items": [
+        {
+          "quantity": "1",
+          "ingredientName": "تنك كبير",
+          "ingredientId": "ing_1791330107036",
+          "unit": "قطعة"
+        }
+      ],
+      "productId": "prod_1790711767836"
+    },
+    {
+      "profitMargin": 36.2,
+      "restaurantId": "sub_1790630390550",
+      "productId": "prod_1790711496356",
+      "suggestedPrice": 5000,
+      "updatedAt": "2026-10-09T11:02:23.872Z",
+      "items": [
+        {
+          "ingredientId": "ing_1791542523465",
+          "unit": "قطعة",
+          "quantity": 1,
+          "ingredientName": "كيك ريماس"
+        }
+      ],
+      "id": "rec_prod_1790711496356",
+      "calculatedCost": 3191
+    },
+    {
+      "items": [
+        {
+          "ingredientName": "تنك 330",
+          "ingredientId": "ing_1791543729689",
+          "quantity": 1,
+          "unit": "قطعة"
+        }
+      ],
+      "updatedAt": "2026-10-09T11:03:07.096Z",
+      "suggestedPrice": 8000,
+      "calculatedCost": 5221,
+      "id": "rec_prod_1790711791030",
+      "restaurantId": "sub_1790630390550",
+      "profitMargin": 34.7,
+      "productId": "prod_1790711791030"
+    },
+    {
+      "suggestedPrice": 37000,
+      "profitMargin": 38,
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-12T15:10:31.025Z",
+      "calculatedCost": 24810,
+      "productId": "prod_1791817644533",
+      "items": [
+        {
+          "ingredientName": "دجاج",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790970953051",
+          "quantity": 250
+        },
+        {
+          "ingredientName": "علب كرتون",
+          "unit": "قطعة",
+          "ingredientId": "ing_1791054588709",
+          "quantity": 1
+        },
+        {
+          "quantity": 50,
+          "unit": "غرام (غ)",
+          "ingredientName": "مايونيز",
+          "ingredientId": "ing_1790766309874"
+        },
+        {
+          "quantity": 40,
+          "ingredientName": "خس",
+          "unit": "غرام (غ)",
+          "ingredientId": "ing_1790851042258"
+        },
+        {
+          "ingredientId": "ing_1790850877882",
+          "unit": "غرام (غ)",
+          "ingredientName": "بندورة",
+          "quantity": 20
+        },
+        {
+          "ingredientId": "ing_1791542204699",
+          "ingredientName": "فليفلة",
+          "unit": "غرام (غ)",
+          "quantity": 20
+        },
+        {
+          "quantity": 20,
+          "ingredientId": "ing_1791195094545",
+          "unit": "غرام (غ)",
+          "ingredientName": "ذرة"
+        }
+      ],
+      "id": "rec_prod_1791817644533"
+    },
+    {
+      "productId": "prod_1790711559311",
+      "suggestedPrice": 16000,
+      "calculatedCost": 10500,
+      "profitMargin": 30,
+      "restaurantId": "sub_1790630390550",
+      "updatedAt": "2026-10-13T13:15:15.373Z",
+      "id": "rec_prod_1790711559311",
+      "items": [
+        {
+          "quantity": 1,
+          "unit": "قطعة",
+          "ingredientName": "نوتيلا ميني",
+          "ingredientId": "ing_1791897285607"
+        }
+      ]
+    },
+    {
+      "productId": "prod_1791990219950",
+      "profitMargin": 28.4,
+      "restaurantId": "sub_1790630390550",
+      "calculatedCost": 5011,
+      "suggestedPrice": 8000,
+      "items": [
+        {
+          "unit": "قطعة",
+          "ingredientName": "ريماس احمر",
+          "quantity": 1,
+          "ingredientId": "ing_1791990294988"
+        }
+      ],
+      "updatedAt": "2026-10-14T15:05:24.139Z",
+      "id": "rec_prod_1791990219950"
+    }
+  ]
+}

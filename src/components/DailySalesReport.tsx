@@ -57,20 +57,8 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
     products,
     currentUser,
     isPlatformOwner,
-    activeShiftRole,
-    syncCloudNow,
-    isCloudSynced
+    activeShiftRole
   } = useData();
-  const [isSyncingOrders, setIsSyncingOrders] = useState(false);
-
-  const handleManualSyncOrders = async () => {
-    setIsSyncingOrders(true);
-    try {
-      await syncCloudNow();
-    } finally {
-      setTimeout(() => setIsSyncingOrders(false), 600);
-    }
-  };
 
   const toLocalDateKey = (isoOrDateStr: string): string => {
     if (!isoOrDateStr) return '';
@@ -700,17 +688,6 @@ export const DailySalesReport: React.FC<DailySalesReportProps> = ({
             </button>
           </div>
 
-          {/* Cloud Sync Orders Button */}
-          <button
-            type="button"
-            onClick={handleManualSyncOrders}
-            disabled={isSyncingOrders}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md transition-all cursor-pointer active:scale-95"
-            title="مزامنة وتحديث كافة فواتير وطلبات الصندوق فوراً بين اللابتوب والموبايل"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingOrders || !isCloudSynced ? 'animate-spin' : ''}`} />
-            <span>{isSyncingOrders ? 'جاري مزامنة الطلبات...' : 'مزامنة الطلبات سحابياً ☁️'}</span>
-          </button>
 
           {/* Print Z-Report Modal Button */}
           <button

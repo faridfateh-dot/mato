@@ -27,19 +27,24 @@ export const PosView: React.FC = () => {
   const {
     products,
     categories,
+    ingredients,
     createOrder,
     currentRestaurant,
     currentBranch,
     recipes,
     orders,
     activeShiftRole,
+    recordWaste,
     recordProductWaste
   } = useData();
 
   const [showPosWasteModal, setShowPosWasteModal] = useState(false);
   const [posWasteForm, setPosWasteForm] = useState({
+    wasteType: 'ingredient' as 'ingredient' | 'product',
+    ingredientId: '',
     productId: '',
     quantity: '1',
+    unit: '',
     reason: 'تلف / خربان'
   });
   const [posWasteToast, setPosWasteToast] = useState<string | null>(null);
@@ -383,14 +388,22 @@ export const PosView: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setPosWasteForm({ productId: products[0]?.id || '', quantity: '1', reason: 'تلف / خربان' });
+              const defaultIng = ingredients[0];
+              setPosWasteForm({
+                wasteType: 'ingredient',
+                ingredientId: defaultIng?.id || '',
+                productId: products[0]?.id || '',
+                quantity: '1',
+                unit: defaultIng?.unit || 'كغ',
+                reason: 'تلف / خربان أو منتهي الصلاحية'
+              });
               setShowPosWasteModal(true);
             }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer active:scale-95"
-            title="تسجيل إتلاف وجبة أو قطعة خربانة (مثل كروسان)"
+            title="تسجيل إتلاف مواد أولية تالفة (جبنة، لبنة، كروسان، حليب، إلخ) وخصمها من المستودع"
           >
             <Trash2 className="w-4 h-4 text-rose-200" />
-            <span>تسجيل إتلاف وجبة 🗑️</span>
+            <span>تسجيل هدر / مواد تالفة 🗑️</span>
           </button>
 
           <button
@@ -1122,12 +1135,17 @@ export const PosView: React.FC = () => {
       {/* Quick Waste Registration Modal from POS */}
       {showPosWasteModal && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-xs">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-xs">
             <div className="p-4 sm:p-5 bg-rose-900 text-white flex items-center justify-between">
-              <h2 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-rose-300" />
-                <span>تسجيل إتلاف / هدر وجبة من الكاشير</span>
-              </h2>
+              <div>
+                <h2 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
+                  <Trash2 className="w-5 h-5 text-rose-300" />
+                  <span>تسجيل هدر / مواد تالفة من الكاشير</span>
+                </h2>
+                <p className="text-[11px] text-rose-200 mt-0.5 font-medium">
+                  تسجيل تلف المواد الخام (جبنة، لبنة، كروسان، حليب...) وخصمها من المستودع
+                </p>
+              </div>
               <button
                 onClick={() => setShowPosWasteModal(false)}
                 className="w-8 h-8 rounded-full bg-rose-800 hover:bg-rose-700 text-rose-200 hover:text-white flex items-center justify-center font-bold text-sm transition-all cursor-pointer"
@@ -1136,59 +1154,165 @@ export const PosView: React.FC = () => {
               </button>
             </div>
 
+            {/* Waste Type Switcher Tabs */}
+            <div className="p-3 bg-slate-100 border-b border-slate-200 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultIng = ingredients[0];
+                  setPosWasteForm(prev => ({
+                    ...prev,
+                    wasteType: 'ingredient',
+                    ingredientId: defaultIng?.id || '',
+                    unit: defaultIng?.unit || 'كغ'
+                  }));
+                }}
+                className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all cursor-pointer ${
+                  posWasteForm.wasteType === 'ingredient'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                📦 مواد خام / مستودع (جبنة، لبنة، كروسان، حليب...)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPosWasteForm(prev => ({
+                    ...prev,
+                    wasteType: 'product',
+                    productId: products[0]?.id || ''
+                  }));
+                }}
+                className={`py-2 px-3 rounded-xl font-black text-xs transition-all cursor-pointer ${
+                  posWasteForm.wasteType === 'product'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'bg-white text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                🍔 وجبة طعام مجهزة
+              </button>
+            </div>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                const prod = products.find(p => p.id === posWasteForm.productId);
-                if (!prod) return;
-                const qty = Math.max(1, Number(posWasteForm.quantity) || 1);
-                recordProductWaste(prod.id, qty, posWasteForm.reason);
-                setShowPosWasteModal(false);
-                setPosWasteToast(`تم تسجيل إتلاف ${qty} قطعة من "${prod.name}" بنجاح وخصم المكونات من المستودع!`);
-                setTimeout(() => setPosWasteToast(null), 4000);
+                const qty = Math.max(0.01, Number(posWasteForm.quantity) || 1);
+
+                if (posWasteForm.wasteType === 'ingredient') {
+                  const ing = ingredients.find(i => i.id === posWasteForm.ingredientId);
+                  if (!ing) return;
+                  const unitToUse = posWasteForm.unit || ing.unit;
+                  recordWaste(ing.id, qty, unitToUse, posWasteForm.reason);
+                  setShowPosWasteModal(false);
+                  setPosWasteToast(`تم تسجيل إتلاف ${qty} ${unitToUse} من "${ing.name}" وخصمها من المستودع بنجاح! 🗑️`);
+                  setTimeout(() => setPosWasteToast(null), 4500);
+                } else {
+                  const prod = products.find(p => p.id === posWasteForm.productId);
+                  if (!prod) return;
+                  recordProductWaste(prod.id, qty, posWasteForm.reason);
+                  setShowPosWasteModal(false);
+                  setPosWasteToast(`تم تسجيل إتلاف ${qty} قطعة من "${prod.name}" بنجاح وخصم المكونات من المستودع! 🗑️`);
+                  setTimeout(() => setPosWasteToast(null), 4500);
+                }
               }}
               className="p-5 space-y-4"
             >
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">اختر الوجبة / المنتج التالف *</label>
-                <select
-                  required
-                  value={posWasteForm.productId}
-                  onChange={e => setPosWasteForm({ ...posWasteForm, productId: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
-                >
-                  <option value="">-- اختر الوجبة (مثلاً: كروسان) --</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.price.toLocaleString()} {currentRestaurant.currency})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {posWasteForm.wasteType === 'ingredient' ? (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">اختر المادة التالفة من المستودع *</label>
+                    <select
+                      required
+                      value={posWasteForm.ingredientId}
+                      onChange={e => {
+                        const selIng = ingredients.find(i => i.id === e.target.value);
+                        setPosWasteForm({
+                          ...posWasteForm,
+                          ingredientId: e.target.value,
+                          unit: selIng?.unit || posWasteForm.unit
+                        });
+                      }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                    >
+                      <option value="">-- اختر المادة التالفة (جبنة، لبنة، كروسان، حليب...) --</option>
+                      {ingredients.map(ing => (
+                        <option key={ing.id} value={ing.id}>
+                          {ing.name} (المخزون الحالي: {ing.currentStock} {ing.unit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">الكمية التالفة *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    required
-                    value={posWasteForm.quantity}
-                    onChange={e => setPosWasteForm({ ...posWasteForm, quantity: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">الوحدة</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="قطعة / حبة"
-                    className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">الكمية التالفة *</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        required
+                        value={posWasteForm.quantity}
+                        onChange={e => setPosWasteForm({ ...posWasteForm, quantity: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">الوحدة</label>
+                      <input
+                        type="text"
+                        value={posWasteForm.unit}
+                        onChange={e => setPosWasteForm({ ...posWasteForm, unit: e.target.value })}
+                        placeholder="كغ / غرام / حبة..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold text-slate-800"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">اختر الوجبة التالفة *</label>
+                    <select
+                      required
+                      value={posWasteForm.productId}
+                      onChange={e => setPosWasteForm({ ...posWasteForm, productId: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                    >
+                      <option value="">-- اختر الوجبة المجهزة --</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.price.toLocaleString()} {currentRestaurant.currency})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">العدد التالف *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        required
+                        value={posWasteForm.quantity}
+                        onChange={e => setPosWasteForm({ ...posWasteForm, quantity: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">الوحدة</label>
+                      <input
+                        type="text"
+                        disabled
+                        value="قطعة / وجبة"
+                        className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">سبب الإتلاف</label>
@@ -1197,7 +1321,8 @@ export const PosView: React.FC = () => {
                   onChange={e => setPosWasteForm({ ...posWasteForm, reason: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-400 font-bold text-slate-800"
                 >
-                  <option value="تلف / خربان">تلف / خربان أو منتهي الصلاحية</option>
+                  <option value="تلف / خربان أو منتهي الصلاحية">تلف / خربان أو منتهي الصلاحية</option>
+                  <option value="عفن / فساد براد">عفن أو فساد في التبريد</option>
                   <option value="سقط أرضاً / تلوث">سقط أرضاً أو تلوث</option>
                   <option value="احتراق / خطأ بالتحضير">احتراق أو خطأ بالتحضير في المطبخ</option>
                   <option value="إلغاء زبون بعد التحضير">إلغاء الطلب بعد تجهيز الوجبة</option>
@@ -1206,7 +1331,7 @@ export const PosView: React.FC = () => {
               </div>
 
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-[11px] leading-relaxed">
-                ℹ️ <strong>ملاحظة للمحاسب:</strong> سيتم خصم مكونات هذه الوجبة تلقائياً من المستودع وفق بطاقة الوصفة وتسجيلها كخسارة هدر موثقة في تقرير الصندوق والمخزون دون التأثير على كاش الوردية.
+                ℹ️ <strong>ملاحظة للمحاسب:</strong> سيتم خصم الكمية التالفة فوراً من رصيد المستودع وتوثيقها كحركة هدر رسمية دون المساس بنقدية الصندوق (الكاش).
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
@@ -1221,7 +1346,7 @@ export const PosView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black shadow-md cursor-pointer"
                 >
-                  تأكيد إتلاف الوجبة
+                  تأكيد تسجيل الهدر والتلف
                 </button>
               </div>
             </form>

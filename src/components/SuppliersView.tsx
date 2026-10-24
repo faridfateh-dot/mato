@@ -65,37 +65,73 @@ export const SuppliersView: React.FC = () => {
 
   const toLocalDateKey = (isoOrDateStr: string): string => {
     if (!isoOrDateStr) return '';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(isoOrDateStr)) return isoOrDateStr;
-    const d = new Date(isoOrDateStr);
-    if (isNaN(d.getTime())) return isoOrDateStr.split('T')[0];
+    const clean = isoOrDateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+    const dmyMatch = clean.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dmyMatch) {
+      const [, day, month, year] = dmyMatch;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    const d = new Date(clean);
+    if (isNaN(d.getTime())) return clean.split('T')[0];
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
   // Helper to determine shift of a purchase record
-  const getPurchaseShift = (pur: { shiftRole?: string; date?: string }): 'cashier_morning' | 'cashier_evening' => {
+  const getPurchaseShift = (pur: { shiftRole?: string; date?: string; notes?: string }): 'cashier_morning' | 'cashier_evening' => {
     if (pur.shiftRole === 'cashier_morning') return 'cashier_morning';
     if (pur.shiftRole === 'cashier_evening') return 'cashier_evening';
+    if (pur.notes && (pur.notes.includes('مساء') || pur.notes.includes('مسائي') || pur.notes.includes('evening'))) return 'cashier_evening';
+    if (pur.notes && (pur.notes.includes('صباح') || pur.notes.includes('صباحي') || pur.notes.includes('morning'))) return 'cashier_morning';
     const hour = pur.date ? new Date(pur.date).getHours() : 12;
     return (hour >= 6 && hour < 16) ? 'cashier_morning' : 'cashier_evening';
   };
 
-  const dateFilteredPurchases = purchases.filter(pur => {
-    if (!selectedDateFilter) return true;
-    return toLocalDateKey(pur.date) === selectedDateFilter;
-  });
+  const allMorningPurchases = useMemo(() => purchases.filter(p => getPurchaseShift(p) === 'cashier_morning'), [purchases]);
+  const allEveningPurchases = useMemo(() => purchases.filter(p => getPurchaseShift(p) === 'cashier_evening'), [purchases]);
 
-  const filteredPurchases = dateFilteredPurchases.filter(pur => {
-    if (selectedShiftFilter === 'all') return true;
-    return getPurchaseShift(pur) === selectedShiftFilter;
-  });
+  const dateFilteredPurchases = useMemo(() => {
+    if (!selectedDateFilter) return purchases;
+    return purchases.filter(pur => toLocalDateKey(pur.date) === selectedDateFilter);
+  }, [purchases, selectedDateFilter]);
 
-  const morningPurchasesTotal = dateFilteredPurchases
-    .filter(p => getPurchaseShift(p) === 'cashier_morning')
-    .reduce((acc, p) => acc + p.totalAmount, 0);
+  const filteredPurchases = useMemo(() => {
+    return dateFilteredPurchases.filter(pur => {
+      if (selectedShiftFilter === 'all') return true;
+      return getPurchaseShift(pur) === selectedShiftFilter;
+    });
+  }, [dateFilteredPurchases, selectedShiftFilter]);
 
-  const eveningPurchasesTotal = dateFilteredPurchases
-    .filter(p => getPurchaseShift(p) === 'cashier_evening')
-    .reduce((acc, p) => acc + p.totalAmount, 0);
+  const morningPurchasesInDate = useMemo(() => {
+    return dateFilteredPurchases.filter(p => getPurchaseShift(p) === 'cashier_morning');
+  }, [dateFilteredPurchases]);
+
+  const eveningPurchasesInDate = useMemo(() => {
+    return dateFilteredPurchases.filter(p => getPurchaseShift(p) === 'cashier_evening');
+  }, [dateFilteredPurchases]);
+
+  const morningPurchasesTotal = useMemo(() => {
+    return morningPurchasesInDate.reduce((acc, p) => acc + p.totalAmount, 0);
+  }, [morningPurchasesInDate]);
+
+  const eveningPurchasesTotal = useMemo(() => {
+    return eveningPurchasesInDate.reduce((acc, p) => acc + p.totalAmount, 0);
+  }, [eveningPurchasesInDate]);
+
+  // Distinct dates with purchase records sorted newest first
+  const purchaseDatesList = useMemo(() => {
+    const map = new Map<string, { date: string; totalCount: number; morningCount: number; eveningCount: number }>();
+    purchases.forEach(p => {
+      const dKey = toLocalDateKey(p.date);
+      if (!dKey) return;
+      const existing = map.get(dKey) || { date: dKey, totalCount: 0, morningCount: 0, eveningCount: 0 };
+      existing.totalCount += 1;
+      if (getPurchaseShift(p) === 'cashier_morning') existing.morningCount += 1;
+      else existing.eveningCount += 1;
+      map.set(dKey, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [purchases]);
 
   const isDemoSupplierItem = (item: Supplier): boolean => {
     if (!item) return true;
@@ -406,37 +442,78 @@ export const SuppliersView: React.FC = () => {
                 }`}
               >
                 <Store className="w-3.5 h-3.5" />
-                <span>الكل ({dateFilteredPurchases.length})</span>
+                <span>الكل ({dateFilteredPurchases.length}{selectedDateFilter ? ` من ${purchases.length}` : ''})</span>
               </button>
 
-            <button
-              type="button"
-              onClick={() => setSelectedShiftFilter('cashier_morning')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
-                selectedShiftFilter === 'cashier_morning'
-                  ? 'bg-amber-400 text-slate-950 shadow'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <Sun className="w-3.5 h-3.5" />
-              <span>☀️ مشتريات الصباح ({morningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setSelectedShiftFilter('cashier_morning')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                  selectedShiftFilter === 'cashier_morning'
+                    ? 'bg-amber-400 text-slate-950 shadow'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5" />
+                <span>☀️ مشتريات الصباح ({morningPurchasesInDate.length} - {morningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setSelectedShiftFilter('cashier_evening')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
-                selectedShiftFilter === 'cashier_evening'
-                  ? 'bg-indigo-500 text-white shadow'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <Moon className="w-3.5 h-3.5" />
-              <span>🌙 مشتريات المساء ({eveningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setSelectedShiftFilter('cashier_evening')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-extrabold transition-all cursor-pointer ${
+                  selectedShiftFilter === 'cashier_evening'
+                    ? 'bg-indigo-500 text-white shadow'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5" />
+                <span>🌙 مشتريات المساء ({eveningPurchasesInDate.length} - {eveningPurchasesTotal.toLocaleString()} {currentRestaurant.currency})</span>
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Quick Past-Dates Chips Bar */}
+        {purchaseDatesList.length > 0 && (
+          <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200/80 flex items-center gap-2 overflow-x-auto text-[11px] no-scrollbar">
+            <span className="font-extrabold text-slate-500 shrink-0">أيام سابقة مسجل بها فواتير:</span>
+            <button
+              type="button"
+              onClick={() => setSelectedDateFilter('')}
+              className={`px-3 py-1 rounded-xl font-black transition-all cursor-pointer shrink-0 ${
+                !selectedDateFilter
+                  ? 'bg-amber-400 text-slate-950 shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+              }`}
+            >
+              جميع الأيام ({purchases.length} فاتورة)
+            </button>
+            {purchaseDatesList.slice(0, 12).map(dItem => {
+              const isSelected = selectedDateFilter === dItem.date;
+              return (
+                <button
+                  key={dItem.date}
+                  type="button"
+                  onClick={() => setSelectedDateFilter(dItem.date)}
+                  className={`px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                  title={`${dItem.date}: صباحي (${dItem.morningCount}) - مسائي (${dItem.eveningCount})`}
+                >
+                  <span>{dItem.date}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                    isSelected ? 'bg-slate-800 text-amber-300' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {dItem.totalCount} {dItem.eveningCount > 0 ? `(🌙${dItem.eveningCount})` : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs">
@@ -454,8 +531,94 @@ export const SuppliersView: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
               {filteredPurchases.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400 font-bold">
-                    لا توجد فواتير شراء مسجلة في هذه الوردية بعد
+                  <td colSpan={7} className="p-8 text-center">
+                    <div className="max-w-md mx-auto space-y-3 py-4">
+                      {selectedShiftFilter === 'cashier_evening' ? (
+                        <>
+                          <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-500 flex items-center justify-center mx-auto shadow-sm">
+                            <Moon className="w-6 h-6" />
+                          </div>
+                          <div className="text-slate-800 font-extrabold text-sm">
+                            {selectedDateFilter
+                              ? `لا توجد فواتير مشتريات مسائية مسجلة بتاريخ (${selectedDateFilter})`
+                              : 'لا توجد فواتير مشتريات مسائية مسجلة'}
+                          </div>
+                          {allEveningPurchases.length > 0 && selectedDateFilter && (
+                            <div className="space-y-2">
+                              <p className="text-xs text-slate-500">
+                                ℹ️ يوجد لديك إجمالي <strong>{allEveningPurchases.length} فاتورة مشتريات مسائية</strong> محفوظة في أيام سابقة.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDateFilter('')}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
+                              >
+                                <Moon className="w-3.5 h-3.5" />
+                                <span>عرض كافة مشتريات المساء لجميع الأيام ({allEveningPurchases.length} فاتورة) 🌙</span>
+                              </button>
+                            </div>
+                          )}
+                          {morningPurchasesInDate.length > 0 && (
+                            <div className="pt-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedShiftFilter('cashier_morning')}
+                                className="px-3.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold rounded-xl text-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                <Sun className="w-3.5 h-3.5 text-amber-600" />
+                                <span>عرض مشتريات الصباح لهذا اليوم ({morningPurchasesInDate.length} فاتورة)</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : selectedShiftFilter === 'cashier_morning' ? (
+                        <>
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
+                            <Sun className="w-6 h-6" />
+                          </div>
+                          <div className="text-slate-800 font-extrabold text-sm">
+                            {selectedDateFilter
+                              ? `لا توجد فواتير مشتريات صباحية مسجلة بتاريخ (${selectedDateFilter})`
+                              : 'لا توجد فواتير مشتريات صباحية مسجلة'}
+                          </div>
+                          {allMorningPurchases.length > 0 && selectedDateFilter && (
+                            <div className="space-y-2">
+                              <p className="text-xs text-slate-500">
+                                يوجد لديك إجمالي <strong>{allMorningPurchases.length} فاتورة صباحية</strong> في أيام سابقة.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDateFilter('')}
+                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
+                              >
+                                <Sun className="w-3.5 h-3.5" />
+                                <span>عرض كافة مشتريات الصباح لجميع الأيام ({allMorningPurchases.length} فاتورة) ☀️</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 flex items-center justify-center mx-auto shadow-sm">
+                            <Store className="w-6 h-6" />
+                          </div>
+                          <div className="text-slate-700 font-extrabold text-sm">
+                            {selectedDateFilter
+                              ? `لا توجد فواتير مشتريات مسجلة بتاريخ (${selectedDateFilter})`
+                              : 'لا توجد فواتير شراء مسجلة بعد'}
+                          </div>
+                          {purchases.length > 0 && selectedDateFilter && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDateFilter('')}
+                              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                            >
+                              عرض فواتير كافة التواريخ ({purchases.length} فاتورة)
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
